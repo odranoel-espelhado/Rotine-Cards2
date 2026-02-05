@@ -140,7 +140,8 @@ export default function DashboardClient({
                     {/* ... Timeline ... */}
                     <div className="flex-1 flex flex-col border-r border-white/5 relative">
                         {/* Day Carousel */}
-                        <div className={cn("h-24 w-full border-b border-white/5 flex items-center gap-2 overflow-x-auto px-4 no-scrollbar bg-[#050506] transition-all", focusMode ? "opacity-20 pointer-events-none grayscale" : "")}>
+                        {/* Day Carousel */}
+                        <div className={cn("h-24 w-full border-b border-white/5 flex items-center gap-2 overflow-x-auto px-4 bg-[#050506] transition-all scrollbar-thin scrollbar-thumb-primary/20 scrollbar-track-transparent", focusMode ? "opacity-20 pointer-events-none grayscale" : "")}>
                             {days.map((d) => (
                                 <button
                                     key={d.date}

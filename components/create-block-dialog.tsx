@@ -67,8 +67,9 @@ export function CreateBlockDialog({ currentDate }: { currentDate: string }) {
         if (res?.success) {
             setOpen(false);
             form.reset();
+            toast.success("Missão criada com sucesso!");
         } else {
-            alert("Erro ao criar bloco");
+            toast.error(res?.error || "Erro ao criar bloco");
         }
     }
 
