@@ -14,10 +14,10 @@ export async function getBacklogTasks() {
     if (!userId) return [];
 
     try {
-        const tasks = await db.query.backlogTasks.findMany({
-            where: eq(backlogTasks.userId, userId),
-            orderBy: (backlogTasks, { desc }) => [desc(backlogTasks.createdAt)],
-        });
+        const tasks = await db.select()
+            .from(backlogTasks)
+            .where(eq(backlogTasks.userId, userId))
+            .orderBy(desc(backlogTasks.createdAt));
         return tasks;
     } catch (error) {
         console.error("Error fetching backlog:", error);
@@ -67,16 +67,18 @@ export async function moveTaskToBlock(taskId: string, blockId: string) {
 
     try {
         // 1. Get task details
-        const task = await db.query.backlogTasks.findFirst({
-            where: and(eq(backlogTasks.id, taskId), eq(backlogTasks.userId, userId))
-        });
+        const [task] = await db.select()
+            .from(backlogTasks)
+            .where(and(eq(backlogTasks.id, taskId), eq(backlogTasks.userId, userId)))
+            .limit(1);
 
         if (!task) return { error: "Task not found" };
 
         // 2. Get block details
-        const block = await db.query.missionBlocks.findFirst({
-            where: and(eq(missionBlocks.id, blockId), eq(missionBlocks.userId, userId))
-        });
+        const [block] = await db.select()
+            .from(missionBlocks)
+            .where(and(eq(missionBlocks.id, blockId), eq(missionBlocks.userId, userId)))
+            .limit(1);
 
         if (!block) return { error: "Block not found" };
 

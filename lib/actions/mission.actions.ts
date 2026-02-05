@@ -14,13 +14,13 @@ export async function getMissionBlocks(date: string) {
     if (!userId) return [];
 
     try {
-        const blocks = await db.query.missionBlocks.findMany({
-            where: and(
+        const blocks = await db.select()
+            .from(missionBlocks)
+            .where(and(
                 eq(missionBlocks.userId, userId),
                 eq(missionBlocks.date, date)
-            ),
-            orderBy: (missionBlocks, { asc }) => [asc(missionBlocks.startTime)],
-        });
+            ))
+            .orderBy(missionBlocks.startTime);
         return blocks;
     } catch (error) {
         console.error("Error fetching blocks:", error);

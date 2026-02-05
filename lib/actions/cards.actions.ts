@@ -13,9 +13,9 @@ export async function getTacticalCards() {
     if (!userId) return [];
 
     try {
-        const cards = await db.query.tacticalCards.findMany({
-            where: eq(tacticalCards.userId, userId),
-        });
+        const cards = await db.select()
+            .from(tacticalCards)
+            .where(eq(tacticalCards.userId, userId));
 
         // Initialize starter deck if empty
         if (cards.length === 0) {
@@ -35,9 +35,10 @@ export async function useTacticalCard(cardId: string) {
     if (!userId) return { error: "Unauthorized" };
 
     try {
-        const card = await db.query.tacticalCards.findFirst({
-            where: and(eq(tacticalCards.userId, userId), eq(tacticalCards.id, cardId)),
-        });
+        const [card] = await db.select()
+            .from(tacticalCards)
+            .where(and(eq(tacticalCards.userId, userId), eq(tacticalCards.id, cardId)))
+            .limit(1);
 
         if (!card) return { error: "Card not found" };
 
