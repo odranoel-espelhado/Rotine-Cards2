@@ -156,3 +156,197 @@
     scrollbar-width: none;
   }
 }
+
+/* --- User Custom Styles --- */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap');
+
+body {
+  font-family: 'Inter', sans-serif;
+  /* color: #f1f5f9; overridden by tailwind but good to have fallback */
+  overflow-x: hidden;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+}
+
+.timeline-container {
+  display: flex;
+  flex-direction: column;
+  padding-bottom: 300px;
+  position: relative;
+}
+
+.time-marker {
+  font-family: monospace;
+  font-size: 10px;
+  color: #475569;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 12px 0;
+  z-index: 5;
+  position: relative;
+}
+
+.time-marker::after {
+  content: "";
+  flex-grow: 1;
+  height: 1px;
+  background: linear-gradient(to right, rgba(255, 255, 255, 0.05), transparent);
+}
+
+.task-block {
+  /* margin-left: 40px; handled by flex layout usually but keeping for ref */
+  border-radius: 1.5rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 20px;
+  position: relative;
+  transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  z-index: 10;
+}
+
+/* Check: Neon apenas na borda esquerda */
+.task-finished {
+  opacity: 1;
+  background-color: #000 !important;
+  background-image: none !important;
+}
+
+.task-finished h4 {
+  text-decoration: line-through;
+  opacity: 0.6;
+}
+
+.task-finished.neon-border-check {
+  box-shadow: -12px 0 25px -8px currentColor;
+  border-left: 8px solid currentColor !important;
+}
+
+/* Zona de Conflito Reforçada (7px) */
+.conflict-alert {
+  border-top: 7px solid #ef4444 !important;
+  box-shadow: 0 -15px 30px rgba(239, 68, 68, 0.25);
+  z-index: 40 !important;
+}
+
+.conflict-tag {
+  position: absolute;
+  top: -14px;
+  right: 25px;
+  background: #ef4444;
+  color: white;
+  font-size: 8px;
+  padding: 2px 10px;
+  border-radius: 4px;
+  font-weight: 900;
+  text-transform: uppercase;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+}
+
+#daySelector {
+  display: flex;
+  gap: 12px;
+  padding: 15px 10px;
+  overflow-x: auto;
+  cursor: grab;
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+
+#daySelector::-webkit-scrollbar {
+  display: none;
+}
+
+#daySelector:active {
+  cursor: grabbing;
+}
+
+.day-card {
+  min-width: 85px;
+  height: 100px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border-radius: 1.2rem;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  transition: all 0.3s;
+  flex-shrink: 0;
+}
+
+.day-card.active {
+  background: white;
+  color: black;
+  transform: scale(1.05) translateY(-5px);
+  box-shadow: 0 15px 30px rgba(0, 0, 0, 0.6);
+}
+
+.day-card.today {
+  border: 2px solid #6366f1;
+  position: relative;
+}
+
+.day-card.today::after {
+  content: "HOJE";
+  position: absolute;
+  bottom: -8px;
+  font-size: 7px;
+  background: #6366f1;
+  color: white;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-weight: 900;
+}
+
+.btn-action {
+  opacity: 0.4;
+  transition: all 0.2s;
+  color: white;
+}
+
+.btn-action:hover {
+  opacity: 1;
+  transform: scale(1.1);
+}
+
+.btn-delete-red:hover {
+  color: #ef4444;
+}
+
+.subtask-pill {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 4px 8px;
+  border-radius: 8px;
+  font-size: 9px;
+  font-weight: bold;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.subtask-done {
+  opacity: 0.5;
+  text-decoration: line-through;
+  border-color: rgba(16, 185, 129, 0.3);
+  color: #10b981;
+}
+
+input[type="time"]::-webkit-calendar-picker-indicator {
+  filter: invert(1);
+}
