@@ -6,26 +6,41 @@ import { users } from "@/db/schema";
 import { eq } from "drizzle-orm";
 
 export async function syncUser() {
+    console.log("[syncUser] Starting synchronization...");
     try {
         const { userId } = await auth();
-        if (!userId) return { error: "Unauthorized" };
+        if (!userId) {
+            console.error("[syncUser] No userId found in auth() context.");
+            return { error: "Unauthorized" };
+        }
+        console.log("[syncUser] Authenticated User ID:", userId);
 
-        // Check if user exists
-        const existingUser = await db.query.users.findFirst({
-            where: eq(users.id, userId),
-        });
+        // Check if user exists using clean SQL select
+        const [existingUser] = await db.select()
+            .from(users)
+            .where(eq(users.id, userId))
+            .limit(1);
 
         if (existingUser) {
+            console.log("[syncUser] User already exists in DB:", existingUser.email);
             return { success: true, user: existingUser };
         }
 
+        console.log("[syncUser] User not found in DB. Fetching from Clerk...");
         // Fetch details from Clerk
         const clerkUser = await currentUser();
-        if (!clerkUser) return { error: "Clerk user not found" };
+        if (!clerkUser) {
+            console.error("[syncUser] Clerk currentUser() returned null.");
+            return { error: "Clerk user not found" };
+        }
 
         const email = clerkUser.emailAddresses[0]?.emailAddress;
-        if (!email) return { error: "Email required" };
+        if (!email) {
+            console.error("[syncUser] No email found for user.");
+            return { error: "Email required" };
+        }
 
+        console.log("[syncUser] Inserting new user:", email);
         // Create user
         await db.insert(users).values({
             id: userId,
@@ -34,9 +49,10 @@ export async function syncUser() {
             avatarUrl: clerkUser.imageUrl,
         });
 
+        console.log("[syncUser] User created successfully.");
         return { success: true, created: true };
-    } catch (error) {
-        console.error("Error syncing user:", error);
-        return { error: "Failed to sync user" };
+    } catch (error: any) {
+        console.error("[syncUser] CRITICAL ERROR:", error);
+        return { error: error.message || "Failed to sync user" };
     }
 }
