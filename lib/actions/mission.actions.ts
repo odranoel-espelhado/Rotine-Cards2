@@ -29,10 +29,15 @@ export async function getMissionBlocks(date: string) {
 }
 
 export async function createMissionBlock(data: Omit<NewMissionBlock, "id" | "userId" | "createdAt">) {
+    console.log("[createMissionBlock] Starting...", data);
     const { userId } = await auth();
-    if (!userId) return { error: "Unauthorized" };
+    if (!userId) {
+        console.error("[createMissionBlock] Unauthorized: No userId found");
+        return { error: "Unauthorized" };
+    }
 
     try {
+        console.log("[createMissionBlock] Checking conflicts for user:", userId, "date:", data.date);
         // 1. Conflict Detection
         // Fetch existing blocks for the day
         const existingBlocks = await db.query.missionBlocks.findMany({
@@ -41,6 +46,7 @@ export async function createMissionBlock(data: Omit<NewMissionBlock, "id" | "use
                 eq(missionBlocks.date, data.date)
             )
         });
+        console.log("[createMissionBlock] Existing blocks found:", existingBlocks.length);
 
         // Convert times to minutes for comparison
         const getMinutes = (timeStr: string) => {
@@ -57,19 +63,23 @@ export async function createMissionBlock(data: Omit<NewMissionBlock, "id" | "use
 
             // Overlap condition: (StartA < EndB) && (EndA > StartB)
             if (newStart < blockEnd && newEnd > blockStart) {
-                return { error: "Conflito Temporal: Já existe uma missão neste horário." };
+                console.warn("[createMissionBlock] Conflict detected with block:", block.title);
+                return { error: `Conflito Temporal com "${block.title}" (${block.startTime})` };
             }
         }
 
+        console.log("[createMissionBlock] Inserting new block...");
         await db.insert(missionBlocks).values({
             userId,
             ...data,
         });
+        console.log("[createMissionBlock] Success!");
         revalidatePath("/dashboard");
         return { success: true };
     } catch (error: any) {
-        console.error("Error creating block:", error);
-        return { error: error.message || "Failed to create block" };
+        console.error("[createMissionBlock] Fatal Error:", error);
+        // Return explicit error for user feedback
+        return { error: error.message || "Falha crítica ao criar bloco. Verifique logs." };
     }
 }
 
