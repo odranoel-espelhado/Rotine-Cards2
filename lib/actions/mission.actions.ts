@@ -67,9 +67,9 @@ export async function createMissionBlock(data: Omit<NewMissionBlock, "id" | "use
         });
         revalidatePath("/dashboard");
         return { success: true };
-    } catch (error) {
+    } catch (error: any) {
         console.error("Error creating block:", error);
-        return { error: "Failed to create block" };
+        return { error: error.message || "Failed to create block" };
     }
 }
 

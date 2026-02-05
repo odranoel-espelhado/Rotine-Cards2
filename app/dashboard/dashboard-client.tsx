@@ -141,18 +141,26 @@ export default function DashboardClient({
                     <div className="flex-1 flex flex-col border-r border-white/5 relative">
                         {/* Day Carousel */}
                         {/* Day Carousel */}
-                        <div className={cn("h-24 w-full border-b border-white/5 flex items-center gap-2 overflow-x-auto px-4 bg-[#050506] transition-all scrollbar-thin scrollbar-thumb-primary/20 scrollbar-track-transparent", focusMode ? "opacity-20 pointer-events-none grayscale" : "")}>
+                        <div className={cn("h-32 w-full border-b border-white/5 flex items-center gap-3 overflow-x-auto px-6 bg-[#000000] transition-all scrollbar-thin scrollbar-thumb-zinc-800 scrollbar-track-transparent py-4", focusMode ? "opacity-20 pointer-events-none grayscale" : "")}>
                             {days.map((d) => (
                                 <button
                                     key={d.date}
                                     onClick={() => handleDateSelect(d.date)}
-                                    className={`flex-shrink-0 w-16 h-18 rounded-xl flex flex-col items-center justify-center gap-1 transition-all border ${selectedDate === d.date
-                                        ? "bg-primary/10 border-primary text-primary shadow-[0_0_20px_-5px_var(--primary)] scale-105"
-                                        : "bg-white/5 border-transparent text-zinc-500 hover:bg-white/10 hover:text-white"
-                                        }`}
+                                    className={cn(
+                                        "flex-shrink-0 w-[72px] h-[85px] rounded-2xl flex flex-col items-center justify-center gap-1 transition-all border-2 relative",
+                                        selectedDate === d.date
+                                            ? "bg-white text-black border-white shadow-[0_0_15px_rgba(255,255,255,0.3)] scale-110 z-10"
+                                            : "bg-[#09090b] border-white/5 text-zinc-400 hover:border-white/20 hover:text-zinc-200",
+                                        d.isToday && "border-indigo-500/50"
+                                    )}
                                 >
-                                    <span className="text-xs uppercase font-bold">{d.weekday}</span>
-                                    <span className="text-xl font-bold">{d.day}</span>
+                                    {d.isToday && selectedDate !== d.date && (
+                                        <div className="absolute -bottom-3 bg-indigo-500 text-[9px] font-bold px-2 py-0.5 rounded-full text-white uppercase tracking-wider">
+                                            Hoje
+                                        </div>
+                                    )}
+                                    <span className="text-[10px] uppercase font-black tracking-widest">{d.weekday}</span>
+                                    <span className={cn("text-2xl font-black", selectedDate === d.date ? "text-black" : "text-white")}>{d.day}</span>
                                 </button>
                             ))}
                         </div>
