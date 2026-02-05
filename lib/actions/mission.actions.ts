@@ -39,13 +39,15 @@ export async function createMissionBlock(data: Omit<NewMissionBlock, "id" | "use
     try {
         console.log("[createMissionBlock] Checking conflicts for user:", userId, "date:", data.date);
         // 1. Conflict Detection
-        // Fetch existing blocks for the day
-        const existingBlocks = await db.query.missionBlocks.findMany({
-            where: and(
-                eq(missionBlocks.userId, userId),
-                eq(missionBlocks.date, data.date)
-            )
-        });
+        // Fetch existing blocks for the day using explicit SELECT to avoid Query API aliasing issues
+        const existingBlocks = await db.select()
+            .from(missionBlocks)
+            .where(
+                and(
+                    eq(missionBlocks.userId, userId),
+                    eq(missionBlocks.date, data.date)
+                )
+            );
         console.log("[createMissionBlock] Existing blocks found:", existingBlocks.length);
 
         // Convert times to minutes for comparison
