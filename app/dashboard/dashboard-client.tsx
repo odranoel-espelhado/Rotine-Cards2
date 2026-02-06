@@ -150,10 +150,10 @@ export default function DashboardClient({
                 <main className="flex-1 overflow-y-auto custom-scrollbar p-6 space-y-8 container mx-auto max-w-7xl">
 
                     {/* Top Section: Timeline (Left) & Tasks/Stats (Right) */}
-                    <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                    <div className="flex flex-col lg:flex-row w-full gap-[2.5%]">
 
-                        {/* LEFT COLUMN: Calendar & Timeline */}
-                        <div className="lg:col-span-8 flex flex-col gap-6">
+                        {/* LEFT COLUMN: Calendar & Timeline - 55% Width */}
+                        <div className="w-full lg:w-[55%] flex flex-col gap-6">
                             {/* Day Carousel */}
                             <div id="daySelector" className={cn("w-full overflow-x-auto pb-2 custom-scrollbar flex gap-2", focusMode ? "opacity-20 pointer-events-none grayscale" : "")}>
                                 {days.map((d) => (
@@ -197,8 +197,8 @@ export default function DashboardClient({
                             </div>
                         </div>
 
-                        {/* RIGHT COLUMN: Tasks (Backlog) & Stats */}
-                        <div className={cn("lg:col-span-4 flex flex-col gap-6", focusMode ? "opacity-10 pointer-events-none blur-sm" : "")}>
+                        {/* RIGHT COLUMN: Tasks (Backlog) & Stats - Remaining Width */}
+                        <div className={cn("flex-1 flex flex-col gap-6", focusMode ? "opacity-10 pointer-events-none blur-sm" : "")}>
                             {/* Efficiency Chart */}
                             <div className="bg-[#050506] border border-white/5 rounded-3xl p-6">
                                 <h2 className="text-sm font-bold text-zinc-400 uppercase tracking-wider mb-4">Performance Tática</h2>
