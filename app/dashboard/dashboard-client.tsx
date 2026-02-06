@@ -15,7 +15,8 @@ import { BacklogComponent } from "@/components/backlog-component";
 import { BacklogTask, moveTaskToBlock } from "@/lib/actions/backlog.actions";
 import { TacticalDeck } from "@/components/tactical-deck";
 import { TacticalCard } from "@/lib/actions/cards.actions";
-import { DndContext, DragEndEvent } from "@dnd-kit/core";
+import { DndContext, DragEndEvent, DragOverlay, DragStartEvent } from "@dnd-kit/core";
+import { BacklogItemCard } from "@/components/backlog-item-card";
 import { DroppableMissionBlock } from "@/components/droppable-mission-block";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -70,6 +71,12 @@ export default function DashboardClient({
         return h * 60 + m;
     };
 
+    const minutesToTime = (mins: number) => {
+        const h = Math.floor(mins / 60);
+        const m = mins % 60;
+        return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+    };
+
     const PIXELS_PER_MINUTE = 2.5;
 
     // Generate Days (10 back, 20 forward)
@@ -99,8 +106,17 @@ export default function DashboardClient({
         }
     }
 
+    const [activeTask, setActiveTask] = useState<BacklogTask | null>(null);
+
+    const handleDragStart = (event: DragStartEvent) => {
+        if (event.active.data.current?.type === 'backlog-task') {
+            setActiveTask(event.active.data.current.task as BacklogTask);
+        }
+    };
+
     const handleDragEnd = async (event: DragEndEvent) => {
         const { active, over } = event;
+        setActiveTask(null);
 
         if (over && active.data.current?.type === 'backlog-task') {
             const taskId = active.id as string;
@@ -174,6 +190,7 @@ export default function DashboardClient({
     }
 
     const [editingBlock, setEditingBlock] = useState<MissionBlock | null>(null);
+    const [createDialogState, setCreateDialogState] = useState<{ open: boolean; startTime?: string; duration?: number }>({ open: false });
     const [allBlockTypes, setAllBlockTypes] = useState<{ label: string; icon: string; color: string; value: string }[]>([]);
 
     useEffect(() => {
@@ -181,7 +198,7 @@ export default function DashboardClient({
     }, []);
 
     return (
-        <DndContext onDragEnd={handleDragEnd}>
+        <DndContext onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
             <div className={cn("min-h-screen bg-[#020203] text-white selection:bg-primary/30 flex flex-col transition-all duration-700", focusMode ? "grayscale-[0.8]" : "")}>
 
                 {/* Header */}
@@ -267,14 +284,13 @@ export default function DashboardClient({
                                         <CalendarIcon className="w-6 h-6 text-primary" />
                                         <span>Cronograma</span>
                                     </h2>
-                                    <CreateBlockDialog
-                                        currentDate={selectedDate}
-                                        trigger={
-                                            <Button size="sm" className="bg-[#10b981] hover:bg-[#10b981]/90 text-black font-black rounded-lg px-4 uppercase text-xs shadow-lg transition-transform hover:scale-105">
-                                                + Agendar
-                                            </Button>
-                                        }
-                                    />
+                                    <Button
+                                        size="sm"
+                                        onClick={() => setCreateDialogState({ open: true })}
+                                        className="bg-[#10b981] hover:bg-[#10b981]/90 text-black font-black rounded-lg px-4 uppercase text-xs shadow-lg transition-transform hover:scale-105"
+                                    >
+                                        + Agendar
+                                    </Button>
                                 </div>
                                 <div className="flex-1 overflow-y-auto p-6 relative space-y-4 custom-scrollbar">
                                     <div className="absolute top-6 left-6 h-full w-[2px] bg-white/5 z-0"></div>
@@ -286,51 +302,43 @@ export default function DashboardClient({
                                     ) : (
                                         blocks.map((block, index) => {
                                             const blockStart = getMinutes(block.startTime);
-                                            const blockEnd = blockStart + block.totalDuration;
-                                            const isToday = selectedDate === format(new Date(), 'yyyy-MM-dd');
+                                            const prevBlock = index > 0 ? blocks[index - 1] : null;
+
+                                            // Gap Logic: Between Blocks
+                                            let gapStart = prevBlock ? getMinutes(prevBlock.startTime) + prevBlock.totalDuration : 0;
 
                                             let showGap = false;
                                             let gapDuration = 0;
 
-                                            if (isToday) {
-                                                const isActiveBlock = blocks.some(b => {
-                                                    const s = getMinutes(b.startTime);
-                                                    const e = s + b.totalDuration;
-                                                    return currentMinutes >= s && currentMinutes < e;
-                                                });
-
-                                                if (!isActiveBlock && currentMinutes < blockStart) {
-                                                    // Is this the *immediate* next block?
-                                                    // Check if any *other* block is closer to now but in future?
-                                                    // Blocks are sorted by startTime.
-                                                    // So if we iterate in order, the first one with start > current is the one.
-
-                                                    // We need to know if previous blocks were *all* in the past.
-                                                    // Since we are mapping index 0..N, we can check if all previous blocks ended before now.
-                                                    // Simpler: Just check if this is the first block in the filtered list of "future blocks".
-                                                    const futureBlocks = blocks.filter(b => getMinutes(b.startTime) > currentMinutes);
-                                                    if (futureBlocks[0]?.id === block.id) {
-                                                        showGap = true;
-                                                        gapDuration = blockStart - currentMinutes;
-                                                    }
+                                            // Only calculate gap if blockStart > gapStart
+                                            if (blockStart > gapStart) {
+                                                if (index > 0) {
+                                                    showGap = true;
+                                                    gapDuration = blockStart - gapStart;
                                                 }
                                             }
 
                                             return (
                                                 <div key={block.id}>
+                                                    {/* Gap Indicator */}
                                                     {showGap && gapDuration > 0 && (
                                                         <div
-                                                            className="mb-4 pl-12 relative flex items-center group/gap"
+                                                            onClick={() => setCreateDialogState({
+                                                                open: true,
+                                                                startTime: minutesToTime(gapStart),
+                                                                duration: gapDuration
+                                                            })}
+                                                            className="mb-4 pl-12 relative flex items-center group/gap cursor-pointer"
                                                             style={{
                                                                 height: `${Math.max(40, gapDuration * PIXELS_PER_MINUTE)}px`,
                                                                 minHeight: '40px'
                                                             }}
                                                         >
                                                             <div className="absolute left-[34px] top-0 bottom-0 w-[2px] bg-zinc-800 border-l border-dashed border-zinc-700"></div>
-                                                            <div className="w-full h-full rounded-2xl border-2 border-dashed border-zinc-800 flex items-center justify-center bg-zinc-900/20 group-hover/gap:bg-zinc-900/40 transition-colors">
-                                                                <span className="text-[10px] uppercase font-mono text-zinc-500 flex items-center gap-2">
-                                                                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                                                                    TEMPO LIVRE: {gapDuration} MIN
+                                                            <div className="w-full h-full rounded-2xl border-2 border-dashed border-zinc-800 flex items-center justify-center bg-zinc-900/20 group-hover/gap:bg-emerald-500/10 group-hover/gap:border-emerald-500/30 transition-all">
+                                                                <span className="text-[10px] uppercase font-mono text-zinc-500 group-hover/gap:text-emerald-400 flex items-center gap-2 font-bold">
+                                                                    <Plus className="w-3 h-3" />
+                                                                    ADICIONAR ({gapDuration} MIN)
                                                                 </span>
                                                             </div>
                                                         </div>
@@ -403,6 +411,15 @@ export default function DashboardClient({
                         <CardHistory logs={logs} />
                     </div>
 
+                    {/* Create Dialog */}
+                    <CreateBlockDialog
+                        currentDate={selectedDate}
+                        open={createDialogState.open}
+                        onOpenChange={(open) => setCreateDialogState(prev => ({ ...prev, open }))}
+                        defaultStartTime={createDialogState.startTime}
+                        defaultDuration={createDialogState.duration}
+                    />
+
                     {/* Edit Dialog */}
                     {editingBlock && (
                         <CreateBlockDialog
@@ -415,6 +432,9 @@ export default function DashboardClient({
 
                 </main>
             </div>
+            <DragOverlay>
+                {activeTask ? <BacklogItemCard task={activeTask} isDragging /> : null}
+            </DragOverlay>
         </DndContext>
     );
 }

@@ -64,9 +64,19 @@ interface MissionBlockDialogProps {
     open?: boolean;
     onOpenChange?: (open: boolean) => void;
     trigger?: React.ReactNode;
+    defaultStartTime?: string;
+    defaultDuration?: number;
 }
 
-export function CreateBlockDialog({ currentDate, blockToEdit, open: controlledOpen, onOpenChange: setControlledOpen, trigger }: MissionBlockDialogProps) {
+export function CreateBlockDialog({
+    currentDate,
+    blockToEdit,
+    open: controlledOpen,
+    onOpenChange: setControlledOpen,
+    trigger,
+    defaultStartTime,
+    defaultDuration
+}: MissionBlockDialogProps) {
     const [internalOpen, setInternalOpen] = useState(false);
     const [availableTypes, setAvailableTypes] = useState<{ label: string; icon: string; color: string; value: string }[]>([]);
     const [filteredSuggestions, setFilteredSuggestions] = useState<{ label: string; icon: string; color: string; value: string }[]>([]);
@@ -84,8 +94,8 @@ export function CreateBlockDialog({ currentDate, blockToEdit, open: controlledOp
             title: blockToEdit?.title || "",
             color: blockToEdit?.color || "#0ea5e9",
             icon: blockToEdit?.icon || "zap",
-            startTime: blockToEdit?.startTime || "08:00",
-            totalDuration: blockToEdit?.totalDuration || 30,
+            startTime: blockToEdit?.startTime || defaultStartTime || "08:00",
+            totalDuration: blockToEdit?.totalDuration || defaultDuration || 30,
             subTasks: (blockToEdit?.subTasks as any[])?.map((s: any) => ({ title: s.title, duration: parseInt(s.duration) })) || [],
             isRecurring: blockToEdit?.type === 'recurring',
             replicateWeekdays: blockToEdit?.recurrencePattern === 'weekdays',
@@ -99,8 +109,8 @@ export function CreateBlockDialog({ currentDate, blockToEdit, open: controlledOp
                 title: blockToEdit?.title || "",
                 color: blockToEdit?.color || "#0ea5e9",
                 icon: blockToEdit?.icon || "zap",
-                startTime: blockToEdit?.startTime || "08:00",
-                totalDuration: blockToEdit?.totalDuration || 30,
+                startTime: blockToEdit?.startTime || defaultStartTime || "08:00",
+                totalDuration: blockToEdit?.totalDuration || defaultDuration || 30,
                 subTasks: (blockToEdit?.subTasks as any[])?.map((s: any) => ({ title: s.title, duration: parseInt(s.duration) })) || [],
                 isRecurring: blockToEdit?.type === 'recurring',
                 replicateWeekdays: blockToEdit?.recurrencePattern === 'weekdays',
@@ -109,7 +119,7 @@ export function CreateBlockDialog({ currentDate, blockToEdit, open: controlledOp
             // Fetch suggestions
             getUniqueBlockTypes().then(setAvailableTypes);
         }
-    }, [open, blockToEdit, form]);
+    }, [open, blockToEdit, form, defaultStartTime, defaultDuration]);
 
     const { fields, append, remove } = useFieldArray({
         control: form.control,

@@ -1,8 +1,13 @@
 "use client";
 
 import { useDroppable } from "@dnd-kit/core";
-import { MissionBlock, toggleMissionBlock, assignTasksToBlock } from "@/lib/actions/mission.actions";
-import { Zap, Trash2, Pencil, Check, Repeat, X, Plus, ChevronDown, ChevronUp } from "lucide-react";
+import { MissionBlock, toggleMissionBlock, assignTasksToBlock, updateMissionBlock } from "@/lib/actions/mission.actions";
+import { Zap, Trash2, Pencil, Check, Repeat, X, Plus, ChevronDown, ChevronUp, AlertTriangle } from "lucide-react";
+// ... (rest of imports)
+
+// ... inside component ...
+
+
 import { cn } from "@/lib/utils";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
@@ -69,6 +74,22 @@ export function DroppableMissionBlock({ block, onDelete, onEdit, pendingBacklogT
 
     const totalDuration = block.totalDuration;
     const subTasks = (block.subTasks as any[]) || [];
+
+    // Calculate non-subtask time (remainder)
+    const subTaskTotalDuration = subTasks.reduce((acc, curr) => acc + (parseInt(curr.duration) || 0), 0);
+    const remainder = Math.max(0, totalDuration - subTaskTotalDuration);
+
+    const handleAutoResize = async () => {
+        try {
+            await updateMissionBlock(block.id, { totalDuration: subTaskTotalDuration });
+            toast.success("Tempo do bloco ajustado!");
+        } catch (error) {
+            toast.error("Erro ao ajustar tempo.");
+        }
+    };
+
+    // Conflict Check
+    const hasConflict = subTaskTotalDuration > totalDuration;
 
     // Calculate subtask vertical segments
     // We want the line to take up some vertical space.
@@ -192,21 +213,52 @@ export function DroppableMissionBlock({ block, onDelete, onEdit, pendingBacklogT
                                     {subTasks.length === 0 ? (
                                         <p className="text-xs text-white/40 italic">Nenhuma tarefa.</p>
                                     ) : (
-                                        subTasks.map((sub: any, i: number) => (
-                                            <div key={i} className="flex items-center gap-2 text-sm text-white/90">
-                                                <div className="w-1.5 h-1.5 rounded-full bg-white/50" />
-                                                <span className={optimisticCompleted ? "line-through opacity-50" : ""}>{sub.title}</span>
-                                                <span className="text-xs text-white/40 font-mono ml-auto">{sub.duration}m</span>
-                                            </div>
-                                        ))
+                                        <div className="space-y-1">
+                                            {subTasks.map((sub: any, i: number) => (
+                                                <div key={i} className="flex items-center gap-3 text-sm text-white/90 group/item">
+                                                    {/* Duration Left */}
+                                                    <span className="text-[10px] font-mono text-white/40 min-w-[30px] text-right group-hover/item:text-white/60 transition-colors">
+                                                        {sub.duration}m
+                                                    </span>
+                                                    {/* Dot */}
+                                                    <div className="w-1.5 h-1.5 rounded-full bg-white/50 shrink-0" />
+                                                    {/* Title */}
+                                                    <span className={cn("truncate flex-1", optimisticCompleted ? "line-through opacity-50" : "")}>
+                                                        {sub.title}
+                                                    </span>
+                                                </div>
+                                            ))}
+                                        </div>
                                     )}
+
+                                    {/* Conflict Warning */}
+                                    {hasConflict && (
+                                        <div className="mt-2 p-2 rounded-lg bg-red-500/10 border border-red-500/20 flex flex-col gap-2 animate-pulse">
+                                            <div className="flex items-center gap-2 text-red-400 text-xs font-bold uppercase">
+                                                <AlertTriangle className="w-4 h-4" />
+                                                <span>Conflito de Tempo</span>
+                                            </div>
+                                            <p className="text-[10px] text-red-300/80">
+                                                Tarefas ({subTaskTotalDuration}m) excedem o bloco ({totalDuration}m).
+                                            </p>
+                                            <Button
+                                                size="sm"
+                                                variant="destructive"
+                                                className="h-6 text-[10px] uppercase font-bold w-full"
+                                                onClick={(e) => { e.stopPropagation(); handleAutoResize(); }}
+                                            >
+                                                Aumentar para {subTaskTotalDuration} min
+                                            </Button>
+                                        </div>
+                                    )}
+
                                     {/* Add Task Button */}
                                     <div
                                         onClick={(e) => { e.stopPropagation(); setAddTasksDialogOpen(true); }}
-                                        className="flex items-center gap-2 text-xs font-bold uppercase text-white/50 hover:text-white cursor-pointer bg-black/10 hover:bg-black/20 p-2 rounded-lg transition-colors w-fit"
+                                        className="flex items-center gap-2 text-xs font-bold uppercase text-white/50 hover:text-white cursor-pointer bg-black/10 hover:bg-black/20 p-2 rounded-lg transition-colors w-full justify-center mt-2 border border-white/5 border-dashed hover:border-white/20"
                                     >
                                         <Plus className="w-4 h-4" />
-                                        Add Tarefa
+                                        Adicionar Tarefa
                                     </div>
                                 </div>
                             )}
