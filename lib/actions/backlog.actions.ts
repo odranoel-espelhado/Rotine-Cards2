@@ -50,6 +50,23 @@ export async function createBacklogTask(data: Partial<Omit<NewBacklogTask, 'id' 
     }
 }
 
+export async function updateBacklogTask(id: string, data: Partial<Omit<NewBacklogTask, 'id' | 'userId' | 'createdAt'>>) {
+    const { userId } = await auth();
+    if (!userId) return { error: "Unauthorized" };
+
+    try {
+        await db.update(backlogTasks)
+            .set(data)
+            .where(and(eq(backlogTasks.id, id), eq(backlogTasks.userId, userId)));
+
+        revalidatePath("/dashboard");
+        return { success: true };
+    } catch (error) {
+        console.error("Error updating backlog task:", error);
+        return { error: "Failed to update task" };
+    }
+}
+
 export async function deleteBacklogTask(id: string) {
     const { userId } = await auth();
     if (!userId) return { error: "Unauthorized" };
