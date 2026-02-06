@@ -262,6 +262,7 @@ export default function DashboardClient({
                                                 block={block}
                                                 onDelete={handleDelete}
                                                 onEdit={setEditingBlock}
+                                                pendingBacklogTasks={initialBacklog}
                                             />
                                         ))
                                     )}

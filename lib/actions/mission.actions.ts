@@ -152,6 +152,9 @@ export async function toggleMissionBlock(id: string, status: 'pending' | 'comple
     }
 }
 
+import { backlogTasks } from "@/db/schema";
+import { inArray } from "drizzle-orm";
+
 export async function updateMissionBlock(id: string, data: Partial<Omit<NewMissionBlock, "id" | "userId" | "createdAt">>) {
     const { userId } = await auth();
     if (!userId) return { error: "Unauthorized" };
@@ -168,5 +171,52 @@ export async function updateMissionBlock(id: string, data: Partial<Omit<NewMissi
     } catch (error: any) {
         console.error("Error updating block:", error);
         return { error: error.message || "Erro ao atualizar" };
+    }
+}
+
+export async function assignTasksToBlock(blockId: string, tasksToAssign: any[]) { // Using any[] for now as BacklogTask type import might circle
+    const { userId } = await auth();
+    if (!userId) return { error: "Unauthorized" };
+
+    try {
+        // 1. Get current block details to merge subtasks
+        const [block] = await db.select().from(missionBlocks)
+            .where(and(eq(missionBlocks.id, blockId), eq(missionBlocks.userId, userId)));
+
+        if (!block) return { error: "Bloco não encontrado" };
+
+        // 2. Prepare new subtasks
+        const currentSubtasks = (block.subTasks as any[]) || [];
+        const newSubtasks = tasksToAssign.map(t => ({
+            title: t.title,
+            duration: t.estimatedDuration || 15, // Default duration if mssing
+            done: false
+        }));
+
+        const updatedSubtasks = [...currentSubtasks, ...newSubtasks];
+
+        // 3. Update Block
+        await db.update(missionBlocks)
+            .set({ subTasks: updatedSubtasks })
+            .where(eq(missionBlocks.id, blockId));
+
+        // 4. Delete from Backlog
+        const taskIds = tasksToAssign.map(t => t.id);
+        if (taskIds.length > 0) {
+            await db.delete(backlogTasks)
+                .where(
+                    and(
+                        eq(backlogTasks.userId, userId),
+                        inArray(backlogTasks.id, taskIds)
+                    )
+                );
+        }
+
+        revalidatePath("/dashboard");
+        return { success: true };
+
+    } catch (error: any) {
+        console.error("Error assigning tasks:", error);
+        return { error: error.message || "Erro ao atribuir tarefas" };
     }
 }
