@@ -20,6 +20,7 @@ import { DroppableMissionBlock } from "@/components/droppable-mission-block";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { CardHistory, CardLog } from "@/components/card-history";
+import { SettingsDialog } from "@/components/settings-dialog";
 
 // Mock Data for Efficiency Radar Chart (Static for now)
 const chartData = [
@@ -49,6 +50,27 @@ export default function DashboardClient({
     const router = useRouter();
     const [selectedDate, setSelectedDate] = useState<string>(currentDate);
     const blocks = initialBlocks; // In a real app with optimization, might use optmistic updates
+
+
+    // Time Tracking for Timeline
+    const [currentMinutes, setCurrentMinutes] = useState(0);
+
+    useEffect(() => {
+        const updateTime = () => {
+            const now = new Date();
+            setCurrentMinutes(now.getHours() * 60 + now.getMinutes());
+        };
+        updateTime();
+        const interval = setInterval(updateTime, 60000); // Update every minute
+        return () => clearInterval(interval);
+    }, []);
+
+    const getMinutes = (time: string) => {
+        const [h, m] = time.split(':').map(Number);
+        return h * 60 + m;
+    };
+
+    const PIXELS_PER_MINUTE = 2.5;
 
     // Generate Days (10 back, 20 forward)
     const days = [];
@@ -177,14 +199,7 @@ export default function DashboardClient({
 
                     <div className="flex items-center gap-4">
                         {!focusMode && (
-                            <CreateBlockDialog
-                                currentDate={selectedDate}
-                                trigger={
-                                    <Button className="bg-[#10b981] hover:bg-[#10b981]/90 text-black font-bold rounded-xl px-6 uppercase shadow-lg transition-transform hover:scale-105">
-                                        + Agendar
-                                    </Button>
-                                }
-                            />
+                            <SettingsDialog />
                         )}
                         {focusMode && (
                             <Button variant="outline" size="sm" onClick={() => setFocusMode(false)} className="border-red-500/50 text-red-500 hover:bg-red-500/10">
@@ -252,6 +267,14 @@ export default function DashboardClient({
                                         <CalendarIcon className="w-6 h-6 text-primary" />
                                         <span>Cronograma</span>
                                     </h2>
+                                    <CreateBlockDialog
+                                        currentDate={selectedDate}
+                                        trigger={
+                                            <Button size="sm" className="bg-[#10b981] hover:bg-[#10b981]/90 text-black font-black rounded-lg px-4 uppercase text-xs shadow-lg transition-transform hover:scale-105">
+                                                + Agendar
+                                            </Button>
+                                        }
+                                    />
                                 </div>
                                 <div className="flex-1 overflow-y-auto p-6 relative space-y-4 custom-scrollbar">
                                     <div className="absolute top-6 left-6 h-full w-[2px] bg-white/5 z-0"></div>
@@ -261,15 +284,68 @@ export default function DashboardClient({
                                             <p>Nenhuma missão para este dia.</p>
                                         </div>
                                     ) : (
-                                        blocks.map(block => (
-                                            <DroppableMissionBlock
-                                                key={block.id}
-                                                block={block}
-                                                onDelete={handleDelete}
-                                                onEdit={setEditingBlock}
-                                                pendingBacklogTasks={initialBacklog}
-                                            />
-                                        ))
+                                        blocks.map((block, index) => {
+                                            const blockStart = getMinutes(block.startTime);
+                                            const blockEnd = blockStart + block.totalDuration;
+                                            const isToday = selectedDate === format(new Date(), 'yyyy-MM-dd');
+
+                                            let showGap = false;
+                                            let gapDuration = 0;
+
+                                            if (isToday) {
+                                                const isActiveBlock = blocks.some(b => {
+                                                    const s = getMinutes(b.startTime);
+                                                    const e = s + b.totalDuration;
+                                                    return currentMinutes >= s && currentMinutes < e;
+                                                });
+
+                                                if (!isActiveBlock && currentMinutes < blockStart) {
+                                                    // Is this the *immediate* next block?
+                                                    // Check if any *other* block is closer to now but in future?
+                                                    // Blocks are sorted by startTime.
+                                                    // So if we iterate in order, the first one with start > current is the one.
+
+                                                    // We need to know if previous blocks were *all* in the past.
+                                                    // Since we are mapping index 0..N, we can check if all previous blocks ended before now.
+                                                    // Simpler: Just check if this is the first block in the filtered list of "future blocks".
+                                                    const futureBlocks = blocks.filter(b => getMinutes(b.startTime) > currentMinutes);
+                                                    if (futureBlocks[0]?.id === block.id) {
+                                                        showGap = true;
+                                                        gapDuration = blockStart - currentMinutes;
+                                                    }
+                                                }
+                                            }
+
+                                            return (
+                                                <div key={block.id}>
+                                                    {showGap && gapDuration > 0 && (
+                                                        <div
+                                                            className="mb-4 pl-12 relative flex items-center group/gap"
+                                                            style={{
+                                                                height: `${Math.max(40, gapDuration * PIXELS_PER_MINUTE)}px`,
+                                                                minHeight: '40px'
+                                                            }}
+                                                        >
+                                                            <div className="absolute left-[34px] top-0 bottom-0 w-[2px] bg-zinc-800 border-l border-dashed border-zinc-700"></div>
+                                                            <div className="w-full h-full rounded-2xl border-2 border-dashed border-zinc-800 flex items-center justify-center bg-zinc-900/20 group-hover/gap:bg-zinc-900/40 transition-colors">
+                                                                <span className="text-[10px] uppercase font-mono text-zinc-500 flex items-center gap-2">
+                                                                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                                                                    TEMPO LIVRE: {gapDuration} MIN
+                                                                </span>
+                                                            </div>
+                                                        </div>
+                                                    )}
+
+                                                    <DroppableMissionBlock
+                                                        block={block}
+                                                        onDelete={handleDelete}
+                                                        onEdit={setEditingBlock}
+                                                        pendingBacklogTasks={initialBacklog}
+                                                        height={Math.max(80, block.totalDuration * PIXELS_PER_MINUTE)}
+                                                    />
+                                                </div>
+                                            );
+                                        })
                                     )}
                                     <div className="h-20"></div>
                                 </div>

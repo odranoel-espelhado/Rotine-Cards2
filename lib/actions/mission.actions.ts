@@ -260,3 +260,25 @@ export async function getUniqueBlockTypes() {
         return [];
     }
 }
+
+export async function deleteAllUserData() {
+    const { userId } = await auth();
+    if (!userId) return { error: "Unauthorized" };
+
+    try {
+        // Delete all blocks
+        await db.delete(missionBlocks).where(eq(missionBlocks.userId, userId));
+
+        // Delete all backlog tasks
+        await db.delete(backlogTasks).where(eq(backlogTasks.userId, userId));
+
+        // (Optional) Delete tactical cards if stored in DB, but simpler "Limpar tudo" usually means main user data.
+        // Assuming cards are static or local for now based on props, but if they were in DB we'd delete them too.
+
+        revalidatePath("/dashboard");
+        return { success: true };
+    } catch (error: any) {
+        console.error("Error deleting all data:", error);
+        return { error: error.message || "Erro ao limpar dados" };
+    }
+}

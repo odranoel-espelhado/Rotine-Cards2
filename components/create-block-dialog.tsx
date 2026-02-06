@@ -340,7 +340,7 @@ export function CreateBlockDialog({ currentDate, blockToEdit, open: controlledOp
                             {/* Subtarefas */}
                             <div className="space-y-3">
                                 <div className="flex justify-between items-center">
-                                    <FormLabel className="text-[10px] font-black text-zinc-500 uppercase ml-1">Subtarefas Fixas</FormLabel>
+                                    <FormLabel className="text-[10px] font-black text-zinc-500 uppercase ml-1">Tarefas</FormLabel>
                                     <Button
                                         type="button"
                                         onClick={() => append({ title: "", duration: 15 })}
@@ -412,34 +412,36 @@ export function CreateBlockDialog({ currentDate, blockToEdit, open: controlledOp
                                                 onClick={() => field.onChange(true)}
                                             >
                                                 <div className={cn("w-3 h-3 rounded-full transition-colors", field.value ? "bg-emerald-500" : "bg-zinc-700")} />
-                                                <span className="text-xs font-black uppercase">Fixa</span>
+                                                <span className="text-xs font-black uppercase">Recorrente</span>
                                             </div>
                                         </>
                                     )}
                                 />
                             </div>
 
-                            {/* Replicate Checkbox */}
-                            <FormField
-                                control={form.control}
-                                name="replicateWeekdays"
-                                render={({ field }) => (
-                                    <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-xl border border-white/5 p-4 bg-white/5">
-                                        <FormControl>
-                                            <Checkbox
-                                                checked={field.value}
-                                                onCheckedChange={field.onChange}
-                                                className="data-[state=checked]:bg-indigo-500 data-[state=checked]:border-indigo-500 border-white/20"
-                                            />
-                                        </FormControl>
-                                        <div className="space-y-1 leading-none">
-                                            <FormLabel className="text-xs font-bold text-white uppercase">
-                                                Replicar (Seg - Sex)
-                                            </FormLabel>
-                                        </div>
-                                    </FormItem>
-                                )}
-                            />
+                            {/* Replicate Checkbox - Only visible if Recurring */}
+                            {isRecurring && (
+                                <FormField
+                                    control={form.control}
+                                    name="replicateWeekdays"
+                                    render={({ field }) => (
+                                        <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-xl border border-white/5 p-4 bg-white/5 animate-in slide-in-from-top-2">
+                                            <FormControl>
+                                                <Checkbox
+                                                    checked={field.value}
+                                                    onCheckedChange={field.onChange}
+                                                    className="data-[state=checked]:bg-indigo-500 data-[state=checked]:border-indigo-500 border-white/20"
+                                                />
+                                            </FormControl>
+                                            <div className="space-y-1 leading-none">
+                                                <FormLabel className="text-xs font-bold text-white uppercase">
+                                                    Replicar (Seg - Sex)
+                                                </FormLabel>
+                                            </div>
+                                        </FormItem>
+                                    )}
+                                />
+                            )}
 
                             <div className="pt-2 gap-3 flex flex-col">
                                 <Button type="submit" className="w-full h-16 bg-emerald-600 hover:bg-emerald-500 text-white font-black tracking-widest text-lg rounded-2xl uppercase shadow-xl transition-all hover:scale-[1.02]">
