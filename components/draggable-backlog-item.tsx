@@ -15,16 +15,25 @@ export function DraggableBacklogItem({ task, onDelete, onEdit }: { task: Backlog
 
     const [expanded, setExpanded] = useState(false);
 
+    // Default to Gray if no specific block color or if it's the default "none" color
+    const bgColor = task.color && task.color !== '#27272a' ? task.color : '#27272a';
+
     const style = {
         transform: CSS.Translate.toString(transform),
-        backgroundColor: task.color && task.color !== '#27272a' ? task.color : '#050506', // Use color if set, else dark
-        borderColor: task.color && task.color !== '#27272a' ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.05)',
+        backgroundColor: bgColor,
+        borderColor: bgColor !== '#27272a' ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.1)',
     };
 
-    // Helper to determine text contrast (simple heuristics)
-    // Actually, let's just use white text and adding a dark overlay if needed or simple shadow.
-    // Implementing a reliable contrast checker without libraries is verbose.
-    // I'll assume users pick decent colors or I'll add a subtle dark gradient.
+    const getPriorityLabel = (p: string) => {
+        switch (p) {
+            case 'high': return { label: 'Alta', color: 'bg-red-500/20 text-red-200 border-red-500/30' };
+            case 'medium': return { label: 'Média', color: 'bg-amber-500/20 text-amber-200 border-amber-500/30' };
+            case 'low': return { label: 'Baixa', color: 'bg-emerald-500/20 text-emerald-200 border-emerald-500/30' };
+            default: return { label: '', color: '' };
+        }
+    };
+
+    const priorityInfo = getPriorityLabel(task.priority || 'medium');
 
     return (
         <div
@@ -35,41 +44,48 @@ export function DraggableBacklogItem({ task, onDelete, onEdit }: { task: Backlog
             onClick={() => setExpanded(!expanded)}
             className="group relative border rounded-xl overflow-hidden transition-all cursor-grab active:cursor-grabbing hover:scale-[1.01] active:scale-95 shadow-lg"
         >
-            {/* Dark overlay for readability if color is bright */}
+            {/* Dark overlay for readability */}
             <div className="absolute inset-0 bg-black/40 pointer-events-none" />
 
             <div className="relative p-3 z-10 flex flex-col gap-2">
-                <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3 overflow-hidden">
-                        <div className={`w-2 h-2 shrink-0 rounded-full shadow-sm ${task.priority === 'alta' ? 'bg-red-500 shadow-red-500/50' :
-                            task.priority === 'media' ? 'bg-amber-500 shadow-amber-500/50' : 'bg-emerald-500 shadow-emerald-500/50'
-                            }`} />
-                        <span className="text-sm font-bold text-white truncate shadow-black drop-shadow-md">{task.title}</span>
-                    </div>
+                <div className="flex items-start justify-between gap-3">
+                    {/* Title */}
+                    <span className="text-sm font-bold text-white leading-tight shadow-black drop-shadow-md break-words flex-1">
+                        {task.title}
+                    </span>
 
-                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <Button
-                            size="icon"
-                            variant="ghost"
-                            onClick={(e) => { e.stopPropagation(); onEdit(task); }}
-                            onPointerDown={(e) => e.stopPropagation()}
-                            className="h-6 w-6 text-white/70 hover:text-white hover:bg-white/10"
-                        >
-                            <Pencil className="h-3 w-3" />
-                        </Button>
-                        <Button
-                            size="icon"
-                            variant="ghost"
-                            onClick={(e) => { e.stopPropagation(); onDelete(task.id); }}
-                            onPointerDown={(e) => e.stopPropagation()}
-                            className="h-6 w-6 text-white/70 hover:text-red-400 hover:bg-black/20"
-                        >
-                            <Trash2 className="h-3 w-3" />
-                        </Button>
+                    {/* Right Side: Priority & Actions */}
+                    <div className="flex items-center gap-2 shrink-0">
+                        {/* Priority Badge */}
+                        <div className={`px-2 py-0.5 rounded text-[9px] uppercase font-black tracking-wide border ${priorityInfo.color}`}>
+                            {priorityInfo.label}
+                        </div>
+
+                        {/* Actions (Hover) */}
+                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity absolute right-2 -top-1 bg-black/50 backdrop-blur-sm rounded-lg p-0.5 border border-white/10 shadow-xl translate-y-2">
+                            <Button
+                                size="icon"
+                                variant="ghost"
+                                onClick={(e) => { e.stopPropagation(); onEdit(task); }}
+                                onPointerDown={(e) => e.stopPropagation()}
+                                className="h-6 w-6 text-white/70 hover:text-white hover:bg-white/10"
+                            >
+                                <Pencil className="h-3 w-3" />
+                            </Button>
+                            <Button
+                                size="icon"
+                                variant="ghost"
+                                onClick={(e) => { e.stopPropagation(); onDelete(task.id); }}
+                                onPointerDown={(e) => e.stopPropagation()}
+                                className="h-6 w-6 text-white/70 hover:text-red-400 hover:bg-black/20"
+                            >
+                                <Trash2 className="h-3 w-3" />
+                            </Button>
+                        </div>
                     </div>
                 </div>
 
-                {/* Expanded Details */}
+                {/* Subtasks Preview or Expanded View */}
                 {expanded && (
                     <div className="pt-2 border-t border-white/10 mt-1 space-y-2 animate-in slide-in-from-top-2 duration-200">
                         <div className="flex items-center gap-2 text-[10px] text-white/80 font-mono">
@@ -87,6 +103,9 @@ export function DraggableBacklogItem({ task, onDelete, onEdit }: { task: Backlog
                                     </div>
                                 ))}
                             </div>
+                        )}
+                        {(task.subTasks as any[])?.length === 0 && (
+                            <p className="text-[10px] italic text-white/40">Sem subtarefas</p>
                         )}
                     </div>
                 )}

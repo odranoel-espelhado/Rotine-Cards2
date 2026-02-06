@@ -28,6 +28,7 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 import { createBacklogTask, updateBacklogTask, BacklogTask } from "@/lib/actions/backlog.actions";
+import { getUniqueBlockTypes } from "@/lib/actions/mission.actions";
 import { useState, useEffect } from "react";
 import { Plus, Trash2, Zap } from "lucide-react";
 import { toast } from "sonner";
@@ -58,6 +59,7 @@ interface CreateTaskDialogProps {
 
 export function CreateTaskDialog({ availableBlockTypes = [], taskToEdit, open: controlledOpen, onOpenChange: setControlledOpen, trigger }: CreateTaskDialogProps) {
     const [internalOpen, setInternalOpen] = useState(false);
+    const [fetchedBlockTypes, setFetchedBlockTypes] = useState(availableBlockTypes);
 
     const isControlled = controlledOpen !== undefined;
     const open = isControlled ? controlledOpen : internalOpen;
@@ -98,12 +100,17 @@ export function CreateTaskDialog({ availableBlockTypes = [], taskToEdit, open: c
                 estimatedDuration: taskToEdit?.estimatedDuration || 30,
                 subTasks: (taskToEdit?.subTasks as any[]) || [],
             });
+
+            // Refresh block types on open to ensure we have the latest
+            getUniqueBlockTypes().then((types) => {
+                setFetchedBlockTypes(types);
+            });
         }
     }, [open, taskToEdit, form]);
 
     async function onSubmit(values: z.infer<typeof detailedSchema>) {
         // Find selected color
-        const selectedBlock = availableBlockTypes.find(b => b.label === values.linkedBlockType);
+        const selectedBlock = fetchedBlockTypes.find(b => b.label === values.linkedBlockType);
         const color = selectedBlock ? selectedBlock.color : '#27272a'; // Default gray
 
         let res;
@@ -192,7 +199,7 @@ export function CreateTaskDialog({ availableBlockTypes = [], taskToEdit, open: c
                                         </FormControl>
                                         <SelectContent className="bg-[#050506] border-white/10 text-white max-h-[200px]">
                                             <SelectItem value="none" className="text-zinc-500 italic">Nenhum (Geral)</SelectItem>
-                                            {availableBlockTypes.map((block) => {
+                                            {fetchedBlockTypes.map((block) => {
                                                 const Icon = BLOCK_ICONS.find(i => i.name === block.icon)?.icon || Zap;
                                                 return (
                                                     <SelectItem key={block.label} value={block.label} className="focus:bg-white/10">
