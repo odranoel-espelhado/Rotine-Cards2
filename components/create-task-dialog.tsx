@@ -29,10 +29,11 @@ import {
 } from "@/components/ui/select";
 import { createBacklogTask, updateBacklogTask, BacklogTask } from "@/lib/actions/backlog.actions";
 import { useState, useEffect } from "react";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2, Zap } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Textarea } from "@/components/ui/textarea"
+import { BLOCK_ICONS } from "./constants";
 
 const subtaskSchema = z.object({
     title: z.string().min(1, "Nome necessário"),
@@ -48,7 +49,7 @@ const formSchema = z.object({
 });
 
 interface CreateTaskDialogProps {
-    availableBlockTypes?: { label: string, color: string }[];
+    availableBlockTypes?: { label: string, color: string, icon?: string }[];
     taskToEdit?: BacklogTask;
     open?: boolean;
     onOpenChange?: (open: boolean) => void;
@@ -189,16 +190,20 @@ export function CreateTaskDialog({ availableBlockTypes = [], taskToEdit, open: c
                                                 <SelectValue placeholder="Selecione..." />
                                             </SelectTrigger>
                                         </FormControl>
-                                        <SelectContent className="bg-[#050506] border-white/10 text-white">
-                                            <SelectItem value="none" className="text-zinc-500">Nenhum (Geral)</SelectItem>
-                                            {availableBlockTypes.map((block) => (
-                                                <SelectItem key={block.label} value={block.label} className="focus:bg-white/10">
-                                                    <div className="flex items-center gap-2">
-                                                        <div className="w-2 h-2 rounded-full" style={{ backgroundColor: block.color }} />
-                                                        {block.label}
-                                                    </div>
-                                                </SelectItem>
-                                            ))}
+                                        <SelectContent className="bg-[#050506] border-white/10 text-white max-h-[200px]">
+                                            <SelectItem value="none" className="text-zinc-500 italic">Nenhum (Geral)</SelectItem>
+                                            {availableBlockTypes.map((block) => {
+                                                const Icon = BLOCK_ICONS.find(i => i.name === block.icon)?.icon || Zap;
+                                                return (
+                                                    <SelectItem key={block.label} value={block.label} className="focus:bg-white/10">
+                                                        <div className="flex items-center gap-2">
+                                                            <div className="w-2 h-2 rounded-full" style={{ backgroundColor: block.color }} />
+                                                            <Icon className="w-3 h-3 text-zinc-300" />
+                                                            <span>{block.label}</span>
+                                                        </div>
+                                                    </SelectItem>
+                                                );
+                                            })}
                                         </SelectContent>
                                     </Select>
                                     <FormMessage />

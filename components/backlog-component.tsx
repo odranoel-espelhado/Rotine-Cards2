@@ -12,7 +12,7 @@ import { DraggableBacklogItem } from "./draggable-backlog-item";
 
 import { CreateTaskDialog } from "./create-task-dialog";
 
-export function BacklogComponent({ initialTasks, availableBlockTypes = [] }: { initialTasks: BacklogTask[], availableBlockTypes?: { label: string, color: string }[] }) {
+export function BacklogComponent({ initialTasks, availableBlockTypes = [] }: { initialTasks: BacklogTask[], availableBlockTypes?: { label: string, color: string, icon?: string }[] }) {
     const [editingTask, setEditingTask] = useState<BacklogTask | null>(null);
 
     const handleDelete = async (id: string) => {

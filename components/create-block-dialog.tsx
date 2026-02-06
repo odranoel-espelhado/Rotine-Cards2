@@ -21,11 +21,23 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
-import { createMissionBlock } from "@/lib/actions/mission.actions";
+import { createMissionBlock, getUniqueBlockTypes } from "@/lib/actions/mission.actions";
 import { useState, useEffect } from "react";
-import { Plus, Trash2, Clock, Calendar } from "lucide-react";
+import { Plus, Trash2, Clock, Calendar, Zap, Target, Heart, Book, Briefcase, Dumbbell, Coffee, User, Star } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+
+// Icons Configuration
+const BLOCK_ICONS = [
+    { name: 'zap', icon: Zap },
+    { name: 'target', icon: Target },
+    { name: 'heart', icon: Heart },
+    { name: 'dumbbell', icon: Dumbbell },
+    { name: 'book', icon: Book },
+    { name: 'briefcase', icon: Briefcase },
+    { name: 'coffee', icon: Coffee },
+    { name: 'user', icon: User },
+];
 
 // Zod Schema
 const subtaskSchema = z.object({
@@ -36,6 +48,7 @@ const subtaskSchema = z.object({
 const formSchema = z.object({
     title: z.string().min(2, { message: "Título deve ter pelo menos 2 caracteres." }),
     color: z.string().default("#3b82f6"),
+    icon: z.string().default("zap"),
     startTime: z.string().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, { message: "Formato inválido." }),
     totalDuration: z.coerce.number().min(5, { message: "Duração mínima de 5 minutos." }),
     subTasks: z.array(subtaskSchema).default([]),
@@ -55,6 +68,9 @@ interface MissionBlockDialogProps {
 
 export function CreateBlockDialog({ currentDate, blockToEdit, open: controlledOpen, onOpenChange: setControlledOpen, trigger }: MissionBlockDialogProps) {
     const [internalOpen, setInternalOpen] = useState(false);
+    const [availableTypes, setAvailableTypes] = useState<{ label: string; icon: string; color: string; value: string }[]>([]);
+    const [filteredSuggestions, setFilteredSuggestions] = useState<{ label: string; icon: string; color: string; value: string }[]>([]);
+    const [showSuggestions, setShowSuggestions] = useState(false);
 
     const isControlled = controlledOpen !== undefined;
     const open = isControlled ? controlledOpen : internalOpen;
@@ -66,7 +82,8 @@ export function CreateBlockDialog({ currentDate, blockToEdit, open: controlledOp
         resolver: zodResolver(formSchema) as any,
         defaultValues: {
             title: blockToEdit?.title || "",
-            color: blockToEdit?.color || "#0ea5e9", // Default cyan/blue
+            color: blockToEdit?.color || "#0ea5e9",
+            icon: blockToEdit?.icon || "zap",
             startTime: blockToEdit?.startTime || "08:00",
             totalDuration: blockToEdit?.totalDuration || 30,
             subTasks: (blockToEdit?.subTasks as any[])?.map((s: any) => ({ title: s.title, duration: parseInt(s.duration) })) || [],
@@ -81,12 +98,16 @@ export function CreateBlockDialog({ currentDate, blockToEdit, open: controlledOp
             form.reset({
                 title: blockToEdit?.title || "",
                 color: blockToEdit?.color || "#0ea5e9",
+                icon: blockToEdit?.icon || "zap",
                 startTime: blockToEdit?.startTime || "08:00",
                 totalDuration: blockToEdit?.totalDuration || 30,
                 subTasks: (blockToEdit?.subTasks as any[])?.map((s: any) => ({ title: s.title, duration: parseInt(s.duration) })) || [],
                 isRecurring: blockToEdit?.type === 'recurring',
                 replicateWeekdays: blockToEdit?.recurrencePattern === 'weekdays',
             });
+
+            // Fetch suggestions
+            getUniqueBlockTypes().then(setAvailableTypes);
         }
     }, [open, blockToEdit, form]);
 
@@ -96,32 +117,27 @@ export function CreateBlockDialog({ currentDate, blockToEdit, open: controlledOp
     });
 
     async function onSubmit(values: z.infer<typeof formSchema>) {
+        // Normalize title for internal storage if we had a separate column, but logic implies we just save it.
+        // User said: "Saving a block, system must convert name to lowercase... (internally). And leave Front as user desires."
+        // We will respect the input title for display. The 'normalization' is handled by getUniqueBlockTypes for searching.
+
         let res;
+        const payload = {
+            title: values.title, // Keep display title
+            startTime: values.startTime,
+            totalDuration: values.totalDuration,
+            color: values.color,
+            icon: values.icon,
+            date: currentDate,
+            subTasks: values.subTasks.map(s => ({ ...s, done: false })),
+            type: values.isRecurring ? 'recurring' as const : 'unique' as const,
+            recurrencePattern: values.replicateWeekdays ? 'weekdays' as const : undefined,
+        };
 
         if (isEditing && blockToEdit) {
-            // Update
-            res = await updateMissionBlock(blockToEdit.id, {
-                title: values.title,
-                startTime: values.startTime,
-                totalDuration: values.totalDuration,
-                color: values.color,
-                date: currentDate, // Usually date stays same unless we add date picker
-                subTasks: values.subTasks.map(s => ({ ...s, done: false })),
-                type: values.isRecurring ? 'recurring' : 'unique',
-                recurrencePattern: values.replicateWeekdays ? 'weekdays' : undefined,
-            });
+            res = await updateMissionBlock(blockToEdit.id, payload);
         } else {
-            // Create
-            res = await createMissionBlock({
-                title: values.title,
-                startTime: values.startTime,
-                totalDuration: values.totalDuration,
-                color: values.color,
-                date: currentDate,
-                subTasks: values.subTasks.map(s => ({ ...s, done: false })),
-                type: values.isRecurring ? 'recurring' : 'unique',
-                recurrencePattern: values.replicateWeekdays ? 'weekdays' : undefined,
-            });
+            res = await createMissionBlock(payload);
         }
 
         if (res?.success) {
@@ -132,12 +148,37 @@ export function CreateBlockDialog({ currentDate, blockToEdit, open: controlledOp
         }
     }
 
+    const handleTitleChange = (val: string) => {
+        const normalized = val.trim().toLowerCase();
+        if (!normalized) {
+            setFilteredSuggestions([]);
+            setShowSuggestions(false);
+            return;
+        }
+
+        const matches = availableTypes.filter(t =>
+            t.value.toLowerCase().includes(normalized)
+        );
+        setFilteredSuggestions(matches);
+        setShowSuggestions(matches.length > 0);
+    };
+
+    const applySuggestion = (suggestion: typeof availableTypes[0]) => {
+        form.setValue("title", suggestion.label);
+        form.setValue("icon", suggestion.icon);
+        form.setValue("color", suggestion.color);
+        setShowSuggestions(false);
+    };
+
     const COLORS = [
         { hex: '#0ea5e9', class: 'bg-cyan-500' },
         { hex: '#ef4444', class: 'bg-red-500' },
         { hex: '#f59e0b', class: 'bg-amber-500' },
         { hex: '#8b5cf6', class: 'bg-violet-500' },
-        { hex: '#10b981', class: 'bg-emerald-500' }
+        { hex: '#10b981', class: 'bg-emerald-500' },
+        { hex: '#ec4899', class: 'bg-pink-500' },   // New
+        { hex: '#f97316', class: 'bg-orange-500' }, // New
+        { hex: '#6366f1', class: 'bg-indigo-500' }, // New
     ];
 
     const isRecurring = form.watch("isRecurring");
@@ -158,20 +199,81 @@ export function CreateBlockDialog({ currentDate, blockToEdit, open: controlledOp
                     <Form {...form}>
                         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
 
-                            {/* Nome */}
+                            {/* Nome com Autocomplete */}
                             <FormField
                                 control={form.control}
                                 name="title"
                                 render={({ field }) => (
-                                    <FormItem>
+                                    <FormItem className="relative">
                                         <FormLabel className="text-[10px] font-black text-zinc-500 uppercase ml-1">Nome do Bloco</FormLabel>
                                         <FormControl>
-                                            <Input
-                                                placeholder="..."
-                                                {...field}
-                                                className="bg-white/5 border-white/10 h-14 rounded-2xl text-lg font-bold text-white placeholder:text-zinc-700 focus-visible:ring-primary/50"
-                                            />
+                                            <div className="relative">
+                                                <Input
+                                                    placeholder="Ex: Treino, Estudo..."
+                                                    {...field}
+                                                    onChange={(e) => {
+                                                        field.onChange(e);
+                                                        handleTitleChange(e.target.value);
+                                                    }}
+                                                    onFocus={() => handleTitleChange(field.value)}
+                                                    onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
+                                                    autoComplete="off"
+                                                    className="bg-white/5 border-white/10 h-14 rounded-2xl text-lg font-bold text-white placeholder:text-zinc-700 focus-visible:ring-primary/50"
+                                                />
+                                                {/* Suggestions Dropdown */}
+                                                {showSuggestions && (
+                                                    <div className="absolute top-full left-0 right-0 mt-2 bg-[#18181b] border border-white/10 rounded-xl shadow-xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-1">
+                                                        <div className="text-[9px] uppercase font-bold text-zinc-500 px-3 py-2 bg-white/5">Sugestões (Evitar Duplicidade)</div>
+                                                        {filteredSuggestions.map((suggestion, idx) => {
+                                                            const Icon = BLOCK_ICONS.find(i => i.name === suggestion.icon)?.icon || Zap;
+                                                            return (
+                                                                <div
+                                                                    key={idx}
+                                                                    onClick={() => applySuggestion(suggestion)}
+                                                                    className="flex items-center gap-3 p-3 hover:bg-white/10 cursor-pointer transition-colors"
+                                                                >
+                                                                    <div
+                                                                        className="w-6 h-6 rounded-md flex items-center justify-center text-white"
+                                                                        style={{ backgroundColor: suggestion.color }}
+                                                                    >
+                                                                        <Icon className="w-3 h-3" />
+                                                                    </div>
+                                                                    <span className="text-sm font-bold text-white">{suggestion.label}</span>
+                                                                </div>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                )}
+                                            </div>
                                         </FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+
+                            {/* Ícone Grid */}
+                            <FormField
+                                control={form.control}
+                                name="icon"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel className="text-[10px] font-black text-zinc-500 uppercase ml-1">Ícone</FormLabel>
+                                        <div className="grid grid-cols-4 gap-2">
+                                            {BLOCK_ICONS.map((item) => (
+                                                <div
+                                                    key={item.name}
+                                                    onClick={() => field.onChange(item.name)}
+                                                    className={cn(
+                                                        "h-12 rounded-xl flex items-center justify-center cursor-pointer border transition-all hover:bg-white/5",
+                                                        field.value === item.name
+                                                            ? "bg-white/10 border-primary text-primary shadow-[0_0_10px_-2px_var(--primary)]"
+                                                            : "bg-white/5 border-transparent text-zinc-500"
+                                                    )}
+                                                >
+                                                    <item.icon className="w-5 h-5" />
+                                                </div>
+                                            ))}
+                                        </div>
                                         <FormMessage />
                                     </FormItem>
                                 )}
@@ -184,7 +286,7 @@ export function CreateBlockDialog({ currentDate, blockToEdit, open: controlledOp
                                 render={({ field }) => (
                                     <FormItem>
                                         <FormLabel className="text-[10px] font-black text-zinc-500 uppercase ml-1">Cor do Card</FormLabel>
-                                        <div className="flex gap-3">
+                                        <div className="flex flex-wrap gap-3">
                                             {COLORS.map(c => (
                                                 <div
                                                     key={c.hex}

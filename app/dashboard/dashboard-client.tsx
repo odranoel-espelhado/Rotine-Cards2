@@ -4,7 +4,7 @@ import { UserButton } from "@clerk/nextjs";
 import { Zap, Target, Heart, Plus, Trash2, Calendar as CalendarIcon } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import { CartesianGrid, PolarAngleAxis, PolarGrid, Radar, RadarChart, ResponsiveContainer } from "recharts";
-import { MissionBlock } from "@/lib/actions/mission.actions";
+import { MissionBlock, getUniqueBlockTypes } from "@/lib/actions/mission.actions";
 import { Button } from "@/components/ui/button";
 import { deleteMissionBlock } from "@/lib/actions/mission.actions";
 import { useRouter } from "next/navigation";
@@ -152,6 +152,11 @@ export default function DashboardClient({
     }
 
     const [editingBlock, setEditingBlock] = useState<MissionBlock | null>(null);
+    const [allBlockTypes, setAllBlockTypes] = useState<{ label: string; icon: string; color: string; value: string }[]>([]);
+
+    useEffect(() => {
+        getUniqueBlockTypes().then(setAllBlockTypes);
+    }, []);
 
     return (
         <DndContext onDragEnd={handleDragEnd}>
@@ -298,7 +303,7 @@ export default function DashboardClient({
                             <div className="flex-1 bg-[#050506] border border-white/5 rounded-3xl overflow-hidden flex flex-col h-[500px]">
                                 <BacklogComponent
                                     initialTasks={initialBacklog}
-                                    availableBlockTypes={Array.from(new Map(blocks.map(b => [b.title, { label: b.title, color: b.color || '#3b82f6' }])).values())}
+                                    availableBlockTypes={allBlockTypes}
                                 />
                             </div>
                         </div>

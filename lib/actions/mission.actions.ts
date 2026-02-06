@@ -153,7 +153,7 @@ export async function toggleMissionBlock(id: string, status: 'pending' | 'comple
 }
 
 import { backlogTasks } from "@/db/schema";
-import { inArray } from "drizzle-orm";
+import { inArray, desc } from "drizzle-orm";
 
 export async function updateMissionBlock(id: string, data: Partial<Omit<NewMissionBlock, "id" | "userId" | "createdAt">>) {
     const { userId } = await auth();
@@ -218,5 +218,45 @@ export async function assignTasksToBlock(blockId: string, tasksToAssign: any[]) 
     } catch (error: any) {
         console.error("Error assigning tasks:", error);
         return { error: error.message || "Erro ao atribuir tarefas" };
+    }
+}
+
+export async function getUniqueBlockTypes() {
+    const { userId } = await auth();
+    if (!userId) return [];
+
+    try {
+        const blocks = await db.select({
+            title: missionBlocks.title,
+            icon: missionBlocks.icon,
+            color: missionBlocks.color,
+            createdAt: missionBlocks.createdAt
+        })
+            .from(missionBlocks)
+            .where(eq(missionBlocks.userId, userId))
+            .orderBy(desc(missionBlocks.createdAt));
+
+        const seen = new Set();
+        const uniqueBlocks: { label: string; icon: string; color: string; value: string }[] = [];
+
+        for (const block of blocks) {
+            const normalizedTitle = block.title.trim().toLowerCase();
+            const key = `${normalizedTitle}|${block.icon}`;
+
+            if (!seen.has(key)) {
+                seen.add(key);
+                uniqueBlocks.push({
+                    label: block.title,
+                    value: block.title,
+                    icon: block.icon || 'zap',
+                    color: block.color || '#3b82f6'
+                });
+            }
+        }
+
+        return uniqueBlocks;
+    } catch (error) {
+        console.error("Error getting unique block types:", error);
+        return [];
     }
 }
