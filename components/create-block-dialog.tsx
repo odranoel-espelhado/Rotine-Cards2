@@ -1,14 +1,12 @@
 "use client";
 
-import { useForm } from "react-hook-form";
+import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Button } from "@/components/ui/button";
 import {
     Dialog,
     DialogContent,
-    DialogDescription,
-    DialogFooter,
     DialogHeader,
     DialogTitle,
     DialogTrigger,
@@ -22,186 +20,295 @@ import {
     FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
 import { createMissionBlock } from "@/lib/actions/mission.actions";
-import { useState } from "react";
-import { Plus } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Plus, Trash2, Clock, Calendar } from "lucide-react";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 
 // Zod Schema
+const subtaskSchema = z.object({
+    title: z.string().min(1, "Nome necessário"),
+    duration: z.coerce.number().min(1, "Mínimo 1 min"),
+});
+
 const formSchema = z.object({
-    title: z.string().min(2, {
-        message: "Título deve ter pelo menos 2 caracteres.",
-    }),
-    startTime: z.string().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, {
-        message: "Formato de hora inválido (HH:mm).",
-    }),
-    totalDuration: z.coerce.number().min(5, {
-        message: "Duração mínima de 5 minutos."
-    }),
+    title: z.string().min(2, { message: "Título deve ter pelo menos 2 caracteres." }),
     color: z.string().default("#3b82f6"),
+    startTime: z.string().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, { message: "Formato inválido." }),
+    totalDuration: z.coerce.number().min(5, { message: "Duração mínima de 5 minutos." }),
+    subTasks: z.array(subtaskSchema).default([]),
+    isRecurring: z.boolean().default(false),
+    replicateWeekdays: z.boolean().default(false),
 });
 
 export function CreateBlockDialog({ currentDate }: { currentDate: string }) {
     const [open, setOpen] = useState(false);
-    const [subtasksText, setSubtasksText] = useState("");
-    const [isRecurring, setIsRecurring] = useState(false);
 
     const form = useForm<z.infer<typeof formSchema>>({
         resolver: zodResolver(formSchema) as any,
         defaultValues: {
             title: "",
+            color: "#0ea5e9", // Default cyan/blue
             startTime: "08:00",
-            totalDuration: 60,
-            color: "#3b82f6",
+            totalDuration: 30,
+            subTasks: [],
+            isRecurring: false,
+            replicateWeekdays: false,
         },
     });
 
-    async function onSubmit(values: z.infer<typeof formSchema>) {
-        // Parse subtasks
-        const subTasks = subtasksText.split('\n').filter(line => line.trim() !== '').map(line => ({
-            title: line.trim(),
-            done: false,
-            duration: 0
-        }));
+    const { fields, append, remove } = useFieldArray({
+        control: form.control,
+        name: "subTasks",
+    });
 
+    // Reset form when dialog opens/closes
+    useEffect(() => {
+        if (!open) form.reset();
+    }, [open, form]);
+
+    async function onSubmit(values: z.infer<typeof formSchema>) {
         const res = await createMissionBlock({
             title: values.title,
             startTime: values.startTime,
             totalDuration: values.totalDuration,
             color: values.color,
             date: currentDate,
-            subTasks: subTasks,
+            subTasks: values.subTasks.map(s => ({ ...s, done: false })),
+            type: values.isRecurring ? 'recurring' : 'unique',
+            recurrencePattern: values.replicateWeekdays ? 'weekdays' : undefined,
         });
 
         if (res?.success) {
             setOpen(false);
-            form.reset();
-            setSubtasksText("");
             toast.success("Missão criada com sucesso!");
         } else {
             toast.error(res?.error || "Erro ao criar bloco");
         }
     }
 
+    const COLORS = [
+        { hex: '#0ea5e9', class: 'bg-cyan-500' },
+        { hex: '#ef4444', class: 'bg-red-500' },
+        { hex: '#f59e0b', class: 'bg-amber-500' },
+        { hex: '#8b5cf6', class: 'bg-violet-500' },
+        { hex: '#10b981', class: 'bg-emerald-500' }
+    ];
+
+    const isRecurring = form.watch("isRecurring");
+
     return (
         <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
-                <Button className="bg-[#10b981] hover:bg-[#10b981]/90 text-black font-bold rounded-full px-6">
-                    + AGENDAR
+                <Button className="bg-[#10b981] hover:bg-[#10b981]/90 text-black font-bold rounded-xl px-6 uppercase shadow-lg transition-transform hover:scale-105">
+                    + Agendar
                 </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-[500px] bg-[#09090b] border border-white/10 text-white p-6 rounded-2xl">
-                <DialogHeader className="mb-4">
-                    <DialogTitle className="text-xl font-bold tracking-tight sr-only">Nova Missão</DialogTitle>
-                </DialogHeader>
+            <DialogContent className="sm:max-w-[480px] bg-[#050506] border border-white/10 text-white p-0 overflow-hidden gap-0 rounded-[2rem]">
+                <div className="p-8 space-y-6 max-h-[85vh] overflow-y-auto custom-scrollbar">
 
-                <Form {...form}>
-                    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
-                        <FormField
-                            control={form.control}
-                            name="title"
-                            render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel className="text-xs font-bold text-zinc-500 uppercase tracking-wider">Nome da Tarefa</FormLabel>
-                                    <FormControl>
-                                        <Input placeholder="..." {...field} className="bg-[#18181b] border-transparent h-12 rounded-xl text-white placeholder:text-zinc-600 focus-visible:ring-offset-0 focus-visible:ring-1 focus-visible:ring-primary" />
-                                    </FormControl>
-                                    <FormMessage />
-                                </FormItem>
-                            )}
-                        />
+                    <div className="text-center space-y-1 mb-2">
+                        <DialogTitle className="text-2xl font-black uppercase text-emerald-500 italic">Nova Missão</DialogTitle>
+                        <p className="text-[10px] font-bold text-zinc-600 uppercase tracking-widest">Protocolo de Criação</p>
+                    </div>
 
-                        <FormField
-                            control={form.control}
-                            name="color"
-                            render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel className="text-xs font-bold text-zinc-500 uppercase tracking-wider">Cor do Card</FormLabel>
-                                    <div className="flex gap-3">
-                                        {['#0ea5e9', '#ef4444', '#f59e0b', '#8b5cf6', '#10b981'].map(color => (
-                                            <div
-                                                key={color}
-                                                className={`w-10 h-10 rounded-xl cursor-pointer transition-all ${field.value === color ? 'ring-2 ring-white scale-110' : 'hover:scale-105 opacity-80 hover:opacity-100'}`}
-                                                style={{ backgroundColor: color }}
-                                                onClick={() => field.onChange(color)}
+                    <Form {...form}>
+                        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+
+                            {/* Nome */}
+                            <FormField
+                                control={form.control}
+                                name="title"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel className="text-[10px] font-black text-zinc-500 uppercase ml-1">Nome do Bloco</FormLabel>
+                                        <FormControl>
+                                            <Input
+                                                placeholder="..."
+                                                {...field}
+                                                className="bg-white/5 border-white/10 h-14 rounded-2xl text-lg font-bold text-white placeholder:text-zinc-700 focus-visible:ring-primary/50"
                                             />
-                                        ))}
-                                    </div>
-                                    <FormMessage />
-                                </FormItem>
-                            )}
-                        />
-
-                        <div className="grid grid-cols-2 gap-4">
-                            <FormField
-                                control={form.control}
-                                name="startTime"
-                                render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel className="text-xs font-bold text-zinc-500 uppercase tracking-wider">Início</FormLabel>
-                                        <FormControl>
-                                            <div className="relative">
-                                                <Input type="time" {...field} className="bg-[#18181b] border-transparent h-12 rounded-xl text-white focus-visible:ring-offset-0 focus-visible:ring-1 focus-visible:ring-primary" />
-                                            </div>
                                         </FormControl>
                                         <FormMessage />
                                     </FormItem>
                                 )}
                             />
+
+                            {/* Cor */}
                             <FormField
                                 control={form.control}
-                                name="totalDuration"
+                                name="color"
                                 render={({ field }) => (
                                     <FormItem>
-                                        <FormLabel className="text-xs font-bold text-zinc-500 uppercase tracking-wider">Duração (min)</FormLabel>
-                                        <FormControl>
-                                            <Input type="number" {...field} className="bg-[#18181b] border-transparent h-12 rounded-xl text-white focus-visible:ring-offset-0 focus-visible:ring-1 focus-visible:ring-primary" />
-                                        </FormControl>
+                                        <FormLabel className="text-[10px] font-black text-zinc-500 uppercase ml-1">Cor do Card</FormLabel>
+                                        <div className="flex gap-3">
+                                            {COLORS.map(c => (
+                                                <div
+                                                    key={c.hex}
+                                                    onClick={() => field.onChange(c.hex)}
+                                                    className={cn(
+                                                        "w-10 h-10 rounded-xl cursor-pointer transition-all border-2",
+                                                        c.class,
+                                                        field.value === c.hex ? "border-white scale-110 shadow-lg" : "border-transparent opacity-60 hover:opacity-100 hover:scale-105"
+                                                    )}
+                                                />
+                                            ))}
+                                        </div>
                                         <FormMessage />
                                     </FormItem>
                                 )}
                             />
-                        </div>
 
-                        <FormItem>
-                            <FormLabel className="text-xs font-bold text-zinc-500 uppercase tracking-wider">Subtarefas</FormLabel>
-                            <FormControl>
-                                <textarea
-                                    className="w-full min-h-[100px] bg-[#18181b] border-transparent rounded-xl text-white p-3 text-sm placeholder:text-zinc-600 focus:outline-none focus:ring-1 focus:ring-primary resize-none"
-                                    placeholder="Uma por linha..."
-                                    value={subtasksText}
-                                    onChange={(e) => setSubtasksText(e.target.value)}
+                            {/* Tempo */}
+                            <div className="grid grid-cols-2 gap-4">
+                                <FormField
+                                    control={form.control}
+                                    name="startTime"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel className="text-[10px] font-black text-zinc-500 uppercase ml-1">Início</FormLabel>
+                                            <FormControl>
+                                                <div className="relative">
+                                                    <Input type="time" {...field} className="bg-white/5 border-white/10 h-14 rounded-2xl text-white font-mono font-bold focus-visible:ring-primary/50" />
+                                                    <Clock className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-600 pointer-events-none" />
+                                                </div>
+                                            </FormControl>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
                                 />
-                            </FormControl>
-                        </FormItem>
-
-                        <div className="flex gap-4">
-                            <div
-                                className={`flex-1 h-12 rounded-xl flex items-center justify-center gap-2 cursor-pointer border border-white/5 transition-all ${!isRecurring ? 'bg-[#18181b] border-primary/50 text-white' : 'bg-transparent text-zinc-500 hover:bg-white/5'}`}
-                                onClick={() => setIsRecurring(false)}
-                            >
-                                <div className={`w-3 h-3 rounded-full ${!isRecurring ? 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.5)]' : 'bg-zinc-700'}`}></div>
-                                <span className="text-sm font-bold">ÚNICA</span>
+                                <FormField
+                                    control={form.control}
+                                    name="totalDuration"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel className="text-[10px] font-black text-zinc-500 uppercase ml-1">Duração (Min)</FormLabel>
+                                            <FormControl>
+                                                <Input type="number" {...field} className="bg-white/5 border-white/10 h-14 rounded-2xl text-white font-mono font-bold focus-visible:ring-primary/50" />
+                                            </FormControl>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
                             </div>
-                            <div
-                                className={`flex-1 h-12 rounded-xl flex items-center justify-center gap-2 cursor-pointer border border-white/5 transition-all ${isRecurring ? 'bg-[#18181b] border-primary/50 text-white' : 'bg-transparent text-zinc-500 hover:bg-white/5'}`}
-                                onClick={() => setIsRecurring(true)}
-                            >
-                                <div className={`w-3 h-3 rounded-full ${isRecurring ? 'bg-white' : 'bg-zinc-700'}`}></div>
-                                <span className="text-sm font-bold">FIXA</span>
+
+                            {/* Subtarefas */}
+                            <div className="space-y-3">
+                                <div className="flex justify-between items-center">
+                                    <FormLabel className="text-[10px] font-black text-zinc-500 uppercase ml-1">Subtarefas Fixas</FormLabel>
+                                    <Button
+                                        type="button"
+                                        onClick={() => append({ title: "", duration: 15 })}
+                                        variant="ghost"
+                                        size="sm"
+                                        className="h-6 text-[10px] text-emerald-500 hover:text-emerald-400 hover:bg-emerald-500/10 font-bold uppercase"
+                                    >
+                                        + Adicionar
+                                    </Button>
+                                </div>
+                                <div className="space-y-2 max-h-[150px] overflow-y-auto custom-scrollbar pr-2">
+                                    {fields.map((field, index) => (
+                                        <div key={field.id} className="flex gap-2 items-center animate-in fade-in slide-in-from-top-2 duration-200">
+                                            <FormField
+                                                control={form.control}
+                                                name={`subTasks.${index}.title`}
+                                                render={({ field }) => (
+                                                    <Input {...field} placeholder="Nome da subtarefa..." className="flex-1 bg-white/5 border-white/5 h-10 rounded-lg text-xs" />
+                                                )}
+                                            />
+                                            <FormField
+                                                control={form.control}
+                                                name={`subTasks.${index}.duration`}
+                                                render={({ field }) => (
+                                                    <Input {...field} type="number" placeholder="Min" className="w-16 bg-white/5 border-white/5 h-10 rounded-lg text-xs font-mono text-center" />
+                                                )}
+                                            />
+                                            <Button
+                                                type="button"
+                                                variant="ghost"
+                                                size="icon"
+                                                onClick={() => remove(index)}
+                                                className="h-10 w-8 text-zinc-600 hover:text-red-500 hover:bg-red-500/10"
+                                            >
+                                                <Trash2 className="w-4 h-4" />
+                                            </Button>
+                                        </div>
+                                    ))}
+                                    {fields.length === 0 && (
+                                        <div className="text-center py-4 bg-white/5 rounded-xl border border-dashed border-white/10">
+                                            <p className="text-[10px] text-zinc-600 uppercase font-bold">Nenhuma subtarefa</p>
+                                        </div>
+                                    )}
+                                </div>
                             </div>
-                        </div>
 
-                        <Button type="submit" className="w-full h-14 bg-[#10b981] hover:bg-[#10b981]/90 text-black font-black tracking-wide text-lg rounded-xl uppercase shadow-[0_0_20px_-5px_rgba(16,185,129,0.4)] transition-all hover:scale-[1.02]">
-                            SALVAR
-                        </Button>
+                            {/* Mode Toggle */}
+                            <div className="grid grid-cols-2 gap-4">
+                                <FormField
+                                    control={form.control}
+                                    name="isRecurring"
+                                    render={({ field }) => (
+                                        <>
+                                            <div
+                                                className={cn(
+                                                    "h-14 rounded-2xl flex items-center justify-center gap-3 cursor-pointer border transition-all",
+                                                    !field.value ? "bg-white/5 border-primary/50 text-white shadow-[0_0_15px_-5px_#3b82f6]" : "bg-transparent border-white/5 text-zinc-600 hover:bg-white/5"
+                                                )}
+                                                onClick={() => field.onChange(false)}
+                                            >
+                                                <div className={cn("w-3 h-3 rounded-full transition-colors", !field.value ? "bg-red-500" : "bg-zinc-700")} />
+                                                <span className="text-xs font-black uppercase">Única</span>
+                                            </div>
+                                            <div
+                                                className={cn(
+                                                    "h-14 rounded-2xl flex items-center justify-center gap-3 cursor-pointer border transition-all",
+                                                    field.value ? "bg-white/5 border-emerald-500/50 text-white shadow-[0_0_15px_-5px_#10b981]" : "bg-transparent border-white/5 text-zinc-600 hover:bg-white/5"
+                                                )}
+                                                onClick={() => field.onChange(true)}
+                                            >
+                                                <div className={cn("w-3 h-3 rounded-full transition-colors", field.value ? "bg-emerald-500" : "bg-zinc-700")} />
+                                                <span className="text-xs font-black uppercase">Fixa</span>
+                                            </div>
+                                        </>
+                                    )}
+                                />
+                            </div>
 
-                        <div className="flex justify-center">
-                            <span className="text-xs font-bold text-zinc-600 cursor-pointer hover:text-zinc-400" onClick={() => setOpen(false)}>CANCELAR</span>
-                        </div>
+                            {/* Replicate Checkbox */}
+                            <FormField
+                                control={form.control}
+                                name="replicateWeekdays"
+                                render={({ field }) => (
+                                    <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-xl border border-white/5 p-4 bg-white/5">
+                                        <FormControl>
+                                            <Checkbox
+                                                checked={field.value}
+                                                onCheckedChange={field.onChange}
+                                                className="data-[state=checked]:bg-indigo-500 data-[state=checked]:border-indigo-500 border-white/20"
+                                            />
+                                        </FormControl>
+                                        <div className="space-y-1 leading-none">
+                                            <FormLabel className="text-xs font-bold text-white uppercase">
+                                                Replicar (Seg - Sex)
+                                            </FormLabel>
+                                        </div>
+                                    </FormItem>
+                                )}
+                            />
 
-                    </form>
-                </Form>
+                            <div className="pt-2 gap-3 flex flex-col">
+                                <Button type="submit" className="w-full h-16 bg-emerald-600 hover:bg-emerald-500 text-white font-black tracking-widest text-lg rounded-2xl uppercase shadow-xl transition-all hover:scale-[1.02]">
+                                    Salvar
+                                </Button>
+                                <Button type="button" variant="ghost" className="h-auto py-2 text-[10px] font-black uppercase text-zinc-600 hover:text-zinc-300" onClick={() => setOpen(false)}>
+                                    Cancelar
+                                </Button>
+                            </div>
+                        </form>
+                    </Form>
+                </div>
             </DialogContent>
         </Dialog>
     );

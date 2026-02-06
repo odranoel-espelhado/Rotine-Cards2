@@ -25,6 +25,8 @@ export const missionBlocks = pgTable('mission_blocks', {
     subTasks: jsonb('sub_tasks').notNull().default([]),
 
     totalDuration: integer('total_duration').notNull(),
+    type: text('type').default('unique'), // 'unique' | 'recurring'
+    recurrencePattern: text('recurrence_pattern'), // 'weekdays'
     createdAt: timestamp('created_at').defaultNow().notNull(),
 });
 
