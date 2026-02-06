@@ -2,7 +2,7 @@
 
 import { UserButton } from "@clerk/nextjs";
 import { Zap, Target, Heart, Plus, Trash2, Calendar as CalendarIcon } from "lucide-react";
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { CartesianGrid, PolarAngleAxis, PolarGrid, Radar, RadarChart, ResponsiveContainer } from "recharts";
 import { MissionBlock } from "@/lib/actions/mission.actions";
 import { Button } from "@/components/ui/button";
@@ -94,6 +94,44 @@ export default function DashboardClient({
 
     const [focusMode, setFocusMode] = useState(false);
 
+    // Day Selector Refs & Drag Logic
+    const daySelectorRef = useRef<HTMLDivElement>(null);
+    const [isDragging, setIsDragging] = useState(false);
+    const [startX, setStartX] = useState(0);
+    const [scrollLeftState, setScrollLeftState] = useState(0);
+
+    const startDragging = (e: React.MouseEvent) => {
+        if (!daySelectorRef.current) return;
+        setIsDragging(true);
+        setStartX(e.pageX - daySelectorRef.current.offsetLeft);
+        setScrollLeftState(daySelectorRef.current.scrollLeft);
+    };
+
+    const stopDragging = () => {
+        setIsDragging(false);
+    };
+
+    const onDrag = (e: React.MouseEvent) => {
+        if (!isDragging || !daySelectorRef.current) return;
+        e.preventDefault();
+        const x = e.pageX - daySelectorRef.current.offsetLeft;
+        const walk = (x - startX) * 2; // Scroll speed multiplier
+        daySelectorRef.current.scrollLeft = scrollLeftState - walk;
+    };
+
+    // Auto-scroll to Selected Date on Mount
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            const el = document.getElementById(`day-${selectedDate}`);
+            if (el && daySelectorRef.current) {
+                const container = daySelectorRef.current;
+                const scrollPosition = el.offsetLeft - (container.clientWidth / 2) + (el.clientWidth / 2);
+                container.scrollTo({ left: scrollPosition, behavior: 'smooth' });
+            }
+        }, 300); // Slight delay to ensure DOM is ready
+        return () => clearTimeout(timer);
+    }, [selectedDate]); // Re-run when date changes to keep it centered
+
     const [logs, setLogs] = useState<CardLog[]>([]);
 
     const handleCardUsed = (card: TacticalCard) => {
@@ -154,20 +192,39 @@ export default function DashboardClient({
 
                         {/* LEFT COLUMN: Calendar & Timeline - 55% Width */}
                         <div className="w-full lg:w-[55%] flex flex-col gap-6">
-                            {/* Day Carousel */}
-                            <div id="daySelector" className={cn("w-full overflow-x-auto pb-2 custom-scrollbar flex gap-2", focusMode ? "opacity-20 pointer-events-none grayscale" : "")}>
+                            {/* Day Carousel with Drag-to-Scroll */}
+                            <div
+                                ref={daySelectorRef}
+                                onMouseDown={startDragging}
+                                onMouseLeave={stopDragging}
+                                onMouseUp={stopDragging}
+                                onMouseMove={onDrag}
+                                className={cn(
+                                    "w-full overflow-x-auto pb-4 custom-scrollbar flex gap-3 cursor-grab select-none active:cursor-grabbing",
+                                    focusMode ? "opacity-20 pointer-events-none grayscale" : ""
+                                )}
+                                style={{ scrollBehavior: isDragging ? 'auto' : 'smooth' }}
+                            >
                                 {days.map((d) => (
                                     <button
                                         key={d.date}
-                                        onClick={() => handleDateSelect(d.date)}
+                                        id={`day-${d.date}`}
+                                        onClick={() => {
+                                            if (!isDragging) handleDateSelect(d.date);
+                                        }}
                                         className={cn(
-                                            "day-card flex-shrink-0",
-                                            selectedDate === d.date ? "active" : "",
-                                            d.isToday ? "today" : ""
+                                            "day-card shrink-0 transition-all duration-300",
+                                            selectedDate === d.date ? "active scale-105" : "hover:bg-white/5",
+                                            d.isToday ? "today border-primary" : ""
                                         )}
                                     >
-                                        <span className="text-[10px] uppercase font-black tracking-widest">{d.weekday}</span>
-                                        <span className="text-2xl font-black">{d.day}</span>
+                                        <span className="text-[10px] uppercase font-black tracking-widest opacity-60">{d.weekday}</span>
+                                        <span className={cn("text-2xl font-black", d.isToday ? "text-primary" : "text-white")}>{d.day}</span>
+                                        {d.isToday && (
+                                            <span className="absolute -bottom-2 left-1/2 -translate-x-1/2 text-[8px] bg-primary text-black px-1.5 rounded font-black uppercase">
+                                                HOJE
+                                            </span>
+                                        )}
                                     </button>
                                 ))}
                             </div>
