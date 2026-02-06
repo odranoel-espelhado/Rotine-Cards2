@@ -19,6 +19,7 @@ import { DndContext, DragEndEvent } from "@dnd-kit/core";
 import { DroppableMissionBlock } from "@/components/droppable-mission-block";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { CardHistory, CardLog } from "@/components/card-history";
 
 // Mock Data for Efficiency Radar Chart (Static for now)
 const chartData = [
@@ -93,6 +94,8 @@ export default function DashboardClient({
 
     const [focusMode, setFocusMode] = useState(false);
 
+    const [logs, setLogs] = useState<CardLog[]>([]);
+
     const handleCardUsed = (card: TacticalCard) => {
         if (card.name === "Hiperfoco") {
             setFocusMode(true);
@@ -100,6 +103,14 @@ export default function DashboardClient({
                 description: "Distrações visuais foram minimizadas.",
             });
         }
+
+        const newLog: CardLog = {
+            id: Date.now().toString(),
+            cardName: card.name,
+            timestamp: new Date(),
+            description: card.effect || "Efeito Tático Ativado"
+        };
+        setLogs(prev => [newLog, ...prev]);
     }
 
     return (
@@ -136,83 +147,102 @@ export default function DashboardClient({
                     </div>
                 </header>
 
-                <main className="flex-1 overflow-hidden flex flex-col md:flex-row">
-                    {/* ... Timeline ... */}
-                    <div className="flex-1 flex flex-col border-r border-white/5 relative">
-                        {/* Day Carousel */}
-                        {/* Day Carousel */}
-                        <div id="daySelector" className={cn(focusMode ? "opacity-20 pointer-events-none grayscale" : "")}>
-                            {days.map((d) => (
-                                <button
-                                    key={d.date}
-                                    onClick={() => handleDateSelect(d.date)}
-                                    className={cn(
-                                        "day-card",
-                                        selectedDate === d.date ? "active" : "",
-                                        d.isToday ? "today" : ""
-                                    )}
-                                >
-                                    <span className="text-[10px] uppercase font-black tracking-widest">{d.weekday}</span>
-                                    <span className="text-2xl font-black">{d.day}</span>
-                                </button>
-                            ))}
-                        </div>
+                <main className="flex-1 overflow-y-auto custom-scrollbar p-6 space-y-8 container mx-auto max-w-7xl">
 
-                        {/* Mission Timeline - Scrollable */}
-                        <div className="flex-1 overflow-y-auto p-4 relative space-y-4">
-                            <div className="absolute top-4 left-4 h-full w-[2px] bg-white/5 z-0"></div>
+                    {/* Top Section: Timeline (Left) & Tasks/Stats (Right) */}
+                    <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
 
-                            {blocks.length === 0 ? (
-                                <div className="flex flex-col items-center justify-center h-64 text-zinc-500 mt-20">
-                                    <CalendarIcon className="h-12 w-12 mb-4 opacity-20" />
-                                    <p>Nenhuma missão para este dia.</p>
-                                    <Button variant="link" className="text-primary mt-2">Criar Missão Tática</Button>
+                        {/* LEFT COLUMN: Calendar & Timeline */}
+                        <div className="lg:col-span-8 flex flex-col gap-6">
+                            {/* Day Carousel */}
+                            <div id="daySelector" className={cn("w-full overflow-x-auto pb-2 custom-scrollbar flex gap-2", focusMode ? "opacity-20 pointer-events-none grayscale" : "")}>
+                                {days.map((d) => (
+                                    <button
+                                        key={d.date}
+                                        onClick={() => handleDateSelect(d.date)}
+                                        className={cn(
+                                            "day-card flex-shrink-0",
+                                            selectedDate === d.date ? "active" : "",
+                                            d.isToday ? "today" : ""
+                                        )}
+                                    >
+                                        <span className="text-[10px] uppercase font-black tracking-widest">{d.weekday}</span>
+                                        <span className="text-2xl font-black">{d.day}</span>
+                                    </button>
+                                ))}
+                            </div>
+
+                            {/* Mission Timeline */}
+                            <div className="bg-[#050506] border border-white/5 rounded-3xl overflow-hidden shadow-2xl relative flex flex-col h-[600px]">
+                                <div className="p-6 border-b border-white/5 flex justify-between items-center bg-[#050506]/95 backdrop-blur-md z-10 sticky top-0">
+                                    <h2 className="text-2xl font-black uppercase italic text-white flex items-center gap-2">
+                                        <CalendarIcon className="w-6 h-6 text-primary" />
+                                        <span>Cronograma</span>
+                                    </h2>
                                 </div>
-                            ) : (
-                                blocks.map(block => (
-                                    <DroppableMissionBlock key={block.id} block={block} onDelete={handleDelete} />
-                                ))
-                            )}
-
-                            <div className="h-20"></div>
-                        </div>
-                    </div>
-
-                    {/* ... Right Panel ... */}
-                    <div className={cn("w-full md:w-[400px] border-l border-white/5 bg-[#030304] p-6 space-y-8 flex-shrink-0 hidden md:block transition-all", focusMode ? "opacity-10 pointer-events-none blur-sm" : "")}>
-                        {/* ... Efficiency Chart ... */}
-                        <div>
-                            <h2 className="text-sm font-bold text-zinc-400 uppercase tracking-wider mb-4">Performance Tática</h2>
-                            <div className="h-[250px] w-full relative">
-                                <ResponsiveContainer width="100%" height="100%">
-                                    <RadarChart cx="50%" cy="50%" outerRadius="80%" data={initialStats}>
-                                        <PolarGrid stroke="rgba(255,255,255,0.1)" />
-                                        <PolarAngleAxis dataKey="subject" tick={{ fill: '#a1a1aa', fontSize: 12 }} />
-                                        <Radar
-                                            name="Performance"
-                                            dataKey="A"
-                                            stroke="#3b82f6"
-                                            strokeWidth={3}
-                                            fill="#3b82f6"
-                                            fillOpacity={0.2}
-                                        />
-                                    </RadarChart>
-                                </ResponsiveContainer>
-                                {/* Center Glow */}
-                                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-20 h-20 bg-primary/20 blur-[50px] rounded-full pointer-events-none"></div>
+                                <div className="flex-1 overflow-y-auto p-6 relative space-y-4 custom-scrollbar">
+                                    <div className="absolute top-6 left-6 h-full w-[2px] bg-white/5 z-0"></div>
+                                    {blocks.length === 0 ? (
+                                        <div className="flex flex-col items-center justify-center h-48 text-zinc-500 mt-10 relative z-10">
+                                            <CalendarIcon className="h-12 w-12 mb-4 opacity-20" />
+                                            <p>Nenhuma missão para este dia.</p>
+                                        </div>
+                                    ) : (
+                                        blocks.map(block => (
+                                            <DroppableMissionBlock key={block.id} block={block} onDelete={handleDelete} />
+                                        ))
+                                    )}
+                                    <div className="h-20"></div>
+                                </div>
                             </div>
                         </div>
 
-                        {/* Backlog Section */}
-                        <div className="flex-1 bg-[#050506] border border-white/5 rounded-xl overflow-hidden flex flex-col">
-                            <BacklogComponent initialTasks={initialBacklog} />
-                        </div>
+                        {/* RIGHT COLUMN: Tasks (Backlog) & Stats */}
+                        <div className={cn("lg:col-span-4 flex flex-col gap-6", focusMode ? "opacity-10 pointer-events-none blur-sm" : "")}>
+                            {/* Efficiency Chart */}
+                            <div className="bg-[#050506] border border-white/5 rounded-3xl p-6">
+                                <h2 className="text-sm font-bold text-zinc-400 uppercase tracking-wider mb-4">Performance Tática</h2>
+                                <div className="h-[200px] w-full relative">
+                                    <ResponsiveContainer width="100%" height="100%">
+                                        <RadarChart cx="50%" cy="50%" outerRadius="70%" data={initialStats}>
+                                            <PolarGrid stroke="rgba(255,255,255,0.1)" />
+                                            <PolarAngleAxis dataKey="subject" tick={{ fill: '#a1a1aa', fontSize: 10 }} />
+                                            <Radar
+                                                name="Performance"
+                                                dataKey="A"
+                                                stroke="#3b82f6"
+                                                strokeWidth={3}
+                                                fill="#3b82f6"
+                                                fillOpacity={0.2}
+                                            />
+                                        </RadarChart>
+                                    </ResponsiveContainer>
+                                </div>
+                            </div>
 
-                        {/* Deck Section */}
-                        <div>
-                            <h2 className="text-xs font-bold text-zinc-500 uppercase tracking-wider mb-2">Deck de Poder</h2>
-                            <TacticalDeck cards={initialCards} onCardUsed={handleCardUsed} />
+                            {/* Backlog Section */}
+                            <div className="flex-1 bg-[#050506] border border-white/5 rounded-3xl overflow-hidden flex flex-col h-[500px]">
+                                <BacklogComponent initialTasks={initialBacklog} />
+                            </div>
                         </div>
+                    </div>
+
+                    {/* Middle Section: Deck Tatico */}
+                    <div className={cn("w-full space-y-4", focusMode ? "opacity-10 pointer-events-none blur-sm" : "")}>
+                        <div className="flex items-center gap-2 px-2">
+                            <Zap className="w-5 h-5 text-amber-400" />
+                            <h2 className="text-xl font-black uppercase italic text-zinc-300">Deck Tático</h2>
+                        </div>
+                        <TacticalDeck cards={initialCards} onCardUsed={handleCardUsed} />
+                    </div>
+
+                    {/* Bottom Section: History */}
+                    <div className={cn("w-full space-y-4", focusMode ? "opacity-10 pointer-events-none blur-sm" : "")}>
+                        <div className="flex items-center gap-2 px-2">
+                            <CalendarIcon className="w-5 h-5 text-zinc-500" />
+                            <h2 className="text-xl font-black uppercase italic text-zinc-300">Histórico de Operações</h2>
+                        </div>
+                        <CardHistory logs={logs} />
                     </div>
 
                 </main>

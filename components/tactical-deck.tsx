@@ -34,7 +34,7 @@ export function TacticalDeck({ cards, onCardUsed }: { cards: TacticalCard[], onC
     };
 
     return (
-        <div className="grid grid-cols-1 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {cards.map(card => {
                 const Icon = IconMap[card.icon] || Zap;
                 const remaining = (card.totalCharges || 0) - (card.usedCharges || 0);
