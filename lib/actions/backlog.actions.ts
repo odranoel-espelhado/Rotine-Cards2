@@ -25,16 +25,19 @@ export async function getBacklogTasks() {
     }
 }
 
-export async function createBacklogTask(title: string, priority: "alta" | "media" | "baixa" = "media") {
+export async function createBacklogTask(data: Partial<Omit<NewBacklogTask, 'id' | 'userId' | 'createdAt'>>) {
     const { userId } = await auth();
     if (!userId) return { error: "Unauthorized" };
 
     try {
-        // Quick insert
         await db.insert(backlogTasks).values({
             userId,
-            title,
-            priority,
+            title: data.title!,
+            priority: data.priority,
+            estimatedDuration: data.estimatedDuration,
+            linkedBlockType: data.linkedBlockType,
+            color: data.color,
+            subTasks: data.subTasks || [],
             status: "pending",
             createdAt: new Date(),
         });

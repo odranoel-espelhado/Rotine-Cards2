@@ -10,26 +10,11 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { DraggableBacklogItem } from "./draggable-backlog-item";
 
-export function BacklogComponent({ initialTasks }: { initialTasks: BacklogTask[] }) {
-    const [newTask, setNewTask] = useState("");
-    const [isAdding, setIsAdding] = useState(false);
+import { CreateTaskDialog } from "./create-task-dialog";
 
-    const handleAdd = async (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!newTask.trim()) return;
+export function BacklogComponent({ initialTasks, availableBlockTypes = [] }: { initialTasks: BacklogTask[], availableBlockTypes?: { label: string, color: string }[] }) {
 
-        setIsAdding(true);
-        const res = await createBacklogTask(newTask);
-        setIsAdding(false);
-
-        if (res?.success) {
-            setNewTask("");
-            toast.success("Tarefa adicionada ao Backlog");
-        } else {
-            toast.error("Erro ao adicionar tarefa");
-        }
-    };
-
+    // ... delete handler ...
     const handleDelete = async (id: string) => {
         const res = await deleteBacklogTask(id);
         if (res?.success) {
@@ -44,20 +29,9 @@ export function BacklogComponent({ initialTasks }: { initialTasks: BacklogTask[]
                 <Badge variant="outline" className="text-zinc-500 border-white/10">{initialTasks.length}</Badge>
             </div>
 
-            {/* Input Area */}
+            {/* Input Area replaced by Dialog Trigger */}
             <div className="p-4">
-                <form onSubmit={handleAdd} className="flex gap-2">
-                    <Input
-                        placeholder="Nova tarefa..."
-                        value={newTask}
-                        onChange={(e) => setNewTask(e.target.value)}
-                        className="bg-white/5 border-white/10 text-xs h-9 focus-visible:ring-primary/50"
-                        disabled={isAdding}
-                    />
-                    <Button size="sm" type="submit" disabled={isAdding || !newTask.trim()} className="h-9 px-3">
-                        <Plus className="h-4 w-4" />
-                    </Button>
-                </form>
+                <CreateTaskDialog availableBlockTypes={availableBlockTypes} />
             </div>
 
             {/* Task List */}

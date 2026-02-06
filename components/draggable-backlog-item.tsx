@@ -19,14 +19,17 @@ export function DraggableBacklogItem({ task, onDelete }: { task: BacklogTask, on
     return (
         <div
             ref={setNodeRef}
-            style={style}
+            style={{
+                ...style,
+                borderLeftColor: task.color || 'transparent'
+            }}
             {...listeners}
             {...attributes}
-            className="group bg-white/5 hover:bg-white/10 border border-white/5 hover:border-primary/30 rounded-lg p-3 transition-all flex items-center justify-between cursor-grab active:cursor-grabbing hover:shadow-lg hover:shadow-primary/5 active:scale-95"
+            className="group bg-white/5 hover:bg-white/10 border-y border-r border-white/5 border-l-[3px] hover:border-r-primary/30 rounded-lg p-3 transition-all flex items-center justify-between cursor-grab active:cursor-grabbing hover:shadow-lg hover:shadow-primary/5 active:scale-95"
         >
             <div className="flex items-center gap-3 overflow-hidden">
                 <div className={`w-1.5 h-1.5 rounded-full ${task.priority === 'alta' ? 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.5)]' :
-                        task.priority === 'media' ? 'bg-amber-500' : 'bg-emerald-500'
+                    task.priority === 'media' ? 'bg-amber-500' : 'bg-emerald-500'
                     }`} />
                 <span className="text-sm text-zinc-300 truncate">{task.title}</span>
             </div>

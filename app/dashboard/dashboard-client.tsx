@@ -295,7 +295,10 @@ export default function DashboardClient({
 
                             {/* Backlog Section */}
                             <div className="flex-1 bg-[#050506] border border-white/5 rounded-3xl overflow-hidden flex flex-col h-[500px]">
-                                <BacklogComponent initialTasks={initialBacklog} />
+                                <BacklogComponent
+                                    initialTasks={initialBacklog}
+                                    availableBlockTypes={Array.from(new Map(blocks.map(b => [b.title, { label: b.title, color: b.color || '#3b82f6' }])).values())}
+                                />
                             </div>
                         </div>
                     </div>
