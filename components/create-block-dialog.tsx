@@ -43,49 +43,92 @@ const formSchema = z.object({
     replicateWeekdays: z.boolean().default(false),
 });
 
-export function CreateBlockDialog({ currentDate }: { currentDate: string }) {
-    const [open, setOpen] = useState(false);
+import { updateMissionBlock, MissionBlock } from "@/lib/actions/mission.actions";
+
+interface MissionBlockDialogProps {
+    currentDate: string;
+    blockToEdit?: MissionBlock;
+    open?: boolean;
+    onOpenChange?: (open: boolean) => void;
+    trigger?: React.ReactNode;
+}
+
+export function CreateBlockDialog({ currentDate, blockToEdit, open: controlledOpen, onOpenChange: setControlledOpen, trigger }: MissionBlockDialogProps) {
+    const [internalOpen, setInternalOpen] = useState(false);
+
+    const isControlled = controlledOpen !== undefined;
+    const open = isControlled ? controlledOpen : internalOpen;
+    const setOpen = isControlled ? setControlledOpen! : setInternalOpen;
+
+    const isEditing = !!blockToEdit;
 
     const form = useForm<z.infer<typeof formSchema>>({
         resolver: zodResolver(formSchema) as any,
         defaultValues: {
-            title: "",
-            color: "#0ea5e9", // Default cyan/blue
-            startTime: "08:00",
-            totalDuration: 30,
-            subTasks: [],
-            isRecurring: false,
-            replicateWeekdays: false,
+            title: blockToEdit?.title || "",
+            color: blockToEdit?.color || "#0ea5e9", // Default cyan/blue
+            startTime: blockToEdit?.startTime || "08:00",
+            totalDuration: blockToEdit?.totalDuration || 30,
+            subTasks: (blockToEdit?.subTasks as any[])?.map((s: any) => ({ title: s.title, duration: parseInt(s.duration) })) || [],
+            isRecurring: blockToEdit?.type === 'recurring',
+            replicateWeekdays: blockToEdit?.recurrencePattern === 'weekdays',
         },
     });
+
+    // Reset form when dialog opens or blockToEdit changes
+    useEffect(() => {
+        if (open) {
+            form.reset({
+                title: blockToEdit?.title || "",
+                color: blockToEdit?.color || "#0ea5e9",
+                startTime: blockToEdit?.startTime || "08:00",
+                totalDuration: blockToEdit?.totalDuration || 30,
+                subTasks: (blockToEdit?.subTasks as any[])?.map((s: any) => ({ title: s.title, duration: parseInt(s.duration) })) || [],
+                isRecurring: blockToEdit?.type === 'recurring',
+                replicateWeekdays: blockToEdit?.recurrencePattern === 'weekdays',
+            });
+        }
+    }, [open, blockToEdit, form]);
 
     const { fields, append, remove } = useFieldArray({
         control: form.control,
         name: "subTasks",
     });
 
-    // Reset form when dialog opens/closes
-    useEffect(() => {
-        if (!open) form.reset();
-    }, [open, form]);
-
     async function onSubmit(values: z.infer<typeof formSchema>) {
-        const res = await createMissionBlock({
-            title: values.title,
-            startTime: values.startTime,
-            totalDuration: values.totalDuration,
-            color: values.color,
-            date: currentDate,
-            subTasks: values.subTasks.map(s => ({ ...s, done: false })),
-            type: values.isRecurring ? 'recurring' : 'unique',
-            recurrencePattern: values.replicateWeekdays ? 'weekdays' : undefined,
-        });
+        let res;
+
+        if (isEditing && blockToEdit) {
+            // Update
+            res = await updateMissionBlock(blockToEdit.id, {
+                title: values.title,
+                startTime: values.startTime,
+                totalDuration: values.totalDuration,
+                color: values.color,
+                date: currentDate, // Usually date stays same unless we add date picker
+                subTasks: values.subTasks.map(s => ({ ...s, done: false })),
+                type: values.isRecurring ? 'recurring' : 'unique',
+                recurrencePattern: values.replicateWeekdays ? 'weekdays' : undefined,
+            });
+        } else {
+            // Create
+            res = await createMissionBlock({
+                title: values.title,
+                startTime: values.startTime,
+                totalDuration: values.totalDuration,
+                color: values.color,
+                date: currentDate,
+                subTasks: values.subTasks.map(s => ({ ...s, done: false })),
+                type: values.isRecurring ? 'recurring' : 'unique',
+                recurrencePattern: values.replicateWeekdays ? 'weekdays' : undefined,
+            });
+        }
 
         if (res?.success) {
             setOpen(false);
-            toast.success("Missão criada com sucesso!");
+            toast.success(isEditing ? "Missão atualizada!" : "Missão criada com sucesso!");
         } else {
-            toast.error(res?.error || "Erro ao criar bloco");
+            toast.error(res?.error || "Erro ao salvar bloco");
         }
     }
 
@@ -101,17 +144,15 @@ export function CreateBlockDialog({ currentDate }: { currentDate: string }) {
 
     return (
         <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger asChild>
-                <Button className="bg-[#10b981] hover:bg-[#10b981]/90 text-black font-bold rounded-xl px-6 uppercase shadow-lg transition-transform hover:scale-105">
-                    + Agendar
-                </Button>
-            </DialogTrigger>
+            {trigger && <DialogTrigger asChild>{trigger}</DialogTrigger>}
             <DialogContent className="sm:max-w-[480px] bg-[#050506] border border-white/10 text-white p-0 overflow-hidden gap-0 rounded-[2rem]">
                 <div className="p-8 space-y-6 max-h-[85vh] overflow-y-auto custom-scrollbar">
 
                     <div className="text-center space-y-1 mb-2">
-                        <DialogTitle className="text-2xl font-black uppercase text-emerald-500 italic">Nova Missão</DialogTitle>
-                        <p className="text-[10px] font-bold text-zinc-600 uppercase tracking-widest">Protocolo de Criação</p>
+                        <DialogTitle className="text-2xl font-black uppercase text-emerald-500 italic">
+                            {isEditing ? "Editar Missão" : "Nova Missão"}
+                        </DialogTitle>
+                        <p className="text-[10px] font-bold text-zinc-600 uppercase tracking-widest">Protocolo de {isEditing ? "Edição" : "Criação"}</p>
                     </div>
 
                     <Form {...form}>
@@ -300,7 +341,7 @@ export function CreateBlockDialog({ currentDate }: { currentDate: string }) {
 
                             <div className="pt-2 gap-3 flex flex-col">
                                 <Button type="submit" className="w-full h-16 bg-emerald-600 hover:bg-emerald-500 text-white font-black tracking-widest text-lg rounded-2xl uppercase shadow-xl transition-all hover:scale-[1.02]">
-                                    Salvar
+                                    {isEditing ? "Atualizar" : "Salvar"}
                                 </Button>
                                 <Button type="button" variant="ghost" className="h-auto py-2 text-[10px] font-black uppercase text-zinc-600 hover:text-zinc-300" onClick={() => setOpen(false)}>
                                     Cancelar
@@ -313,3 +354,4 @@ export function CreateBlockDialog({ currentDate }: { currentDate: string }) {
         </Dialog>
     );
 }
+

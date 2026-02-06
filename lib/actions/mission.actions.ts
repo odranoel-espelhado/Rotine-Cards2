@@ -134,3 +134,39 @@ export async function deleteMissionBlock(id: string) {
         return { error: "Failed to delete block" };
     }
 }
+
+export async function toggleMissionBlock(id: string, status: 'pending' | 'completed') {
+    const { userId } = await auth();
+    if (!userId) return { error: "Unauthorized" };
+
+    try {
+        await db.update(missionBlocks)
+            .set({ status })
+            .where(and(eq(missionBlocks.id, id), eq(missionBlocks.userId, userId)));
+
+        revalidatePath("/dashboard");
+        return { success: true };
+    } catch (error) {
+        console.error("Error toggling block:", error);
+        return { error: "Failed to toggle block" };
+    }
+}
+
+export async function updateMissionBlock(id: string, data: Partial<Omit<NewMissionBlock, "id" | "userId" | "createdAt">>) {
+    const { userId } = await auth();
+    if (!userId) return { error: "Unauthorized" };
+
+    try {
+        // We can add conflict detection here too if needed, fitting for updates.
+        // For now, straightforward update.
+        await db.update(missionBlocks)
+            .set(data)
+            .where(and(eq(missionBlocks.id, id), eq(missionBlocks.userId, userId)));
+
+        revalidatePath("/dashboard");
+        return { success: true };
+    } catch (error: any) {
+        console.error("Error updating block:", error);
+        return { error: error.message || "Erro ao atualizar" };
+    }
+}

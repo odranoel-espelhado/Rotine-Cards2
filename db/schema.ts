@@ -27,6 +27,7 @@ export const missionBlocks = pgTable('mission_blocks', {
     totalDuration: integer('total_duration').notNull(),
     type: text('type').default('unique'), // 'unique' | 'recurring'
     recurrencePattern: text('recurrence_pattern'), // 'weekdays'
+    status: text('status').default('pending'), // 'pending' | 'completed'
     createdAt: timestamp('created_at').defaultNow().notNull(),
 });
 

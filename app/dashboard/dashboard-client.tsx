@@ -151,6 +151,8 @@ export default function DashboardClient({
         setLogs(prev => [newLog, ...prev]);
     }
 
+    const [editingBlock, setEditingBlock] = useState<MissionBlock | null>(null);
+
     return (
         <DndContext onDragEnd={handleDragEnd}>
             <div className={cn("min-h-screen bg-[#020203] text-white selection:bg-primary/30 flex flex-col transition-all duration-700", focusMode ? "grayscale-[0.8]" : "")}>
@@ -169,7 +171,16 @@ export default function DashboardClient({
                     )}
 
                     <div className="flex items-center gap-4">
-                        {!focusMode && <CreateBlockDialog currentDate={selectedDate} />}
+                        {!focusMode && (
+                            <CreateBlockDialog
+                                currentDate={selectedDate}
+                                trigger={
+                                    <Button className="bg-[#10b981] hover:bg-[#10b981]/90 text-black font-bold rounded-xl px-6 uppercase shadow-lg transition-transform hover:scale-105">
+                                        + Agendar
+                                    </Button>
+                                }
+                            />
+                        )}
                         {focusMode && (
                             <Button variant="outline" size="sm" onClick={() => setFocusMode(false)} className="border-red-500/50 text-red-500 hover:bg-red-500/10">
                                 Sair
@@ -246,7 +257,12 @@ export default function DashboardClient({
                                         </div>
                                     ) : (
                                         blocks.map(block => (
-                                            <DroppableMissionBlock key={block.id} block={block} onDelete={handleDelete} />
+                                            <DroppableMissionBlock
+                                                key={block.id}
+                                                block={block}
+                                                onDelete={handleDelete}
+                                                onEdit={setEditingBlock}
+                                            />
                                         ))
                                     )}
                                     <div className="h-20"></div>
@@ -301,6 +317,16 @@ export default function DashboardClient({
                         </div>
                         <CardHistory logs={logs} />
                     </div>
+
+                    {/* Edit Dialog */}
+                    {editingBlock && (
+                        <CreateBlockDialog
+                            currentDate={editingBlock.date}
+                            blockToEdit={editingBlock}
+                            open={true}
+                            onOpenChange={(open) => !open && setEditingBlock(null)}
+                        />
+                    )}
 
                 </main>
             </div>
