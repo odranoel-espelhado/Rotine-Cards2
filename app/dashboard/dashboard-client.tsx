@@ -219,7 +219,7 @@ export default function DashboardClient({
                                         )}
                                     >
                                         <span className="text-[10px] uppercase font-black tracking-widest opacity-60">{d.weekday}</span>
-                                        <span className={cn("text-2xl font-black", d.isToday ? "text-primary" : "text-white")}>{d.day}</span>
+                                        <span className="text-2xl font-black">{d.day}</span>
                                         {d.isToday && (
                                             <span className="absolute -bottom-2 left-1/2 -translate-x-1/2 text-[8px] bg-primary text-black px-1.5 rounded font-black uppercase">
                                                 HOJE
