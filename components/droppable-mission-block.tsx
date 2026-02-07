@@ -26,19 +26,22 @@ function getBestSuggestion(tasks: BacklogTask[], maxDuration: number, mode: 'blo
     const priorityMap = { 'alta': 3, 'media': 2, 'baixa': 1 };
 
     return candidates.sort((a, b) => {
-        // 1. Priority (Higher is better)
+        // 1. Priority (Higher is better: alta > media > baixa)
         const pA = priorityMap[a.priority as keyof typeof priorityMap] || 0;
         const pB = priorityMap[b.priority as keyof typeof priorityMap] || 0;
-        if (pA !== pB) return pB - pA;
+        if (pA !== pB) return pB - pA; // Descending priority
 
         // 2. Duration
         const dA = a.estimatedDuration || 30;
         const dB = b.estimatedDuration || 30;
 
         if (mode === 'block') {
-            return dB - dA; // Descending
+            // "maior tempo que caiba" -> Descending
+            return dB - dA;
         } else {
-            return dA - dB; // Ascending
+            // "menor tempo" -> Ascending (Gaps prefer shorter tasks first?)
+            // User request: "Gaps ... mostre as de menor tempo acima" -> Ascending
+            return dA - dB;
         }
     })[0];
 }
