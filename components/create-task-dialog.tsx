@@ -153,7 +153,7 @@ export function CreateTaskDialog({ availableBlockTypes = [], taskToEdit, open: c
             {trigger ? <DialogTrigger asChild>{trigger}</DialogTrigger> : (
                 !isControlled && (
                     <DialogTrigger asChild>
-                        <div className="bg-[#white/5] hover:bg-white/10 border border-white/10 text-zinc-400 hover:text-white cursor-pointer h-9 px-3 text-xs w-full flex items-center justify-center rounded-lg transition-all">
+                        <div className="bg-[#10b981] hover:bg-[#10b981]/90 text-black font-black uppercase text-xs h-9 px-4 w-full flex items-center justify-center rounded-lg shadow-[0_0_15px_rgba(16,185,129,0.3)] transition-all hover:scale-105 active:scale-95 cursor-pointer">
                             + Nova Tarefa
                         </div>
                     </DialogTrigger>

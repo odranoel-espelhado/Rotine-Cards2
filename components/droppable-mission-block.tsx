@@ -128,10 +128,12 @@ export function DroppableMissionBlock({ block, onDelete, onEdit, pendingBacklogT
         borderBottom: `2px solid ${glowColor}`,
         borderLeft: `2px solid ${glowColor}`,
         borderRight: 'none',
-        boxShadow: `-2px 0 15px -2px ${glowColor}, 0 -4px 15px -2px ${glowColor}, 0 4px 15px -2px ${glowColor}`,
+        boxShadow: `inset 6px 0 0 0 ${glowColor}, -2px 0 15px -2px ${glowColor}, 0 -4px 15px -2px ${glowColor}, 0 4px 15px -2px ${glowColor}`,
     } : {
         boxShadow: `0 4px 20px -5px ${glowColor}40`,
     };
+
+    const suggestedTask = availableTasksForBlock.length > 0 ? availableTasksForBlock[0] : null;
 
     return (
         <>
@@ -205,6 +207,38 @@ export function DroppableMissionBlock({ block, onDelete, onEdit, pendingBacklogT
                                 optimisticCompleted ? "text-[#3a3a3a]" : "text-white/60"
                             )}>
                                 <span>{block.totalDuration} MIN</span>
+                            </div>
+
+                            {/* Suggestion Buttons */}
+                            <div className="flex gap-2 mb-2 flex-wrap">
+                                {suggestedTask && (
+                                    <Button
+                                        size="sm"
+                                        variant="ghost"
+                                        className="h-6 text-[10px] bg-white/10 hover:bg-white/20 text-white border border-white/5"
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            toast.promise(assignTasksToBlock(block.id, [suggestedTask]), {
+                                                loading: 'Adicionando...',
+                                                success: 'Tarefa adicionada!',
+                                                error: 'Erro'
+                                            });
+                                        }}
+                                    >
+                                        Adicionar {suggestedTask.title}
+                                    </Button>
+                                )}
+                                <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    className="h-6 text-[10px] bg-white/5 hover:bg-white/10 text-white/70"
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        setAddTasksDialogOpen(true);
+                                    }}
+                                >
+                                    Organizar Tarefas
+                                </Button>
                             </div>
 
                             {/* Expanded Content: Subtasks List */}

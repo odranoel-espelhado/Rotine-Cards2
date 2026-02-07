@@ -347,6 +347,9 @@ export default function DashboardClient({
                                                 }
                                             }
 
+                                            // Suggestion for Gap
+                                            const suggestedGapTask = initialBacklog.find(t => t.status === 'pending' && (!t.linkedBlockType || t.linkedBlockType === 'Geral'));
+
                                             return (
                                                 <div key={block.id}>
                                                     {/* Gap Indicator */}
@@ -357,16 +360,30 @@ export default function DashboardClient({
                                                                 <span className="text-[10px] font-mono text-zinc-600 group-hover/gap:text-zinc-400 transition-colors">
                                                                     GAP: {Math.floor(gapDuration / 60)}H {gapDuration % 60}M
                                                                 </span>
-                                                                <Button
-                                                                    size="icon"
-                                                                    variant="ghost"
-                                                                    onClick={() => setTaskPickerState({ open: true, startTime: minutesToTime(gapStart), date: selectedDate })}
-                                                                    className="opacity-0 group-hover/gap:opacity-100 transition-opacity h-6 w-6 rounded-full bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500 hover:text-black"
-                                                                >
-                                                                    <Plus className="w-3 h-3" />
-                                                                </Button>
+
+                                                                {/* Buttons */}
+                                                                <div className="flex gap-1 ml-2 opacity-0 group-hover/gap:opacity-100 transition-opacity">
+                                                                    {suggestedGapTask && (
+                                                                        <Button
+                                                                            size="sm"
+                                                                            variant="secondary"
+                                                                            className="h-5 text-[9px] px-2 bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500 hover:text-black border border-emerald-500/20"
+                                                                            onClick={() => handleConvertToBlock(suggestedGapTask)}
+                                                                        >
+                                                                            Adicionar {suggestedGapTask.title}
+                                                                        </Button>
+                                                                    )}
+                                                                    <Button
+                                                                        size="sm"
+                                                                        variant="ghost"
+                                                                        className="h-5 text-[9px] px-2 bg-white/5 hover:bg-white/10 text-zinc-400 hover:text-white"
+                                                                        onClick={() => setTaskPickerState({ open: true, startTime: minutesToTime(gapStart), date: selectedDate })}
+                                                                    >
+                                                                        {suggestedGapTask ? "Outra" : "Adicionar Tarefa"}
+                                                                    </Button>
+                                                                </div>
                                                             </div>
-                                                            {/* Line visual (optional, kept minimal as requested) */}
+                                                            {/* Line visual */}
                                                             <div className="absolute left-[34px] w-[2px] bg-zinc-800/50 h-full"></div>
                                                         </div>
                                                     )}
