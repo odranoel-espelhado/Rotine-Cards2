@@ -39,6 +39,15 @@ function getBestSuggestion(tasks: BacklogTask[], maxDuration: number, mode: 'blo
             return pB - pA; // Higher priority first
         }
 
+        // 2. GAP Bonus: Prefer tasks without specific block (Geral)
+        if (mode === 'gap') {
+            const isGeralA = !a.linkedBlockType || a.linkedBlockType === 'Geral';
+            const isGeralB = !b.linkedBlockType || b.linkedBlockType === 'Geral';
+            if (isGeralA !== isGeralB) {
+                return isGeralA ? -1 : 1; // General first
+            }
+        }
+
         // 2. Duration (If priority is equal)
         const dA = a.estimatedDuration || 30;
         const dB = b.estimatedDuration || 30;
