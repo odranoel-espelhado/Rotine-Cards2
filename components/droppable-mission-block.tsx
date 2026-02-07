@@ -27,11 +27,13 @@ function getBestSuggestion(tasks: BacklogTask[], maxDuration: number, mode: 'blo
 
     return candidates.sort((a, b) => {
         // 1. Priority (Higher is better: alta > media > baixa)
-        const priorityA = a.priority?.toLowerCase() as keyof typeof priorityMap;
-        const priorityB = b.priority?.toLowerCase() as keyof typeof priorityMap;
+        const priorityWeight: Record<string, number> = { high: 3, medium: 2, low: 1, alta: 3, media: 2, baixa: 1 };
 
-        const pA = priorityMap[priorityA] || 0;
-        const pB = priorityMap[priorityB] || 0;
+        const priorityA = a.priority?.toLowerCase() || 'medium';
+        const priorityB = b.priority?.toLowerCase() || 'medium';
+
+        const pA = priorityWeight[priorityA] || 1;
+        const pB = priorityWeight[priorityB] || 1;
 
         if (pA !== pB) {
             return pB - pA; // Higher priority first
