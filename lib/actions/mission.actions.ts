@@ -156,7 +156,7 @@ export async function deleteMissionBlock(id: string) {
     try {
         // Check if it is a virtual block
         if (id.includes("-virtual-")) {
-            const [realId, , date] = id.split("-virtual-");
+            const [realId, date] = id.split("-virtual-");
             if (!realId || !date) return { error: "Invalid virtual ID" };
 
             // Add exception to master block
@@ -193,7 +193,7 @@ export async function toggleMissionBlock(id: string, status: 'pending' | 'comple
     try {
         if (id.includes("-virtual-")) {
             // Forking logic similar to update
-            const [realId, , date] = id.split("-virtual-");
+            const [realId, date] = id.split("-virtual-");
             const [masterBlock] = await db.select().from(missionBlocks)
                 .where(and(eq(missionBlocks.id, realId), eq(missionBlocks.userId, userId)));
 
@@ -243,7 +243,7 @@ export async function updateMissionBlock(id: string, data: Partial<Omit<NewMissi
 
     try {
         if (id.includes("-virtual-")) {
-            const [realId, , date] = id.split("-virtual-");
+            const [realId, date] = id.split("-virtual-");
 
             // Fork: Create exception on master + Create new unique block
             const [masterBlock] = await db.select().from(missionBlocks)
@@ -299,7 +299,7 @@ export async function assignTasksToBlock(blockId: string, tasksToAssign: any[]) 
 
         // Helper to fork if virtual
         if (blockId.includes("-virtual-")) {
-            const [realId, , date] = blockId.split("-virtual-");
+            const [realId, date] = blockId.split("-virtual-");
             const [masterBlock] = await db.select().from(missionBlocks)
                 .where(and(eq(missionBlocks.id, realId), eq(missionBlocks.userId, userId)));
 
@@ -486,7 +486,7 @@ export async function unassignTaskFromBlock(blockId: string, taskIndex: number, 
 
         // Fork if virtual
         if (blockId.includes("-virtual-")) {
-            const [realId, , date] = blockId.split("-virtual-");
+            const [realId, date] = blockId.split("-virtual-");
             const [masterBlock] = await db.select().from(missionBlocks)
                 .where(and(eq(missionBlocks.id, realId), eq(missionBlocks.userId, userId)));
 

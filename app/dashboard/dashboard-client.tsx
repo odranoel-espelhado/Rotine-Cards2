@@ -383,23 +383,23 @@ export default function DashboardClient({
 
                             {/* Mission Timeline */}
                             <div className="bg-[#050506] border border-white/5 rounded-3xl overflow-hidden shadow-2xl relative flex flex-col h-[600px]">
-                                <div className="p-6 border-b border-white/5 flex justify-between items-center bg-[#050506]/95 backdrop-blur-md z-10 sticky top-0">
-                                    <h2 className="text-2xl font-black uppercase italic text-white flex items-center gap-2">
-                                        <CalendarIcon className="w-6 h-6 text-primary" />
+                                <div className="p-6 border-b border-white/5 flex flex-col sm:flex-row justify-between items-center bg-[#050506]/95 backdrop-blur-md z-10 sticky top-0 gap-4 sm:gap-0">
+                                    <h2 className="text-xl sm:text-2xl font-black uppercase italic text-white flex items-center gap-2">
+                                        <CalendarIcon className="w-5 h-5 sm:w-6 sm:h-6 text-primary" />
                                         <span>Cronograma</span>
                                     </h2>
-                                    <div className="flex items-center gap-2">
+                                    <div className="flex items-center gap-2 w-full sm:w-auto">
                                         <Button
                                             size="sm"
                                             onClick={() => setCreateDialogState({ open: true })}
-                                            className="bg-[#10b981] hover:bg-[#10b981]/90 text-black font-black rounded-lg px-4 uppercase text-xs shadow-lg transition-transform hover:scale-105"
+                                            className="bg-[#10b981] hover:bg-[#10b981]/90 text-black font-black rounded-lg px-4 uppercase text-xs shadow-lg transition-transform hover:scale-105 flex-1 sm:flex-none"
                                         >
                                             + Agendar
                                         </Button>
                                         <Button
                                             size="icon"
                                             variant="secondary"
-                                            className="w-8 h-8 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-400"
+                                            className="w-8 h-8 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-400 shrink-0"
                                             onClick={() => setCreateTaskOpen(true)}
                                         >
                                             <Plus className="w-5 h-5" />
