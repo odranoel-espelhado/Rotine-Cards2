@@ -11,6 +11,7 @@ import { useRouter } from "next/navigation";
 import { format, addDays, subDays, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { CreateBlockDialog } from "@/components/create-block-dialog";
+import { CreateTaskDialog } from "@/components/create-task-dialog";
 import { BacklogComponent } from "@/components/backlog-component";
 import { BacklogTask, moveTaskToBlock } from "@/lib/actions/backlog.actions";
 import { convertTaskToBlock } from "@/lib/actions/mission.actions";
@@ -283,6 +284,7 @@ export default function DashboardClient({
 
     const [editingBlock, setEditingBlock] = useState<MissionBlock | null>(null);
     const [createDialogState, setCreateDialogState] = useState<{ open: boolean; startTime?: string; duration?: number }>({ open: false });
+    const [createTaskOpen, setCreateTaskOpen] = useState(false);
     const [allBlockTypes, setAllBlockTypes] = useState<{ label: string; icon: string; color: string; value: string }[]>([]);
 
     useEffect(() => {
@@ -386,13 +388,23 @@ export default function DashboardClient({
                                         <CalendarIcon className="w-6 h-6 text-primary" />
                                         <span>Cronograma</span>
                                     </h2>
-                                    <Button
-                                        size="sm"
-                                        onClick={() => setCreateDialogState({ open: true })}
-                                        className="bg-[#10b981] hover:bg-[#10b981]/90 text-black font-black rounded-lg px-4 uppercase text-xs shadow-lg transition-transform hover:scale-105"
-                                    >
-                                        + Agendar
-                                    </Button>
+                                    <div className="flex items-center gap-2">
+                                        <Button
+                                            size="sm"
+                                            onClick={() => setCreateDialogState({ open: true })}
+                                            className="bg-[#10b981] hover:bg-[#10b981]/90 text-black font-black rounded-lg px-4 uppercase text-xs shadow-lg transition-transform hover:scale-105"
+                                        >
+                                            + Agendar
+                                        </Button>
+                                        <Button
+                                            size="icon"
+                                            variant="secondary"
+                                            className="w-8 h-8 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-400"
+                                            onClick={() => setCreateTaskOpen(true)}
+                                        >
+                                            <Plus className="w-5 h-5" />
+                                        </Button>
+                                    </div>
                                 </div>
                                 <div className="flex-1 overflow-y-auto p-6 relative space-y-4 custom-scrollbar">
                                     <div className="absolute top-6 left-6 h-full w-[2px] bg-white/5 z-0"></div>
@@ -523,6 +535,12 @@ export default function DashboardClient({
                         onOpenChange={(open) => setCreateDialogState(prev => ({ ...prev, open }))}
                         defaultStartTime={createDialogState.startTime}
                         defaultDuration={createDialogState.duration}
+                    />
+
+                    <CreateTaskDialog
+                        open={createTaskOpen}
+                        onOpenChange={setCreateTaskOpen}
+                        availableBlockTypes={allBlockTypes}
                     />
 
                     {/* Edit Dialog */}

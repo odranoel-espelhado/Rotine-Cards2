@@ -211,7 +211,7 @@ export function CreateTaskDialog({ availableBlockTypes = [], taskToEdit, open: c
                                         <FormLabel className="text-[10px] font-black text-zinc-500 uppercase ml-1">Vincular a Bloco</FormLabel>
                                         <Select onValueChange={field.onChange} defaultValue={field.value}>
                                             <FormControl>
-                                                <SelectTrigger className="bg-white/5 border-white/10 h-10 rounded-xl text-xs">
+                                                <SelectTrigger className="bg-white/5 border-white/10 h-10 rounded-xl text-xs w-full">
                                                     <SelectValue placeholder="Selecione..." />
                                                 </SelectTrigger>
                                             </FormControl>
