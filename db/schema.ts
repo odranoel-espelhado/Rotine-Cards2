@@ -29,6 +29,7 @@ export const missionBlocks = pgTable('mission_blocks', {
     recurrencePattern: text('recurrence_pattern'), // 'weekdays'
     status: text('status').default('pending'), // 'pending' | 'completed'
     icon: text('icon').default('zap'),
+    exceptions: jsonb('exceptions').default([]), // List of YYYY-MM-DD strings to skip
     createdAt: timestamp('created_at').defaultNow().notNull(),
 });
 

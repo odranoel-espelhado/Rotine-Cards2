@@ -20,7 +20,8 @@ export async function getMissionBlocks(date: string) {
             .from(missionBlocks)
             .where(and(
                 eq(missionBlocks.userId, userId),
-                eq(missionBlocks.date, date)
+                eq(missionBlocks.date, date),
+                eq(missionBlocks.type, 'unique')
             ));
 
         // 2. Fetch recurring blocks (master definitions)
@@ -28,8 +29,7 @@ export async function getMissionBlocks(date: string) {
             .from(missionBlocks)
             .where(and(
                 eq(missionBlocks.userId, userId),
-                eq(missionBlocks.type, 'recurring'),
-                eq(missionBlocks.recurrencePattern, 'weekdays')
+                eq(missionBlocks.type, 'recurring')
             ));
 
         // 3. Process Recurring Blocks
@@ -39,16 +39,28 @@ export async function getMissionBlocks(date: string) {
 
         const virtualBlocks = [];
 
-        if (isWeekday) {
-            for (const rBlock of recurringBlocks) {
-                // Skip if overridden by specific block
-                if (rBlock.date === date) continue;
+        for (const rBlock of recurringBlocks) {
+            // Check exceptions (dates where this instance was deleted/modified)
+            const exceptions = (rBlock.exceptions as string[]) || [];
+            if (exceptions.includes(date)) continue;
 
+            let matches = false;
+
+            if (rBlock.recurrencePattern === 'weekdays') {
+                if (isWeekday) matches = true;
+            } else if (rBlock.recurrencePattern === 'weekly') {
+                // Check if same day of week
+                const rDate = parseISO(rBlock.date);
+                if (rDate.getDay() === dayOfWeek) matches = true;
+            }
+
+            if (matches) {
                 virtualBlocks.push({
                     ...rBlock,
                     id: `${rBlock.id}-virtual-${date}`,
                     date: date,
-                    originalId: rBlock.id
+                    type: 'recurring',
+                    // Important: Keep original block info but with virtual ID
                 });
             }
         }
@@ -67,72 +79,65 @@ export async function getMissionBlocks(date: string) {
     }
 }
 
-export async function createMissionBlock(data: Omit<NewMissionBlock, "id" | "userId" | "createdAt"> & { recurrencePattern?: 'weekdays' }) {
+export async function createMissionBlock(data: Omit<NewMissionBlock, "id" | "userId" | "createdAt"> & { recurrencePattern?: 'weekdays' | 'weekly' }) {
     const { userId } = await auth();
     if (!userId) {
         return { error: "Unauthorized" };
     }
 
-    // Helper for creating individual block instances
-    const createInstance = async (dateStr: string, isFixedTasks: boolean) => {
-        // Conflict Check
-        const existingBlocks = await db.select()
-            .from(missionBlocks)
-            .where(
-                and(
-                    eq(missionBlocks.userId, userId),
-                    eq(missionBlocks.date, dateStr)
-                )
-            );
-
-        const getMinutes = (timeStr: string) => {
-            const [h, m] = timeStr.split(':').map(Number);
-            return h * 60 + m;
-        };
-
-        const newStart = getMinutes(data.startTime);
-        const newEnd = newStart + data.totalDuration;
-
-        for (const block of existingBlocks) {
-            const blockStart = getMinutes(block.startTime);
-            const blockEnd = blockStart + block.totalDuration;
-
-            if (newStart < blockEnd && newEnd > blockStart) {
-                // Determine conflicting block title
-                throw new Error(`Conflito com "${block.title}" em ${dateStr}`);
-            }
-        }
-
-        const subTasksWithFlag = ((data.subTasks as any[]) || []).map(t => ({ ...t, isFixed: isFixedTasks }));
-
-        await db.insert(missionBlocks).values({
-            userId: userId, // Explicitly string
-            ...data,
-            date: dateStr,
-            type: 'unique',
-            recurrencePattern: null,
-            subTasks: subTasksWithFlag,
-        });
-    };
-
     try {
-        if (data.recurrencePattern === 'weekdays') {
-            const targetDate = parseISO(data.date);
-            // Calculate Weekdays (Mon-Fri) for the week of the selected date
-            const monday = startOfWeek(targetDate, { weekStartsOn: 1 });
+        if (data.type === 'recurring') {
+            // Recurring Block Logic
+            // Just create one master record.
+            // If recurrencePattern is undefined but type is recurring, default to 'weekly'
+            const pattern = data.recurrencePattern || 'weekly';
 
-            const promises = [];
-            for (let i = 0; i < 5; i++) {
-                const day = addDays(monday, i);
-                const dateStr = format(day, 'yyyy-MM-dd');
-                promises.push(createInstance(dateStr, true));
-            }
-
-            await Promise.all(promises);
+            await db.insert(missionBlocks).values({
+                userId: userId,
+                ...data,
+                type: 'recurring',
+                recurrencePattern: pattern,
+                exceptions: [],
+            });
 
         } else {
-            // Single Block
-            await createInstance(data.date, true);
+            // Unique Block Logic
+            // Conflict Check
+            const existingBlocks = await db.select()
+                .from(missionBlocks)
+                .where(
+                    and(
+                        eq(missionBlocks.userId, userId),
+                        eq(missionBlocks.date, data.date),
+                        eq(missionBlocks.type, 'unique')
+                    )
+                );
+
+            const getMinutes = (timeStr: string) => {
+                const [h, m] = timeStr.split(':').map(Number);
+                return h * 60 + m;
+            };
+
+            const newStart = getMinutes(data.startTime);
+            const newEnd = newStart + data.totalDuration;
+
+            // Simple conflict check against UNIQUE blocks only for now.
+            // (Checking against virtuals is harder but we can skip it for MVP as user didn't ask)
+            for (const block of existingBlocks) {
+                const blockStart = getMinutes(block.startTime);
+                const blockEnd = blockStart + block.totalDuration;
+
+                if (newStart < blockEnd && newEnd > blockStart) {
+                    throw new Error(`Conflito com "${block.title}"`);
+                }
+            }
+
+            await db.insert(missionBlocks).values({
+                userId: userId,
+                ...data,
+                type: 'unique',
+                recurrencePattern: null,
+            });
         }
 
         revalidatePath("/dashboard");
@@ -149,19 +154,30 @@ export async function deleteMissionBlock(id: string) {
     if (!userId) return { error: "Unauthorized" };
 
     try {
-        // If virtual block (contains -virtual-), delete original master?
-        // Or specific logic? For now, assume ID passed is real ID.
-        // If UI passes virtual ID, we must handle it. 
-        // But UI usually receives 'id' from getMissionBlocks.
-        // If virtual, id is `realId-virtual-date`.
-        // We should strip suffix if needed, OR user should handle master deletion vs instance deletion.
-        // User asked "Recurrent block appears all weeks".
-        // Deleting it should delete master? usually yes.
-        const realId = id.includes("-virtual-") ? id.split("-virtual-")[0] : id;
+        // Check if it is a virtual block
+        if (id.includes("-virtual-")) {
+            const [realId, , date] = id.split("-virtual-");
+            if (!realId || !date) return { error: "Invalid virtual ID" };
 
-        await db.delete(missionBlocks).where(
-            and(eq(missionBlocks.id, realId), eq(missionBlocks.userId, userId))
-        );
+            // Add exception to master block
+            const [masterBlock] = await db.select().from(missionBlocks)
+                .where(and(eq(missionBlocks.id, realId), eq(missionBlocks.userId, userId)));
+
+            if (masterBlock) {
+                const currentExceptions = (masterBlock.exceptions as string[]) || [];
+                if (!currentExceptions.includes(date)) {
+                    await db.update(missionBlocks)
+                        .set({ exceptions: [...currentExceptions, date] })
+                        .where(eq(missionBlocks.id, realId));
+                }
+            }
+        } else {
+            // Normal delete
+            await db.delete(missionBlocks).where(
+                and(eq(missionBlocks.id, id), eq(missionBlocks.userId, userId))
+            );
+        }
+
         revalidatePath("/dashboard");
         return { success: true };
     } catch (error) {
@@ -175,16 +191,43 @@ export async function toggleMissionBlock(id: string, status: 'pending' | 'comple
     if (!userId) return { error: "Unauthorized" };
 
     try {
-        const realId = id.includes("-virtual-") ? id.split("-virtual-")[0] : id;
-        // If toggling a recurring block instance, should we create an exception block?
-        // For MVP, just toggle master? (Affects all?).
-        // Or create a completion record?
-        // Let's toggle Master for now, but ideally we'd fork.
-        // Given user request is simple, toggle master.
+        if (id.includes("-virtual-")) {
+            // Forking logic similar to update
+            const [realId, , date] = id.split("-virtual-");
+            const [masterBlock] = await db.select().from(missionBlocks)
+                .where(and(eq(missionBlocks.id, realId), eq(missionBlocks.userId, userId)));
 
-        await db.update(missionBlocks)
-            .set({ status })
-            .where(and(eq(missionBlocks.id, realId), eq(missionBlocks.userId, userId)));
+            if (!masterBlock) return { error: "Master block not found" };
+
+            // 1. Add Exception
+            const currentExceptions = (masterBlock.exceptions as string[]) || [];
+            if (!currentExceptions.includes(date)) {
+                await db.update(missionBlocks)
+                    .set({ exceptions: [...currentExceptions, date] })
+                    .where(eq(missionBlocks.id, realId));
+            }
+
+            // 2. Create Unique Block with new status
+            await db.insert(missionBlocks).values({
+                userId: userId,
+                title: masterBlock.title,
+                date: date,
+                startTime: masterBlock.startTime,
+                totalDuration: masterBlock.totalDuration,
+                color: masterBlock.color,
+                icon: masterBlock.icon,
+                type: 'unique',
+                recurrencePattern: null,
+                status: status, // The new status
+                subTasks: masterBlock.subTasks,
+                exceptions: [],
+            });
+
+        } else {
+            await db.update(missionBlocks)
+                .set({ status })
+                .where(and(eq(missionBlocks.id, id), eq(missionBlocks.userId, userId)));
+        }
 
         revalidatePath("/dashboard");
         return { success: true };
@@ -199,10 +242,45 @@ export async function updateMissionBlock(id: string, data: Partial<Omit<NewMissi
     if (!userId) return { error: "Unauthorized" };
 
     try {
-        const realId = id.includes("-virtual-") ? id.split("-virtual-")[0] : id;
-        await db.update(missionBlocks)
-            .set(data)
-            .where(and(eq(missionBlocks.id, realId), eq(missionBlocks.userId, userId)));
+        if (id.includes("-virtual-")) {
+            const [realId, , date] = id.split("-virtual-");
+
+            // Fork: Create exception on master + Create new unique block
+            const [masterBlock] = await db.select().from(missionBlocks)
+                .where(and(eq(missionBlocks.id, realId), eq(missionBlocks.userId, userId)));
+
+            if (!masterBlock) return { error: "Master block not found" };
+
+            // 1. Add Exception
+            const currentExceptions = (masterBlock.exceptions as string[]) || [];
+            if (!currentExceptions.includes(date)) {
+                await db.update(missionBlocks)
+                    .set({ exceptions: [...currentExceptions, date] })
+                    .where(eq(missionBlocks.id, realId));
+            }
+
+            // 2. Create Unique Block (Clone + Update)
+            // Use provided data to override master data
+            await db.insert(missionBlocks).values({
+                userId: userId,
+                title: data.title || masterBlock.title,
+                date: date, // The specific date
+                startTime: data.startTime || masterBlock.startTime,
+                totalDuration: data.totalDuration || masterBlock.totalDuration,
+                color: data.color || masterBlock.color,
+                icon: data.icon || masterBlock.icon,
+                type: 'unique',
+                recurrencePattern: null,
+                status: (data.status as any) || masterBlock.status,
+                subTasks: data.subTasks || masterBlock.subTasks,
+                exceptions: [],
+            });
+
+        } else {
+            await db.update(missionBlocks)
+                .set(data)
+                .where(and(eq(missionBlocks.id, id), eq(missionBlocks.userId, userId)));
+        }
 
         revalidatePath("/dashboard");
         return { success: true };
@@ -217,9 +295,45 @@ export async function assignTasksToBlock(blockId: string, tasksToAssign: any[]) 
     if (!userId) return { error: "Unauthorized" };
 
     try {
-        const realId = blockId.includes("-virtual-") ? blockId.split("-virtual-")[0] : blockId;
+        let targetBlockId = blockId;
+
+        // Helper to fork if virtual
+        if (blockId.includes("-virtual-")) {
+            const [realId, , date] = blockId.split("-virtual-");
+            const [masterBlock] = await db.select().from(missionBlocks)
+                .where(and(eq(missionBlocks.id, realId), eq(missionBlocks.userId, userId)));
+
+            if (!masterBlock) return { error: "Master block not found" };
+
+            // 1. Add Exception
+            const currentExceptions = (masterBlock.exceptions as string[]) || [];
+            if (!currentExceptions.includes(date)) {
+                await db.update(missionBlocks)
+                    .set({ exceptions: [...currentExceptions, date] })
+                    .where(eq(missionBlocks.id, realId));
+            }
+
+            // 2. Create Unique Block (Clone)
+            const [newBlock] = await db.insert(missionBlocks).values({
+                userId: userId,
+                title: masterBlock.title,
+                date: date,
+                startTime: masterBlock.startTime,
+                totalDuration: masterBlock.totalDuration,
+                color: masterBlock.color,
+                icon: masterBlock.icon,
+                type: 'unique',
+                recurrencePattern: null,
+                status: masterBlock.status,
+                subTasks: masterBlock.subTasks,
+                exceptions: [],
+            }).returning();
+
+            targetBlockId = newBlock.id;
+        }
+
         const [block] = await db.select().from(missionBlocks)
-            .where(and(eq(missionBlocks.id, realId), eq(missionBlocks.userId, userId)));
+            .where(and(eq(missionBlocks.id, targetBlockId), eq(missionBlocks.userId, userId)));
 
         if (!block) return { error: "Bloco não encontrado" };
 
@@ -240,7 +354,7 @@ export async function assignTasksToBlock(blockId: string, tasksToAssign: any[]) 
 
         await db.update(missionBlocks)
             .set({ subTasks: updatedSubtasks })
-            .where(eq(missionBlocks.id, realId));
+            .where(eq(missionBlocks.id, targetBlockId));
 
         const taskIds = tasksToAssign.map(t => t.id);
         if (taskIds.length > 0) {
@@ -368,9 +482,45 @@ export async function unassignTaskFromBlock(blockId: string, taskIndex: number, 
     if (!userId) return { error: "Unauthorized" };
 
     try {
-        const realId = blockId.includes("-virtual-") ? blockId.split("-virtual-")[0] : blockId;
+        let targetBlockId = blockId;
+
+        // Fork if virtual
+        if (blockId.includes("-virtual-")) {
+            const [realId, , date] = blockId.split("-virtual-");
+            const [masterBlock] = await db.select().from(missionBlocks)
+                .where(and(eq(missionBlocks.id, realId), eq(missionBlocks.userId, userId)));
+
+            if (!masterBlock) return { error: "Master block not found" };
+
+            // 1. Add Exception
+            const currentExceptions = (masterBlock.exceptions as string[]) || [];
+            if (!currentExceptions.includes(date)) {
+                await db.update(missionBlocks)
+                    .set({ exceptions: [...currentExceptions, date] })
+                    .where(eq(missionBlocks.id, realId));
+            }
+
+            // 2. Create Unique Block (Clone)
+            const [newBlock] = await db.insert(missionBlocks).values({
+                userId: userId,
+                title: masterBlock.title,
+                date: date,
+                startTime: masterBlock.startTime,
+                totalDuration: masterBlock.totalDuration,
+                color: masterBlock.color,
+                icon: masterBlock.icon,
+                type: 'unique',
+                recurrencePattern: null,
+                status: masterBlock.status,
+                subTasks: masterBlock.subTasks,
+                exceptions: [],
+            }).returning();
+
+            targetBlockId = newBlock.id;
+        }
+
         const [block] = await db.select().from(missionBlocks)
-            .where(and(eq(missionBlocks.id, realId), eq(missionBlocks.userId, userId)));
+            .where(and(eq(missionBlocks.id, targetBlockId), eq(missionBlocks.userId, userId)));
 
         if (!block) return { error: "Bloco não encontrado" };
 
@@ -387,7 +537,7 @@ export async function unassignTaskFromBlock(blockId: string, taskIndex: number, 
         // Update block
         await db.update(missionBlocks)
             .set({ subTasks: newSubtasks })
-            .where(eq(missionBlocks.id, realId));
+            .where(eq(missionBlocks.id, targetBlockId));
 
         // Create backlog task from removed task
         // "Archives back to task list"
