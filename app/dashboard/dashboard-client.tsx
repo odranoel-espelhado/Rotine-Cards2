@@ -13,8 +13,10 @@ import { ptBR } from "date-fns/locale";
 import { CreateBlockDialog } from "@/components/create-block-dialog";
 import { BacklogComponent } from "@/components/backlog-component";
 import { BacklogTask, moveTaskToBlock } from "@/lib/actions/backlog.actions";
+import { convertTaskToBlock } from "@/lib/actions/mission.actions";
 import { TacticalDeck } from "@/components/tactical-deck";
 import { TacticalCard } from "@/lib/actions/cards.actions";
+import { DroppableGap } from "@/components/droppable-gap";
 import { DndContext, DragEndEvent, DragOverlay, DragStartEvent, useSensor, useSensors, MouseSensor, TouchSensor } from "@dnd-kit/core";
 import { BacklogItemCard } from "@/components/backlog-item-card";
 import { DroppableMissionBlock } from "@/components/droppable-mission-block";
@@ -23,8 +25,49 @@ import { cn } from "@/lib/utils";
 import { CardHistory, CardLog } from "@/components/card-history";
 import { SettingsDialog } from "@/components/settings-dialog";
 import { TaskPickerDialog } from "@/components/task-picker-dialog";
-import { convertTaskToBlock } from "@/lib/actions/mission.actions";
-import { DroppableGap } from "@/components/droppable-gap";
+
+// Helper for Suggestions
+function getBestSuggestion(tasks: BacklogTask[], maxDuration: number, mode: 'block' | 'gap', blockType?: string): BacklogTask | undefined {
+    // Filter applicable tasks
+    const candidates = tasks.filter(t => {
+        if (t.status !== 'pending') return false;
+
+        // Duration check
+        const duration = t.estimatedDuration || 30; // default 30 if null
+        if (duration > maxDuration) return false;
+
+        // For 'block' mode, prefer matching block type or general
+        if (mode === 'block') {
+            if (t.linkedBlockType && t.linkedBlockType !== blockType && t.linkedBlockType !== 'Geral') return false;
+        }
+
+        return true;
+    });
+
+    if (candidates.length === 0) return undefined;
+
+    // Sorting Helper
+    const priorityMap = { 'alta': 3, 'media': 2, 'baixa': 1 };
+
+    return candidates.sort((a, b) => {
+        // 1. Priority (Higher is better)
+        const pA = priorityMap[a.priority as keyof typeof priorityMap] || 0;
+        const pB = priorityMap[b.priority as keyof typeof priorityMap] || 0;
+        if (pA !== pB) return pB - pA;
+
+        // 2. Duration
+        const dA = a.estimatedDuration || 30;
+        const dB = b.estimatedDuration || 30;
+
+        if (mode === 'block') {
+            // "maior tempo que caiba" -> Descending
+            return dB - dA;
+        } else {
+            // "envolvem Menos tempo" -> Ascending
+            return dA - dB;
+        }
+    })[0];
+}
 
 // Mock Data for Efficiency Radar Chart (Static for now)
 const chartData = [
@@ -378,7 +421,7 @@ export default function DashboardClient({
                                             }
 
                                             // Suggestion for Gap
-                                            const suggestedGapTask = initialBacklog.find(t => t.status === 'pending' && (!t.linkedBlockType || t.linkedBlockType === 'Geral'));
+                                            const suggestedGapTask = getBestSuggestion(initialBacklog, gapDuration, 'gap');
 
                                             return (
                                                 <div key={block.id}>
@@ -405,6 +448,37 @@ export default function DashboardClient({
                                             );
                                         })
                                     )}
+                                    {/* Final Gap (After last block to 24:00/End) */}
+                                    {(() => {
+                                        const lastBlock = blocks.length > 0 ? blocks[blocks.length - 1] : null;
+                                        // If no blocks, gap starts at 0.
+                                        // If blocks, gap starts at lastBlockEnd.
+
+                                        const dayEndMins = 24 * 60; // 1440
+                                        let gapStart = 0;
+
+                                        if (lastBlock) {
+                                            const getMins = (t: string) => { const [h, m] = t.split(':').map(Number); return h * 60 + m; };
+                                            gapStart = getMins(lastBlock.startTime) + lastBlock.totalDuration;
+                                        }
+
+                                        const gapDuration = dayEndMins - gapStart;
+                                        const suggestedGapTask = getBestSuggestion(initialBacklog, gapDuration, 'gap');
+
+                                        if (gapDuration > 0) {
+                                            return (
+                                                <DroppableGap
+                                                    id={`gap-${selectedDate}-${minutesToTime(gapStart)}`}
+                                                    durationMinutes={gapDuration}
+                                                    startTime={minutesToTime(gapStart)}
+                                                    suggestedTask={suggestedGapTask}
+                                                    onConvertToBlock={(t) => handleConvertToBlock(t)}
+                                                    onAddTask={() => setTaskPickerState({ open: true, startTime: minutesToTime(gapStart), date: selectedDate })}
+                                                />
+                                            );
+                                        }
+                                        return null;
+                                    })()}
                                     <div className="h-20"></div>
                                 </div>
                             </div>

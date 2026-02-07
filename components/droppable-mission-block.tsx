@@ -9,6 +9,40 @@ import { Zap, Trash2, Pencil, Check, Repeat, X, Plus, ChevronDown, ChevronUp, Al
 // ... inside component ...
 
 
+// Helper for Suggestions
+function getBestSuggestion(tasks: BacklogTask[], maxDuration: number, mode: 'block' | 'gap', blockType?: string): BacklogTask | undefined {
+    const candidates = tasks.filter(t => {
+        if (t.status !== 'pending') return false;
+        const duration = t.estimatedDuration || 30;
+        if (duration > maxDuration) return false;
+        if (mode === 'block') {
+            if (t.linkedBlockType && t.linkedBlockType !== blockType && t.linkedBlockType !== 'Geral') return false;
+        }
+        return true;
+    });
+
+    if (candidates.length === 0) return undefined;
+
+    const priorityMap = { 'alta': 3, 'media': 2, 'baixa': 1 };
+
+    return candidates.sort((a, b) => {
+        // 1. Priority (Higher is better)
+        const pA = priorityMap[a.priority as keyof typeof priorityMap] || 0;
+        const pB = priorityMap[b.priority as keyof typeof priorityMap] || 0;
+        if (pA !== pB) return pB - pA;
+
+        // 2. Duration
+        const dA = a.estimatedDuration || 30;
+        const dB = b.estimatedDuration || 30;
+
+        if (mode === 'block') {
+            return dB - dA; // Descending
+        } else {
+            return dA - dB; // Ascending
+        }
+    })[0];
+}
+
 import { cn } from "@/lib/utils";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
@@ -134,7 +168,7 @@ export function DroppableMissionBlock({ block, onDelete, onEdit, pendingBacklogT
         boxShadow: `0 4px 20px -5px ${glowColor}40`,
     };
 
-    const suggestedTask = availableTasksForBlock.length > 0 ? availableTasksForBlock[0] : null;
+    const suggestedTask = getBestSuggestion(availableTasksForBlock, remainder, 'block', block.title);
 
     const Icon = BLOCK_ICONS.find(i => i.name === block.icon)?.icon || Zap;
 
@@ -194,10 +228,10 @@ export function DroppableMissionBlock({ block, onDelete, onEdit, pendingBacklogT
                         <div className="flex-1 min-w-0 flex flex-col h-full">
 
                             <div className="flex items-center gap-2 mb-1">
-                                <Icon className={cn("w-5 h-5", optimisticCompleted ? "text-[#3a3a3a]" : "text-[var(--block-color)]")} />
+                                <Icon className={cn("w-5 h-5", optimisticCompleted ? "text-[var(--block-color)]" : "text-white")} />
                                 <h3 className={cn(
                                     "text-lg font-black uppercase tracking-wider truncate transition-colors duration-300",
-                                    optimisticCompleted ? "text-[#3a3a3a] line-through" : "text-white"
+                                    optimisticCompleted ? "text-[var(--block-color)] line-through" : "text-white"
                                 )}>
                                     {block.title}
                                 </h3>
