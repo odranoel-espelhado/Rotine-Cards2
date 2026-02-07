@@ -24,6 +24,7 @@ import { CardHistory, CardLog } from "@/components/card-history";
 import { SettingsDialog } from "@/components/settings-dialog";
 import { TaskPickerDialog } from "@/components/task-picker-dialog";
 import { convertTaskToBlock } from "@/lib/actions/mission.actions";
+import { DroppableGap } from "@/components/droppable-gap";
 
 // Mock Data for Efficiency Radar Chart (Static for now)
 const chartData = [
@@ -145,6 +146,35 @@ export default function DashboardClient({
                 loading: 'Movendo tarefa...',
                 success: 'Tarefa movida para o bloco!',
                 error: 'Erro ao mover tarefa'
+            });
+        }
+
+        // Handle Drop to Gap
+        if (over && active.data.current?.type === 'backlog-task' && over.data.current?.type === 'gap') {
+            const taskId = active.id as string;
+            const startTime = over.data.current.startTime as string; // HH:mm
+            const gapDate = over.id.toString().split('gap-')[1].split('-')[0] + '-' + over.id.toString().split('gap-')[1].split('-')[1] + '-' + over.id.toString().split('gap-')[1].split('-')[2]; // Extract date? Or use selectedDate if easier. 
+            // Better: gap id structure `gap-${date}-${startTime}`
+            // id: gap-2023-10-10-09:00
+
+            const uniqueGapId = over.id as string;
+            // Gap ID format: `gap-${selectedDate}-${startTime}`
+            // selectedDate is yyyy-MM-dd.
+            // ID: gap-yyyy-MM-dd-HH:mm
+
+            // Extract from ID is safer if date changes
+            const parts = uniqueGapId.replace('gap-', '').split('-');
+            // yyyy-MM-dd-HH:mm. 0=yyyy, 1=MM, 2=dd, 3=HH:mm (but : might be ok)
+            // Wait, split('-') might break HH:mm if it uses :.
+            // Let's use simpler ID constructing in loop.
+
+            // Or just use selectedDate since gaps are only shown for selectedDate
+            const date = selectedDate;
+
+            toast.promise(convertTaskToBlock(taskId, date, startTime), {
+                loading: 'Criando bloco...',
+                success: 'Bloco criado!',
+                error: 'Erro ao criar bloco'
             });
         }
     };
@@ -354,38 +384,14 @@ export default function DashboardClient({
                                                 <div key={block.id}>
                                                     {/* Gap Indicator */}
                                                     {showGap && gapDuration > 0 && (
-                                                        <div className="mb-4 pl-12 h-8 relative flex items-center group/gap">
-                                                            {/* Side Label */}
-                                                            <div className="absolute -left-2 top-1/2 -translate-y-1/2 flex items-center gap-2">
-                                                                <span className="text-[10px] font-mono text-zinc-600 group-hover/gap:text-zinc-400 transition-colors">
-                                                                    GAP: {Math.floor(gapDuration / 60)}H {gapDuration % 60}M
-                                                                </span>
-
-                                                                {/* Buttons */}
-                                                                <div className="flex gap-1 ml-2 opacity-0 group-hover/gap:opacity-100 transition-opacity">
-                                                                    {suggestedGapTask && (
-                                                                        <Button
-                                                                            size="sm"
-                                                                            variant="secondary"
-                                                                            className="h-5 text-[9px] px-2 bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500 hover:text-black border border-emerald-500/20"
-                                                                            onClick={() => handleConvertToBlock(suggestedGapTask)}
-                                                                        >
-                                                                            Adicionar {suggestedGapTask.title}
-                                                                        </Button>
-                                                                    )}
-                                                                    <Button
-                                                                        size="sm"
-                                                                        variant="ghost"
-                                                                        className="h-5 text-[9px] px-2 bg-white/5 hover:bg-white/10 text-zinc-400 hover:text-white"
-                                                                        onClick={() => setTaskPickerState({ open: true, startTime: minutesToTime(gapStart), date: selectedDate })}
-                                                                    >
-                                                                        {suggestedGapTask ? "Outra" : "Adicionar Tarefa"}
-                                                                    </Button>
-                                                                </div>
-                                                            </div>
-                                                            {/* Line visual */}
-                                                            <div className="absolute left-[34px] w-[2px] bg-zinc-800/50 h-full"></div>
-                                                        </div>
+                                                        <DroppableGap
+                                                            id={`gap-${selectedDate}-${minutesToTime(gapStart)}`}
+                                                            durationMinutes={gapDuration}
+                                                            startTime={minutesToTime(gapStart)}
+                                                            suggestedTask={suggestedGapTask}
+                                                            onConvertToBlock={(t) => handleConvertToBlock(t)}
+                                                            onAddTask={() => setTaskPickerState({ open: true, startTime: minutesToTime(gapStart), date: selectedDate })}
+                                                        />
                                                     )}
 
                                                     <DroppableMissionBlock

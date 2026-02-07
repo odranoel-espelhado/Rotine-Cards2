@@ -2,6 +2,7 @@
 
 import { useDroppable } from "@dnd-kit/core";
 import { MissionBlock, toggleMissionBlock, assignTasksToBlock, updateMissionBlock, unassignTaskFromBlock } from "@/lib/actions/mission.actions";
+import { BLOCK_ICONS } from "./constants";
 import { Zap, Trash2, Pencil, Check, Repeat, X, Plus, ChevronDown, ChevronUp, AlertTriangle, Archive } from "lucide-react";
 // ... (rest of imports)
 
@@ -135,6 +136,8 @@ export function DroppableMissionBlock({ block, onDelete, onEdit, pendingBacklogT
 
     const suggestedTask = availableTasksForBlock.length > 0 ? availableTasksForBlock[0] : null;
 
+    const Icon = BLOCK_ICONS.find(i => i.name === block.icon)?.icon || Zap;
+
     return (
         <>
             <div ref={setNodeRef} className="relative w-full group mb-4 pl-12">
@@ -191,6 +194,7 @@ export function DroppableMissionBlock({ block, onDelete, onEdit, pendingBacklogT
                         <div className="flex-1 min-w-0 flex flex-col h-full">
 
                             <div className="flex items-center gap-2 mb-1">
+                                <Icon className={cn("w-5 h-5", optimisticCompleted ? "text-[#3a3a3a]" : "text-[var(--block-color)]")} />
                                 <h3 className={cn(
                                     "text-lg font-black uppercase tracking-wider truncate transition-colors duration-300",
                                     optimisticCompleted ? "text-[#3a3a3a] line-through" : "text-white"

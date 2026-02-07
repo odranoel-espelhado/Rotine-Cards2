@@ -109,7 +109,12 @@ export async function moveTaskToBlock(taskId: string, blockId: string) {
             id: task.id,
             title: task.title,
             duration: task.estimatedDuration || 30,
-            done: false
+            done: false,
+            isFixed: false,
+            originalPriority: task.priority,
+            originalLinkedBlockType: task.linkedBlockType,
+            originalColor: task.color,
+            deadline: task.deadline
         };
 
         await db.update(missionBlocks)

@@ -228,7 +228,12 @@ export async function assignTasksToBlock(blockId: string, tasksToAssign: any[]) 
             title: t.title,
             duration: t.estimatedDuration || 15,
             done: false,
-            isFixed: false // Allocated tasks are NOT fixed
+            isFixed: false, // Allocated tasks are NOT fixed
+            // Store original data
+            originalPriority: t.priority,
+            originalLinkedBlockType: t.linkedBlockType,
+            originalColor: t.color,
+            deadline: t.deadline
         }));
 
         const updatedSubtasks = [...currentSubtasks, ...newSubtasks];
@@ -320,11 +325,19 @@ export async function convertTaskToBlock(taskId: string, date: string, startTime
         const [task] = await db.select().from(backlogTasks).where(and(eq(backlogTasks.id, taskId), eq(backlogTasks.userId, userId)));
         if (!task) return { error: "Tarefa não encontrada" };
 
+        // Lookup existing block style based on linkedBlockType or title
+        const [existingBlock] = await db.select().from(missionBlocks)
+            .where(and(
+                eq(missionBlocks.userId, userId),
+                eq(missionBlocks.title, task.linkedBlockType || task.title)
+            ))
+            .limit(1);
+
         const newBlock = {
             userId,
             title: task.title,
-            color: task.color || '#3b82f6',
-            icon: 'zap',
+            color: existingBlock?.color || task.color || '#3b82f6',
+            icon: existingBlock?.icon || 'zap',
             date: date,
             startTime: startTime,
             totalDuration: task.estimatedDuration || 30,
@@ -384,7 +397,11 @@ export async function unassignTaskFromBlock(blockId: string, taskIndex: number, 
             estimatedDuration: parseInt(taskData.duration) || 15,
             status: 'pending',
             createdAt: new Date(),
-            color: '#27272a' // Default
+            // Restore original data
+            priority: taskData.originalPriority || 'media',
+            linkedBlockType: taskData.originalLinkedBlockType,
+            color: taskData.originalColor || '#27272a',
+            deadline: taskData.deadline
         });
 
         revalidatePath("/dashboard");
