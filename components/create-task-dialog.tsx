@@ -72,6 +72,7 @@ export function CreateTaskDialog({ availableBlockTypes = [], taskToEdit, open: c
         linkedBlockType: z.string().optional(),
         priority: z.enum(['low', 'medium', 'high']),
         estimatedDuration: z.coerce.number().min(5, "Mínimo 5 min"),
+        deadline: z.string().optional(),
         subTasks: z.array(subtaskSchema).default([]),
     });
 
@@ -82,6 +83,7 @@ export function CreateTaskDialog({ availableBlockTypes = [], taskToEdit, open: c
             linkedBlockType: taskToEdit?.linkedBlockType || "none",
             priority: (taskToEdit?.priority as 'low' | 'medium' | 'high') || "medium",
             estimatedDuration: taskToEdit?.estimatedDuration || 30,
+            deadline: taskToEdit?.deadline || "",
             subTasks: (taskToEdit?.subTasks as any[]) || [],
         },
     });
@@ -98,6 +100,7 @@ export function CreateTaskDialog({ availableBlockTypes = [], taskToEdit, open: c
                 linkedBlockType: taskToEdit?.linkedBlockType || "none",
                 priority: (taskToEdit?.priority as 'low' | 'medium' | 'high') || "medium",
                 estimatedDuration: taskToEdit?.estimatedDuration || 30,
+                deadline: taskToEdit?.deadline || "",
                 subTasks: (taskToEdit?.subTasks as any[]) || [],
             });
 
@@ -108,7 +111,7 @@ export function CreateTaskDialog({ availableBlockTypes = [], taskToEdit, open: c
         }
     }, [open, taskToEdit, form]);
 
-    async function onSubmit(values: z.infer<typeof detailedSchema>) {
+    async function onSubmit(values: z.infer<typeof detailedSchema>, keepOpen: boolean = false) {
         // Find selected color
         const selectedBlock = fetchedBlockTypes.find(b => b.label === values.linkedBlockType);
         const color = selectedBlock ? selectedBlock.color : '#27272a'; // Default gray
@@ -122,6 +125,7 @@ export function CreateTaskDialog({ availableBlockTypes = [], taskToEdit, open: c
                 linkedBlockType: values.linkedBlockType === "none" ? undefined : values.linkedBlockType,
                 color: color,
                 subTasks: values.subTasks,
+                deadline: values.deadline,
             })
         } else {
             res = await createBacklogTask({
@@ -131,11 +135,23 @@ export function CreateTaskDialog({ availableBlockTypes = [], taskToEdit, open: c
                 linkedBlockType: values.linkedBlockType === "none" ? undefined : values.linkedBlockType,
                 color: color,
                 subTasks: values.subTasks,
+                deadline: values.deadline,
             });
         }
 
         if (res?.success) {
-            setOpen(false);
+            if (!keepOpen) {
+                setOpen(false);
+            } else {
+                form.reset({
+                    title: "",
+                    linkedBlockType: "none",
+                    priority: "medium",
+                    estimatedDuration: 30,
+                    deadline: "",
+                    subTasks: [],
+                });
+            }
             toast.success(isEditing ? "Tarefa atualizada!" : "Tarefa criada!");
         } else {
             toast.error("Erro ao salvar tarefa");
@@ -153,7 +169,7 @@ export function CreateTaskDialog({ availableBlockTypes = [], taskToEdit, open: c
             {trigger ? <DialogTrigger asChild>{trigger}</DialogTrigger> : (
                 !isControlled && (
                     <DialogTrigger asChild>
-                        <div className="bg-[#10b981] hover:bg-[#10b981]/90 text-black font-black uppercase text-xs h-9 px-4 w-full flex items-center justify-center rounded-lg shadow-[0_0_15px_rgba(16,185,129,0.3)] transition-all hover:scale-105 active:scale-95 cursor-pointer">
+                        <div className="bg-[#10b981] hover:bg-[#10b981]/90 text-black font-black uppercase text-xs h-9 px-6 w-fit flex items-center justify-center rounded-lg shadow-[0_0_15px_rgba(16,185,129,0.3)] transition-all hover:scale-105 active:scale-95 cursor-pointer">
                             + Nova Tarefa
                         </div>
                     </DialogTrigger>
@@ -167,7 +183,7 @@ export function CreateTaskDialog({ availableBlockTypes = [], taskToEdit, open: c
                 </div>
 
                 <Form {...form}>
-                    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
+                    <form onSubmit={form.handleSubmit((v) => onSubmit(v, false))} className="space-y-5">
 
                         {/* Nome */}
                         <FormField
@@ -185,38 +201,60 @@ export function CreateTaskDialog({ availableBlockTypes = [], taskToEdit, open: c
                         />
 
                         {/* Bloco Selection */}
-                        <FormField
-                            control={form.control}
-                            name="linkedBlockType"
-                            render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel className="text-[10px] font-black text-zinc-500 uppercase ml-1">Vincular a Bloco</FormLabel>
-                                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <div className="flex gap-4">
+                            {/* Bloco Selection */}
+                            <FormField
+                                control={form.control}
+                                name="linkedBlockType"
+                                render={({ field }) => (
+                                    <FormItem className="flex-1">
+                                        <FormLabel className="text-[10px] font-black text-zinc-500 uppercase ml-1">Vincular a Bloco</FormLabel>
+                                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                            <FormControl>
+                                                <SelectTrigger className="bg-white/5 border-white/10 h-10 rounded-xl text-xs">
+                                                    <SelectValue placeholder="Selecione..." />
+                                                </SelectTrigger>
+                                            </FormControl>
+                                            <SelectContent className="bg-[#050506] border-white/10 text-white max-h-[200px]">
+                                                <SelectItem value="none" className="text-zinc-500 italic">Nenhum (Geral)</SelectItem>
+                                                {fetchedBlockTypes.map((block) => {
+                                                    const Icon = BLOCK_ICONS.find(i => i.name === block.icon)?.icon || Zap;
+                                                    return (
+                                                        <SelectItem key={block.label} value={block.label} className="focus:bg-white/10">
+                                                            <div className="flex items-center gap-2">
+                                                                <div className="w-2 h-2 rounded-full" style={{ backgroundColor: block.color }} />
+                                                                <Icon className="w-3 h-3 text-zinc-300" />
+                                                                <span>{block.label}</span>
+                                                            </div>
+                                                        </SelectItem>
+                                                    );
+                                                })}
+                                            </SelectContent>
+                                        </Select>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+
+                            {/* Prazo (Opcional) */}
+                            <FormField
+                                control={form.control}
+                                name="deadline"
+                                render={({ field }) => (
+                                    <FormItem className="w-32">
+                                        <FormLabel className="text-[10px] font-black text-zinc-500 uppercase ml-1">Prazo (Opcional)</FormLabel>
                                         <FormControl>
-                                            <SelectTrigger className="bg-white/5 border-white/10 h-10 rounded-xl text-xs">
-                                                <SelectValue placeholder="Selecione..." />
-                                            </SelectTrigger>
+                                            <Input
+                                                type="date"
+                                                {...field}
+                                                className="bg-white/5 border-white/10 h-10 rounded-xl text-xs text-center uppercase"
+                                            />
                                         </FormControl>
-                                        <SelectContent className="bg-[#050506] border-white/10 text-white max-h-[200px]">
-                                            <SelectItem value="none" className="text-zinc-500 italic">Nenhum (Geral)</SelectItem>
-                                            {fetchedBlockTypes.map((block) => {
-                                                const Icon = BLOCK_ICONS.find(i => i.name === block.icon)?.icon || Zap;
-                                                return (
-                                                    <SelectItem key={block.label} value={block.label} className="focus:bg-white/10">
-                                                        <div className="flex items-center gap-2">
-                                                            <div className="w-2 h-2 rounded-full" style={{ backgroundColor: block.color }} />
-                                                            <Icon className="w-3 h-3 text-zinc-300" />
-                                                            <span>{block.label}</span>
-                                                        </div>
-                                                    </SelectItem>
-                                                );
-                                            })}
-                                        </SelectContent>
-                                    </Select>
-                                    <FormMessage />
-                                </FormItem>
-                            )}
-                        />
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+                        </div>
 
                         <div className="flex gap-4">
                             {/* Duração */}
@@ -307,9 +345,17 @@ export function CreateTaskDialog({ availableBlockTypes = [], taskToEdit, open: c
                         </div>
 
 
-                        <div className="pt-2">
-                            <Button type="submit" className="w-full h-12 bg-[#10b981] hover:bg-[#10b981]/90 text-black font-black tracking-widest text-sm rounded-xl uppercase">
+                        <div className="pt-2 flex flex-col gap-2">
+                            <Button type="button" onClick={form.handleSubmit((v) => onSubmit(v, false))} className="w-full h-12 bg-[#10b981] hover:bg-[#10b981]/90 text-black font-black tracking-widest text-sm rounded-xl uppercase">
                                 Salvar
+                            </Button>
+
+                            <Button type="button" onClick={form.handleSubmit((v) => onSubmit(v, true))} className="w-full h-10 bg-white/5 hover:bg-white/10 text-white border border-white/10 text-xs font-bold uppercase rounded-xl">
+                                + Tarefas
+                            </Button>
+
+                            <Button type="button" onClick={() => setOpen(false)} variant="ghost" className="w-full h-8 text-zinc-500 hover:text-white text-[10px] uppercase">
+                                Cancelar
                             </Button>
                         </div>
                     </form>

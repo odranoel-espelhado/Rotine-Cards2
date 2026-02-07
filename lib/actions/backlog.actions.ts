@@ -38,6 +38,7 @@ export async function createBacklogTask(data: Partial<Omit<NewBacklogTask, 'id' 
             linkedBlockType: data.linkedBlockType,
             color: data.color,
             subTasks: data.subTasks || [],
+            deadline: data.deadline, // Add deadline
             status: "pending",
             createdAt: new Date(),
         });

@@ -1,8 +1,8 @@
 "use client";
 
 import { useDroppable } from "@dnd-kit/core";
-import { MissionBlock, toggleMissionBlock, assignTasksToBlock, updateMissionBlock } from "@/lib/actions/mission.actions";
-import { Zap, Trash2, Pencil, Check, Repeat, X, Plus, ChevronDown, ChevronUp, AlertTriangle } from "lucide-react";
+import { MissionBlock, toggleMissionBlock, assignTasksToBlock, updateMissionBlock, unassignTaskFromBlock } from "@/lib/actions/mission.actions";
+import { Zap, Trash2, Pencil, Check, Repeat, X, Plus, ChevronDown, ChevronUp, AlertTriangle, Archive } from "lucide-react";
 // ... (rest of imports)
 
 // ... inside component ...
@@ -210,12 +210,12 @@ export function DroppableMissionBlock({ block, onDelete, onEdit, pendingBacklogT
                             </div>
 
                             {/* Suggestion Buttons */}
-                            <div className="flex gap-2 mb-2 flex-wrap">
+                            <div className="flex flex-col gap-2 mb-2 w-full">
                                 {suggestedTask && (
                                     <Button
                                         size="sm"
                                         variant="ghost"
-                                        className="h-6 text-[10px] bg-white/10 hover:bg-white/20 text-white border border-white/5"
+                                        className="h-8 text-[10px] bg-white/10 hover:bg-white/20 text-white border border-white/5 w-full justify-start px-2"
                                         onClick={(e) => {
                                             e.stopPropagation();
                                             toast.promise(assignTasksToBlock(block.id, [suggestedTask]), {
@@ -225,18 +225,20 @@ export function DroppableMissionBlock({ block, onDelete, onEdit, pendingBacklogT
                                             });
                                         }}
                                     >
+                                        <Plus className="w-3 h-3 mr-2" />
                                         Adicionar {suggestedTask.title}
                                     </Button>
                                 )}
                                 <Button
                                     size="sm"
                                     variant="ghost"
-                                    className="h-6 text-[10px] bg-white/5 hover:bg-white/10 text-white/70"
+                                    className="h-8 text-[10px] bg-white/5 hover:bg-white/10 text-white/70 w-full justify-start px-2"
                                     onClick={(e) => {
                                         e.stopPropagation();
                                         setAddTasksDialogOpen(true);
                                     }}
                                 >
+                                    <Plus className="w-3 h-3 mr-2" />
                                     Organizar Tarefas
                                 </Button>
                             </div>
@@ -257,8 +259,28 @@ export function DroppableMissionBlock({ block, onDelete, onEdit, pendingBacklogT
                                                     {/* Dot */}
                                                     <div className="w-1.5 h-1.5 rounded-full bg-white/50 shrink-0" />
                                                     {/* Title */}
-                                                    <span className={cn("truncate flex-1", optimisticCompleted ? "line-through opacity-50" : "")}>
+                                                    <span className={cn("truncate flex-1 flex items-center gap-2", optimisticCompleted ? "line-through opacity-50" : "")}>
                                                         {sub.title}
+                                                        {/* Fixed Indication or Archive Action */}
+                                                        {sub.isFixed ? (
+                                                            <Repeat className="w-3 h-3 text-white/30" />
+                                                        ) : (
+                                                            <button
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    const promise = unassignTaskFromBlock(block.id, i, sub);
+                                                                    toast.promise(promise, {
+                                                                        loading: 'Arquivando...',
+                                                                        success: 'Tarefa arquivada!',
+                                                                        error: 'Erro ao arquivar'
+                                                                    });
+                                                                }}
+                                                                className="ml-auto opacity-0 group-hover/item:opacity-100 p-1 hover:bg-white/10 rounded transition-all"
+                                                                title="Arquivar tarefa"
+                                                            >
+                                                                <Archive className="w-3 h-3 text-white/50 hover:text-white" />
+                                                            </button>
+                                                        )}
                                                     </span>
                                                 </div>
                                             ))}
@@ -286,14 +308,7 @@ export function DroppableMissionBlock({ block, onDelete, onEdit, pendingBacklogT
                                         </div>
                                     )}
 
-                                    {/* Add Task Button */}
-                                    <div
-                                        onClick={(e) => { e.stopPropagation(); setAddTasksDialogOpen(true); }}
-                                        className="flex items-center gap-2 text-xs font-bold uppercase text-white/50 hover:text-white cursor-pointer bg-black/10 hover:bg-black/20 p-2 rounded-lg transition-colors w-full justify-center mt-2 border border-white/5 border-dashed hover:border-white/20"
-                                    >
-                                        <Plus className="w-4 h-4" />
-                                        Adicionar Tarefa
-                                    </div>
+                                    {/* Add Task Button Removed as requested */}
                                 </div>
                             )}
                         </div>

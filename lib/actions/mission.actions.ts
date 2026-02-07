@@ -68,26 +68,20 @@ export async function getMissionBlocks(date: string) {
 }
 
 export async function createMissionBlock(data: Omit<NewMissionBlock, "id" | "userId" | "createdAt"> & { recurrencePattern?: 'weekdays' }) {
-    console.log("[createMissionBlock] Starting...", data);
     const { userId } = await auth();
     if (!userId) {
         return { error: "Unauthorized" };
     }
 
-    try {
-        // Validation: Just insert ONE block.
-        // If recurring 'weekdays', it acts as master block.
-        // getMissionBlocks handles projection.
-
-        console.log(`[createMissionBlock] Creating block for ${data.date} (Recurrence: ${data.recurrencePattern})`);
-
-        // Check conflicts for the primary date only (MVP)
+    // Helper for creating individual block instances
+    const createInstance = async (dateStr: string, isFixedTasks: boolean) => {
+        // Conflict Check
         const existingBlocks = await db.select()
             .from(missionBlocks)
             .where(
                 and(
                     eq(missionBlocks.userId, userId),
-                    eq(missionBlocks.date, data.date)
+                    eq(missionBlocks.date, dateStr)
                 )
             );
 
@@ -99,27 +93,54 @@ export async function createMissionBlock(data: Omit<NewMissionBlock, "id" | "use
         const newStart = getMinutes(data.startTime);
         const newEnd = newStart + data.totalDuration;
 
-        let conflict = false;
         for (const block of existingBlocks) {
             const blockStart = getMinutes(block.startTime);
             const blockEnd = blockStart + block.totalDuration;
 
             if (newStart < blockEnd && newEnd > blockStart) {
-                return { error: `Conflito com "${block.title}"` };
+                // Determine conflicting block title
+                throw new Error(`Conflito com "${block.title}" em ${dateStr}`);
             }
         }
 
+        const subTasksWithFlag = ((data.subTasks as any[]) || []).map(t => ({ ...t, isFixed: isFixedTasks }));
+
         await db.insert(missionBlocks).values({
-            userId,
+            userId: userId, // Explicitly string
             ...data,
+            date: dateStr,
+            type: 'unique',
+            recurrencePattern: null,
+            subTasks: subTasksWithFlag,
         });
+    };
+
+    try {
+        if (data.recurrencePattern === 'weekdays') {
+            const targetDate = parseISO(data.date);
+            // Calculate Weekdays (Mon-Fri) for the week of the selected date
+            const monday = startOfWeek(targetDate, { weekStartsOn: 1 });
+
+            const promises = [];
+            for (let i = 0; i < 5; i++) {
+                const day = addDays(monday, i);
+                const dateStr = format(day, 'yyyy-MM-dd');
+                promises.push(createInstance(dateStr, true));
+            }
+
+            await Promise.all(promises);
+
+        } else {
+            // Single Block
+            await createInstance(data.date, true);
+        }
 
         revalidatePath("/dashboard");
         return { success: true };
 
     } catch (error: any) {
-        console.error("[createMissionBlock] Fatal Error:", error);
-        return { error: error.message || "Falha crítica ao criar bloco." };
+        console.error("[createMissionBlock] Error:", error);
+        return { error: error.message || "Erro ao criar bloco." };
     }
 }
 
@@ -206,7 +227,8 @@ export async function assignTasksToBlock(blockId: string, tasksToAssign: any[]) 
         const newSubtasks = tasksToAssign.map(t => ({
             title: t.title,
             duration: t.estimatedDuration || 15,
-            done: false
+            done: false,
+            isFixed: false // Allocated tasks are NOT fixed
         }));
 
         const updatedSubtasks = [...currentSubtasks, ...newSubtasks];
@@ -325,5 +347,51 @@ export async function convertTaskToBlock(taskId: string, date: string, startTime
     } catch (error: any) {
         console.error("Error converting task:", error);
         return { error: error.message || "Erro ao converter tarefa" };
+    }
+}
+
+export async function unassignTaskFromBlock(blockId: string, taskIndex: number, taskData: any) {
+    const { userId } = await auth();
+    if (!userId) return { error: "Unauthorized" };
+
+    try {
+        const realId = blockId.includes("-virtual-") ? blockId.split("-virtual-")[0] : blockId;
+        const [block] = await db.select().from(missionBlocks)
+            .where(and(eq(missionBlocks.id, realId), eq(missionBlocks.userId, userId)));
+
+        if (!block) return { error: "Bloco não encontrado" };
+
+        const currentSubtasks = (block.subTasks as any[]) || [];
+
+        // Remove task at index
+        if (taskIndex < 0 || taskIndex >= currentSubtasks.length) {
+            return { error: "Tarefa não encontrada no bloco" };
+        }
+
+        const newSubtasks = [...currentSubtasks];
+        newSubtasks.splice(taskIndex, 1);
+
+        // Update block
+        await db.update(missionBlocks)
+            .set({ subTasks: newSubtasks })
+            .where(eq(missionBlocks.id, realId));
+
+        // Create backlog task from removed task
+        // "Archives back to task list"
+        await db.insert(backlogTasks).values({
+            userId,
+            title: taskData.title,
+            estimatedDuration: parseInt(taskData.duration) || 15,
+            status: 'pending',
+            createdAt: new Date(),
+            color: '#27272a' // Default
+        });
+
+        revalidatePath("/dashboard");
+        return { success: true };
+
+    } catch (error: any) {
+        console.error("Error unassigning task:", error);
+        return { error: error.message || "Erro ao arquivar tarefa" };
     }
 }
