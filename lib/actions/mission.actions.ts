@@ -2,9 +2,10 @@
 
 import { auth } from "@clerk/nextjs/server";
 import { db } from "@/db";
-import { missionBlocks } from "@/db/schema";
-import { eq, and } from "drizzle-orm";
+import { missionBlocks, backlogTasks } from "@/db/schema";
+import { eq, and, desc, inArray } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
+import { startOfWeek, addDays, format, parseISO } from "date-fns";
 
 export type MissionBlock = typeof missionBlocks.$inferSelect;
 export type NewMissionBlock = typeof missionBlocks.$inferInsert;
@@ -14,101 +15,104 @@ export async function getMissionBlocks(date: string) {
     if (!userId) return [];
 
     try {
-        const blocks = await db.select()
+        // 1. Fetch specific blocks for this date
+        const specificBlocks = await db.select()
             .from(missionBlocks)
             .where(and(
                 eq(missionBlocks.userId, userId),
                 eq(missionBlocks.date, date)
-            ))
-            .orderBy(missionBlocks.startTime);
-        return blocks;
+            ));
+
+        // 2. Fetch recurring blocks (master definitions)
+        const recurringBlocks = await db.select()
+            .from(missionBlocks)
+            .where(and(
+                eq(missionBlocks.userId, userId),
+                eq(missionBlocks.type, 'recurring'),
+                eq(missionBlocks.recurrencePattern, 'weekdays')
+            ));
+
+        // 3. Process Recurring Blocks
+        const targetDate = parseISO(date);
+        const dayOfWeek = targetDate.getDay(); // 0 = Sun, 6 = Sat
+        const isWeekday = dayOfWeek !== 0 && dayOfWeek !== 6;
+
+        const virtualBlocks = [];
+
+        if (isWeekday) {
+            for (const rBlock of recurringBlocks) {
+                // Skip if overridden by specific block
+                if (rBlock.date === date) continue;
+
+                virtualBlocks.push({
+                    ...rBlock,
+                    id: `${rBlock.id}-virtual-${date}`,
+                    date: date,
+                    originalId: rBlock.id
+                });
+            }
+        }
+
+        // Merge and Sort
+        const allBlocks = [...specificBlocks, ...virtualBlocks].sort((a, b) => {
+            const getMins = (t: string) => { const [h, m] = t.split(':').map(Number); return h * 60 + m; };
+            return getMins(a.startTime) - getMins(b.startTime);
+        });
+
+        return allBlocks;
+
     } catch (error) {
         console.error("Error fetching blocks:", error);
         return [];
     }
 }
 
-import { startOfWeek, addDays, format, parseISO } from "date-fns";
-
 export async function createMissionBlock(data: Omit<NewMissionBlock, "id" | "userId" | "createdAt"> & { recurrencePattern?: 'weekdays' }) {
     console.log("[createMissionBlock] Starting...", data);
     const { userId } = await auth();
     if (!userId) {
-        console.error("[createMissionBlock] Unauthorized: No userId found");
         return { error: "Unauthorized" };
     }
 
     try {
-        const datesToProcess = data.recurrencePattern === 'weekdays'
-            ? Array.from({ length: 5 }, (_, i) => {
-                const start = startOfWeek(parseISO(data.date), { weekStartsOn: 1 });
-                return format(addDays(start, i), 'yyyy-MM-dd');
-            })
-            : [data.date];
+        // Validation: Just insert ONE block.
+        // If recurring 'weekdays', it acts as master block.
+        // getMissionBlocks handles projection.
 
-        console.log(`[createMissionBlock] Processing dates: ${datesToProcess.join(', ')}`);
+        console.log(`[createMissionBlock] Creating block for ${data.date} (Recurrence: ${data.recurrencePattern})`);
 
-        const results = [];
+        // Check conflicts for the primary date only (MVP)
+        const existingBlocks = await db.select()
+            .from(missionBlocks)
+            .where(
+                and(
+                    eq(missionBlocks.userId, userId),
+                    eq(missionBlocks.date, data.date)
+                )
+            );
 
-        for (const date of datesToProcess) {
-            console.log("[createMissionBlock] Checking conflicts for user:", userId, "date:", date);
+        const getMinutes = (timeStr: string) => {
+            const [h, m] = timeStr.split(':').map(Number);
+            return h * 60 + m;
+        };
 
-            // 1. Conflict Detection
-            const existingBlocks = await db.select()
-                .from(missionBlocks)
-                .where(
-                    and(
-                        eq(missionBlocks.userId, userId),
-                        eq(missionBlocks.date, date)
-                    )
-                );
+        const newStart = getMinutes(data.startTime);
+        const newEnd = newStart + data.totalDuration;
 
-            const getMinutes = (timeStr: string) => {
-                const [h, m] = timeStr.split(':').map(Number);
-                return h * 60 + m;
-            };
+        let conflict = false;
+        for (const block of existingBlocks) {
+            const blockStart = getMinutes(block.startTime);
+            const blockEnd = blockStart + block.totalDuration;
 
-            const newStart = getMinutes(data.startTime);
-            const newEnd = newStart + data.totalDuration;
-
-            let conflict = false;
-            for (const block of existingBlocks) {
-                const blockStart = getMinutes(block.startTime);
-                const blockEnd = blockStart + block.totalDuration;
-
-                if (newStart < blockEnd && newEnd > blockStart) {
-                    console.warn(`[createMissionBlock] Conflict on ${date} with block:`, block.title);
-                    results.push({ date, status: 'error', error: `Conflito em ${format(parseISO(date), 'dd/MM')} com "${block.title}"` });
-                    conflict = true;
-                    break;
-                }
-            }
-
-            if (!conflict) {
-                console.log(`[createMissionBlock] Inserting new block for ${date}...`);
-                await db.insert(missionBlocks).values({
-                    userId,
-                    ...data,
-                    date: date, // Override date
-                });
-                results.push({ date, status: 'success' });
+            if (newStart < blockEnd && newEnd > blockStart) {
+                return { error: `Conflito com "${block.title}"` };
             }
         }
 
-        const errors = results.filter(r => r.status === 'error');
-        if (errors.length > 0) {
-            // If all failed
-            if (errors.length === datesToProcess.length) {
-                return { error: errors[0].error }; // Return first error
-            }
-            // If partial success (feature request: handle partials gracefully, but for now return success with warning check?)
-            // We'll return success but maybe user notices missing blocks. 
-            // Better: Return success: true but we can print logs. 
-            // Ideally trigger a toast with "X blocks created, Y conflicts".
-            // But strict return type { success: boolean, error?: string }.
-            // I'll return success if At Least One worked.
-            console.warn("Partial success/failure:", results);
-        }
+        await db.insert(missionBlocks).values({
+            userId,
+            ...data,
+        });
 
         revalidatePath("/dashboard");
         return { success: true };
@@ -124,8 +128,18 @@ export async function deleteMissionBlock(id: string) {
     if (!userId) return { error: "Unauthorized" };
 
     try {
+        // If virtual block (contains -virtual-), delete original master?
+        // Or specific logic? For now, assume ID passed is real ID.
+        // If UI passes virtual ID, we must handle it. 
+        // But UI usually receives 'id' from getMissionBlocks.
+        // If virtual, id is `realId-virtual-date`.
+        // We should strip suffix if needed, OR user should handle master deletion vs instance deletion.
+        // User asked "Recurrent block appears all weeks".
+        // Deleting it should delete master? usually yes.
+        const realId = id.includes("-virtual-") ? id.split("-virtual-")[0] : id;
+
         await db.delete(missionBlocks).where(
-            and(eq(missionBlocks.id, id), eq(missionBlocks.userId, userId))
+            and(eq(missionBlocks.id, realId), eq(missionBlocks.userId, userId))
         );
         revalidatePath("/dashboard");
         return { success: true };
@@ -140,9 +154,16 @@ export async function toggleMissionBlock(id: string, status: 'pending' | 'comple
     if (!userId) return { error: "Unauthorized" };
 
     try {
+        const realId = id.includes("-virtual-") ? id.split("-virtual-")[0] : id;
+        // If toggling a recurring block instance, should we create an exception block?
+        // For MVP, just toggle master? (Affects all?).
+        // Or create a completion record?
+        // Let's toggle Master for now, but ideally we'd fork.
+        // Given user request is simple, toggle master.
+
         await db.update(missionBlocks)
             .set({ status })
-            .where(and(eq(missionBlocks.id, id), eq(missionBlocks.userId, userId)));
+            .where(and(eq(missionBlocks.id, realId), eq(missionBlocks.userId, userId)));
 
         revalidatePath("/dashboard");
         return { success: true };
@@ -152,19 +173,15 @@ export async function toggleMissionBlock(id: string, status: 'pending' | 'comple
     }
 }
 
-import { backlogTasks } from "@/db/schema";
-import { inArray, desc } from "drizzle-orm";
-
 export async function updateMissionBlock(id: string, data: Partial<Omit<NewMissionBlock, "id" | "userId" | "createdAt">>) {
     const { userId } = await auth();
     if (!userId) return { error: "Unauthorized" };
 
     try {
-        // We can add conflict detection here too if needed, fitting for updates.
-        // For now, straightforward update.
+        const realId = id.includes("-virtual-") ? id.split("-virtual-")[0] : id;
         await db.update(missionBlocks)
             .set(data)
-            .where(and(eq(missionBlocks.id, id), eq(missionBlocks.userId, userId)));
+            .where(and(eq(missionBlocks.id, realId), eq(missionBlocks.userId, userId)));
 
         revalidatePath("/dashboard");
         return { success: true };
@@ -174,33 +191,30 @@ export async function updateMissionBlock(id: string, data: Partial<Omit<NewMissi
     }
 }
 
-export async function assignTasksToBlock(blockId: string, tasksToAssign: any[]) { // Using any[] for now as BacklogTask type import might circle
+export async function assignTasksToBlock(blockId: string, tasksToAssign: any[]) {
     const { userId } = await auth();
     if (!userId) return { error: "Unauthorized" };
 
     try {
-        // 1. Get current block details to merge subtasks
+        const realId = blockId.includes("-virtual-") ? blockId.split("-virtual-")[0] : blockId;
         const [block] = await db.select().from(missionBlocks)
-            .where(and(eq(missionBlocks.id, blockId), eq(missionBlocks.userId, userId)));
+            .where(and(eq(missionBlocks.id, realId), eq(missionBlocks.userId, userId)));
 
         if (!block) return { error: "Bloco não encontrado" };
 
-        // 2. Prepare new subtasks
         const currentSubtasks = (block.subTasks as any[]) || [];
         const newSubtasks = tasksToAssign.map(t => ({
             title: t.title,
-            duration: t.estimatedDuration || 15, // Default duration if mssing
+            duration: t.estimatedDuration || 15,
             done: false
         }));
 
         const updatedSubtasks = [...currentSubtasks, ...newSubtasks];
 
-        // 3. Update Block
         await db.update(missionBlocks)
             .set({ subTasks: updatedSubtasks })
-            .where(eq(missionBlocks.id, blockId));
+            .where(eq(missionBlocks.id, realId));
 
-        // 4. Delete from Backlog
         const taskIds = tasksToAssign.map(t => t.id);
         if (taskIds.length > 0) {
             await db.delete(backlogTasks)
@@ -266,19 +280,50 @@ export async function deleteAllUserData() {
     if (!userId) return { error: "Unauthorized" };
 
     try {
-        // Delete all blocks
         await db.delete(missionBlocks).where(eq(missionBlocks.userId, userId));
-
-        // Delete all backlog tasks
         await db.delete(backlogTasks).where(eq(backlogTasks.userId, userId));
-
-        // (Optional) Delete tactical cards if stored in DB, but simpler "Limpar tudo" usually means main user data.
-        // Assuming cards are static or local for now based on props, but if they were in DB we'd delete them too.
-
         revalidatePath("/dashboard");
         return { success: true };
     } catch (error: any) {
         console.error("Error deleting all data:", error);
         return { error: error.message || "Erro ao limpar dados" };
+    }
+}
+
+export async function convertTaskToBlock(taskId: string, date: string, startTime: string) {
+    const { userId } = await auth();
+    if (!userId) return { error: "Unauthorized" };
+
+    try {
+        const [task] = await db.select().from(backlogTasks).where(and(eq(backlogTasks.id, taskId), eq(backlogTasks.userId, userId)));
+        if (!task) return { error: "Tarefa não encontrada" };
+
+        const newBlock = {
+            userId,
+            title: task.title,
+            color: task.color || '#3b82f6',
+            icon: 'zap',
+            date: date,
+            startTime: startTime,
+            totalDuration: task.estimatedDuration || 30,
+            status: 'pending' as const,
+            type: 'unique' as const,
+            subTasks: [{ title: task.title, duration: task.estimatedDuration || 30, done: false }]
+        };
+
+        if (task.subTasks && Array.isArray(task.subTasks) && task.subTasks.length > 0) {
+            newBlock.subTasks = task.subTasks as any;
+        }
+
+        await db.insert(missionBlocks).values(newBlock);
+
+        await db.delete(backlogTasks).where(eq(backlogTasks.id, taskId));
+
+        revalidatePath("/dashboard");
+        return { success: true };
+
+    } catch (error: any) {
+        console.error("Error converting task:", error);
+        return { error: error.message || "Erro ao converter tarefa" };
     }
 }

@@ -15,13 +15,15 @@ import { BacklogComponent } from "@/components/backlog-component";
 import { BacklogTask, moveTaskToBlock } from "@/lib/actions/backlog.actions";
 import { TacticalDeck } from "@/components/tactical-deck";
 import { TacticalCard } from "@/lib/actions/cards.actions";
-import { DndContext, DragEndEvent, DragOverlay, DragStartEvent } from "@dnd-kit/core";
+import { DndContext, DragEndEvent, DragOverlay, DragStartEvent, useSensor, useSensors, MouseSensor, TouchSensor } from "@dnd-kit/core";
 import { BacklogItemCard } from "@/components/backlog-item-card";
 import { DroppableMissionBlock } from "@/components/droppable-mission-block";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { CardHistory, CardLog } from "@/components/card-history";
 import { SettingsDialog } from "@/components/settings-dialog";
+import { TaskPickerDialog } from "@/components/task-picker-dialog";
+import { convertTaskToBlock } from "@/lib/actions/mission.actions";
 
 // Mock Data for Efficiency Radar Chart (Static for now)
 const chartData = [
@@ -106,7 +108,24 @@ export default function DashboardClient({
         }
     }
 
+
+
     const [activeTask, setActiveTask] = useState<BacklogTask | null>(null);
+    const [taskPickerState, setTaskPickerState] = useState<{ open: boolean; startTime?: string; date?: string }>({ open: false });
+
+    const sensors = useSensors(
+        useSensor(MouseSensor, {
+            activationConstraint: {
+                distance: 10,
+            },
+        }),
+        useSensor(TouchSensor, {
+            activationConstraint: {
+                delay: 250,
+                tolerance: 5,
+            },
+        })
+    );
 
     const handleDragStart = (event: DragStartEvent) => {
         if (event.active.data.current?.type === 'backlog-task') {
@@ -197,8 +216,18 @@ export default function DashboardClient({
         getUniqueBlockTypes().then(setAllBlockTypes);
     }, []);
 
+    const handleConvertToBlock = async (task: BacklogTask) => {
+        if (!taskPickerState.date || !taskPickerState.startTime) return;
+        toast.promise(convertTaskToBlock(task.id, taskPickerState.date, taskPickerState.startTime), {
+            loading: 'Alocando tarefa...',
+            success: 'Tarefa alocada na timeline!',
+            error: 'Erro ao alocar tarefa'
+        });
+        setTaskPickerState(prev => ({ ...prev, open: false }));
+    };
+
     return (
-        <DndContext onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+        <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
             <div className={cn("min-h-screen bg-[#020203] text-white selection:bg-primary/30 flex flex-col transition-all duration-700", focusMode ? "grayscale-[0.8]" : "")}>
 
                 {/* Header */}
@@ -322,25 +351,23 @@ export default function DashboardClient({
                                                 <div key={block.id}>
                                                     {/* Gap Indicator */}
                                                     {showGap && gapDuration > 0 && (
-                                                        <div
-                                                            onClick={() => setCreateDialogState({
-                                                                open: true,
-                                                                startTime: minutesToTime(gapStart),
-                                                                duration: gapDuration
-                                                            })}
-                                                            className="mb-4 pl-12 relative flex items-center group/gap cursor-pointer"
-                                                            style={{
-                                                                height: `${Math.max(40, gapDuration * PIXELS_PER_MINUTE)}px`,
-                                                                minHeight: '40px'
-                                                            }}
-                                                        >
-                                                            <div className="absolute left-[34px] top-0 bottom-0 w-[2px] bg-zinc-800 border-l border-dashed border-zinc-700"></div>
-                                                            <div className="w-full h-full rounded-2xl border-2 border-dashed border-zinc-800 flex items-center justify-center bg-zinc-900/20 group-hover/gap:bg-emerald-500/10 group-hover/gap:border-emerald-500/30 transition-all">
-                                                                <span className="text-[10px] uppercase font-mono text-zinc-500 group-hover/gap:text-emerald-400 flex items-center gap-2 font-bold">
-                                                                    <Plus className="w-3 h-3" />
-                                                                    ADICIONAR ({gapDuration} MIN)
+                                                        <div className="mb-4 pl-12 h-8 relative flex items-center group/gap">
+                                                            {/* Side Label */}
+                                                            <div className="absolute -left-2 top-1/2 -translate-y-1/2 flex items-center gap-2">
+                                                                <span className="text-[10px] font-mono text-zinc-600 group-hover/gap:text-zinc-400 transition-colors">
+                                                                    GAP: {Math.floor(gapDuration / 60)}H {gapDuration % 60}M
                                                                 </span>
+                                                                <Button
+                                                                    size="icon"
+                                                                    variant="ghost"
+                                                                    onClick={() => setTaskPickerState({ open: true, startTime: minutesToTime(gapStart), date: selectedDate })}
+                                                                    className="opacity-0 group-hover/gap:opacity-100 transition-opacity h-6 w-6 rounded-full bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500 hover:text-black"
+                                                                >
+                                                                    <Plus className="w-3 h-3" />
+                                                                </Button>
                                                             </div>
+                                                            {/* Line visual (optional, kept minimal as requested) */}
+                                                            <div className="absolute left-[34px] w-[2px] bg-zinc-800/50 h-full"></div>
                                                         </div>
                                                     )}
 
@@ -362,26 +389,7 @@ export default function DashboardClient({
 
                         {/* RIGHT COLUMN: Tasks (Backlog) & Stats - Remaining Width */}
                         <div className={cn("flex-1 flex flex-col gap-6", focusMode ? "opacity-10 pointer-events-none blur-sm" : "")}>
-                            {/* Efficiency Chart */}
-                            <div className="bg-[#050506] border border-white/5 rounded-3xl p-6">
-                                <h2 className="text-sm font-bold text-zinc-400 uppercase tracking-wider mb-4">Performance Tática</h2>
-                                <div className="h-[200px] w-full relative">
-                                    <ResponsiveContainer width="100%" height="100%">
-                                        <RadarChart cx="50%" cy="50%" outerRadius="70%" data={initialStats}>
-                                            <PolarGrid stroke="rgba(255,255,255,0.1)" />
-                                            <PolarAngleAxis dataKey="subject" tick={{ fill: '#a1a1aa', fontSize: 10 }} />
-                                            <Radar
-                                                name="Performance"
-                                                dataKey="A"
-                                                stroke="#3b82f6"
-                                                strokeWidth={3}
-                                                fill="#3b82f6"
-                                                fillOpacity={0.2}
-                                            />
-                                        </RadarChart>
-                                    </ResponsiveContainer>
-                                </div>
-                            </div>
+
 
                             {/* Backlog Section */}
                             <div className="flex-1 bg-[#050506] border border-white/5 rounded-3xl overflow-hidden flex flex-col h-[500px]">
@@ -429,6 +437,13 @@ export default function DashboardClient({
                             onOpenChange={(open) => !open && setEditingBlock(null)}
                         />
                     )}
+
+                    <TaskPickerDialog
+                        open={taskPickerState.open}
+                        onOpenChange={(open) => setTaskPickerState(prev => ({ ...prev, open }))}
+                        tasks={initialBacklog}
+                        onSelect={handleConvertToBlock}
+                    />
 
                 </main>
             </div>
