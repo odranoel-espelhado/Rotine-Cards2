@@ -36,13 +36,16 @@ export function BacklogComponent({ initialTasks, availableBlockTypes = [] }: { i
     Object.keys(groupedTasks).forEach(key => {
         groupedTasks[key].sort((a, b) => {
             // 1. Priority (High > Medium > Low)
-            const priorityWeight = { high: 3, medium: 2, low: 1 };
-            const pA = priorityWeight[(a.priority as 'high' | 'medium' | 'low') || 'medium'];
-            const pB = priorityWeight[(b.priority as 'high' | 'medium' | 'low') || 'medium'];
+            const priorityWeight: Record<string, number> = { high: 3, medium: 2, low: 1, alta: 3, media: 2, baixa: 1 };
+
+            const pA = priorityWeight[a.priority?.toLowerCase() || 'medium'] || 1;
+            const pB = priorityWeight[b.priority?.toLowerCase() || 'medium'] || 1;
+
             if (pA !== pB) return pB - pA; // Descending priority
 
-            // 2. Duration (Low > High)
-            return (a.estimatedDuration || 0) - (b.estimatedDuration || 0);
+            // 2. Duration (High > Low for Blocks/General view)
+            // User requested "Maior para Blocos" as the primary logic for the 'queue'.
+            return (b.estimatedDuration || 0) - (a.estimatedDuration || 0);
         });
     });
 
