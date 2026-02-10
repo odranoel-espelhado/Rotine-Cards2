@@ -69,7 +69,7 @@ export const BacklogItemCard = forwardRef<HTMLDivElement, BacklogItemCardProps>(
 
                     {/* Actions (Hover) - visible if NOT dragging */}
                     {!isDragging && (
-                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity absolute right-2 top-2 bg-black/50 backdrop-blur-sm rounded-lg p-0.5 border border-white/10 shadow-xl">
+                        <div className="flex items-center gap-1 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity absolute right-2 top-2 bg-black/50 backdrop-blur-sm rounded-lg p-0.5 border border-white/10 shadow-xl">
                             {onEdit && (
                                 <Button
                                     size="icon"

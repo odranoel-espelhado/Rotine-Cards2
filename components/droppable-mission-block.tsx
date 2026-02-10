@@ -332,7 +332,7 @@ export function DroppableMissionBlock({ block, onDelete, onEdit, pendingBacklogT
                                                                         error: 'Erro ao arquivar'
                                                                     });
                                                                 }}
-                                                                className="ml-auto opacity-0 group-hover/item:opacity-100 p-1 hover:bg-white/10 rounded transition-all"
+                                                                className="ml-auto opacity-100 lg:opacity-0 lg:group-hover/item:opacity-100 p-1 hover:bg-white/10 rounded transition-all"
                                                                 title="Arquivar tarefa"
                                                             >
                                                                 <Archive className="w-3 h-3 text-white/50 hover:text-white" />
@@ -371,7 +371,7 @@ export function DroppableMissionBlock({ block, onDelete, onEdit, pendingBacklogT
                         </div>
 
                         {/* Actions (Slide in on hover) */}
-                        <div className="flex flex-col gap-2 opacity-0 group-hover:opacity-100 transition-opacity absolute right-4 top-4 z-20">
+                        <div className="flex flex-col gap-2 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity absolute right-4 top-4 z-20">
                             {onEdit && (
                                 <button
                                     onClick={(e) => { e.stopPropagation(); onEdit(block); }}
@@ -390,10 +390,10 @@ export function DroppableMissionBlock({ block, onDelete, onEdit, pendingBacklogT
                     </div>
                     {/* No horizontal timeline */}
                 </div>
-            </div>
+            </div >
 
             {/* Dialogs... (keep existing) */}
-            <Dialog open={addTasksDialogOpen} onOpenChange={setAddTasksDialogOpen}>
+            < Dialog open={addTasksDialogOpen} onOpenChange={setAddTasksDialogOpen} >
                 <DialogContent className="bg-[#050506] border-white/10 text-white sm:max-w-[400px]">
                     <DialogHeader>
                         <DialogTitle>Adicionar Tarefas</DialogTitle>
@@ -412,7 +412,7 @@ export function DroppableMissionBlock({ block, onDelete, onEdit, pendingBacklogT
                         <Button onClick={handleAddTasks}>Confirmar</Button>
                     </DialogFooter>
                 </DialogContent>
-            </Dialog>
+            </Dialog >
 
             <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
                 <DialogContent>

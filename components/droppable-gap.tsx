@@ -39,7 +39,7 @@ export function DroppableGap({ id, durationMinutes, startTime, onConvertToBlock,
 
                 {/* Buttons */}
                 {!isOver && (
-                    <div className="flex gap-1 ml-2 opacity-0 group-hover/gap:opacity-100 transition-opacity">
+                    <div className="flex gap-1 ml-2 opacity-100 lg:opacity-0 lg:group-hover/gap:opacity-100 transition-opacity">
                         {suggestedTask && (
                             <Button
                                 size="sm"
