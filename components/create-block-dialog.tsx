@@ -23,7 +23,7 @@ import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { createMissionBlock, getUniqueBlockTypes } from "@/lib/actions/mission.actions";
 import { useState, useEffect } from "react";
-import { Plus, Trash2, Clock, Calendar, Zap, Target, Heart, Book, Briefcase, Dumbbell, Coffee, User, Star } from "lucide-react";
+import { Plus, Trash2, Clock, Calendar, Zap, Target, Heart, Book, Briefcase, Dumbbell, Coffee, User, Star, Repeat } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -126,10 +126,12 @@ export function CreateBlockDialog({
         name: "subTasks",
     });
 
-    async function onSubmit(values: z.infer<typeof formSchema>) {
-        // Normalize title for internal storage if we had a separate column, but logic implies we just save it.
-        // User said: "Saving a block, system must convert name to lowercase... (internally). And leave Front as user desires."
-        // We will respect the input title for display. The 'normalization' is handled by getUniqueBlockTypes for searching.
+    const [showRecurringConfirmation, setShowRecurringConfirmation] = useState(false);
+    const [pendingValues, setPendingValues] = useState<z.infer<typeof formSchema> | null>(null);
+
+    async function handleFinalSubmit(updateAll: boolean) {
+        if (!pendingValues) return;
+        const values = pendingValues;
 
         let res;
         const payload = {
@@ -145,7 +147,51 @@ export function CreateBlockDialog({
         };
 
         if (isEditing && blockToEdit) {
-            res = await updateMissionBlock(blockToEdit.id, payload);
+            res = await updateMissionBlock(blockToEdit.id, payload, updateAll);
+        } else {
+            res = await createMissionBlock(payload);
+        }
+
+        if (res?.success) {
+            setOpen(false);
+            setShowRecurringConfirmation(false);
+            toast.success(isEditing ? "Missão atualizada!" : "Missão criada com sucesso!");
+        } else {
+            toast.error(res?.error || "Erro ao salvar bloco");
+        }
+    }
+
+    async function onSubmit(values: z.infer<typeof formSchema>) {
+        // If editing a recurring block (virtual or master recurring)
+        if (isEditing && blockToEdit && (blockToEdit.type === 'recurring' || blockToEdit.id.includes('-virtual-'))) {
+            setPendingValues(values);
+            setShowRecurringConfirmation(true);
+            return;
+        }
+
+        // Standard flow
+        setPendingValues(values);
+        // Direct call, hacky but works since we need to pass boolean
+        // But handleFinalSubmit relies on state, so we set state then call it immediately? 
+        // No, state updates are async.
+        // Let's refactor handleFinalSubmit to accept values directly or just call logic inline for standard.
+        // Copy-paste for safety to avoid async state issues.
+
+        const payload = {
+            title: values.title,
+            startTime: values.startTime,
+            totalDuration: values.totalDuration,
+            color: values.color,
+            icon: values.icon,
+            date: currentDate,
+            subTasks: values.subTasks.map(s => ({ ...s, done: false })),
+            type: values.isRecurring ? 'recurring' as const : 'unique' as const,
+            recurrencePattern: values.replicateWeekdays ? 'weekdays' as const : undefined,
+        };
+
+        let res;
+        if (isEditing && blockToEdit) {
+            res = await updateMissionBlock(blockToEdit.id, payload, false);
         } else {
             res = await createMissionBlock(payload);
         }
@@ -193,8 +239,62 @@ export function CreateBlockDialog({
 
     const isRecurring = form.watch("isRecurring");
 
+
+
+    // If confirmation is needed, we switch the content
+    if (showRecurringConfirmation) {
+        return (
+            <Dialog open={open} onOpenChange={(val) => {
+                if (!val) setShowRecurringConfirmation(false);
+                setOpen(val);
+            }}>
+                <DialogContent className="bg-[#050506] border-white/10 text-white sm:max-w-[400px] p-6 rounded-3xl">
+                    <DialogHeader>
+                        <DialogTitle className="text-xl font-black uppercase text-amber-500 italic flex items-center gap-2">
+                            <Repeat className="w-5 h-5" /> Edição Recorrente
+                        </DialogTitle>
+                        <div className="text-zinc-400 text-sm">
+                            Este bloco se repete. Como deseja aplicar as mudanças?
+                        </div>
+                    </DialogHeader>
+
+                    <div className="flex flex-col gap-3 pt-4">
+                        <Button
+                            variant="outline"
+                            className="border-white/10 hover:bg-white/5 justify-start h-12 text-left font-bold"
+                            onClick={() => handleFinalSubmit(false)}
+                        >
+                            <span className="flex flex-col items-start leading-none gap-1">
+                                <span>Alterar apenas este</span>
+                                <span className="text-[10px] text-zinc-500 font-normal uppercase">Cria uma exceção para hoje</span>
+                            </span>
+                        </Button>
+
+                        <Button
+                            className="justify-start h-12 text-left font-bold bg-amber-500/10 text-amber-500 hover:bg-amber-500/20 border-amber-500/20 border"
+                            onClick={() => handleFinalSubmit(true)}
+                        >
+                            <span className="flex flex-col items-start leading-none gap-1">
+                                <span>Alterar {blockToEdit?.recurrencePattern === 'weekdays' ? 'dias de semana' : 'toda a série'}</span>
+                                <span className="text-[10px] text-amber-300/50 font-normal uppercase">Atualiza todas as ocorrências futuras</span>
+                            </span>
+                        </Button>
+
+                        <Button variant="ghost" className="mt-2 text-zinc-500 hover:text-white" onClick={() => setShowRecurringConfirmation(false)}>
+                            Voltar
+                        </Button>
+                    </div>
+                </DialogContent>
+            </Dialog>
+        );
+    }
+
     return (
-        <Dialog open={open} onOpenChange={setOpen}>
+        <Dialog open={open} onOpenChange={(val) => {
+            // Reset internal state on close
+            if (!val) setTimeout(() => setShowRecurringConfirmation(false), 300);
+            setOpen(val);
+        }}>
             {trigger && <DialogTrigger asChild>{trigger}</DialogTrigger>}
             <DialogContent className="sm:max-w-[480px] bg-[#050506] border border-white/10 text-white p-0 overflow-hidden gap-0 rounded-[2rem]">
                 <div className="p-8 space-y-6 max-h-[85vh] overflow-y-auto custom-scrollbar">
@@ -207,6 +307,7 @@ export function CreateBlockDialog({
                     </div>
 
                     <Form {...form}>
+                        {/* ... form content ... */}
                         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
 
                             {/* Nome com Autocomplete */}
@@ -468,4 +569,3 @@ export function CreateBlockDialog({
         </Dialog>
     );
 }
-
