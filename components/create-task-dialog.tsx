@@ -347,12 +347,8 @@ export function CreateTaskDialog({ availableBlockTypes = [], taskToEdit, open: c
 
 
                         <div className="pt-2 flex flex-col gap-2">
-                            <Button type="button" onClick={form.handleSubmit((v) => onSubmit(v, false))} className="w-full h-12 bg-[#10b981] hover:bg-[#10b981]/90 text-black font-black tracking-widest text-sm rounded-xl uppercase">
+                            <Button type="button" onClick={form.handleSubmit((v) => onSubmit(v, true))} className="w-full h-12 bg-[#10b981] hover:bg-[#10b981]/90 text-black font-black tracking-widest text-sm rounded-xl uppercase">
                                 Salvar
-                            </Button>
-
-                            <Button type="button" onClick={form.handleSubmit((v) => onSubmit(v, true))} className="w-full h-10 bg-white/5 hover:bg-white/10 text-white border border-white/10 text-xs font-bold uppercase rounded-xl">
-                                + Tarefas
                             </Button>
 
                             <Button type="button" onClick={() => setOpen(false)} variant="ghost" className="w-full h-8 text-zinc-500 hover:text-white text-[10px] uppercase">
