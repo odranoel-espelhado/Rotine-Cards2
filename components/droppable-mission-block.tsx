@@ -259,25 +259,7 @@ export function DroppableMissionBlock({ block, onDelete, onEdit, pendingBacklogT
                                 {optimisticCompleted && <Check className="h-5 w-5 text-white" strokeWidth={3} />}
                             </div>
 
-                            {/* Vertical Timeline (Visible when expanded) */}
-                            {expanded && subTasks.length > 0 && (
-                                <div className="mt-[3px] w-1 flex-1 flex flex-col items-center gap-[2px] animate-in slide-in-from-top-2">
-                                    {subTasks.map((sub: any, i: number) => {
-                                        // Simple visual representation: proportional height?
-                                        // Just equal flex for now creates a stack.
-                                        // To be strict: height based on duration ratio.
-                                        const hPct = Math.max(10, (parseInt(sub.duration) / totalDuration) * 100);
-                                        return (
-                                            <div
-                                                key={i}
-                                                className="w-full rounded-full bg-white/20"
-                                                style={{ height: `${parseInt(sub.duration) * 2}px`, minHeight: '4px' }}
-                                                title={`${sub.title} (${sub.duration}m)`}
-                                            />
-                                        )
-                                    })}
-                                </div>
-                            )}
+                            {/* Vertical Timeline Removed */}
                         </div>
 
                         {/* Content Column */}
@@ -341,43 +323,65 @@ export function DroppableMissionBlock({ block, onDelete, onEdit, pendingBacklogT
 
                             {/* Expanded Content: Subtasks List */}
                             {expanded && (
-                                <div className="space-y-2 pt-2 border-t border-white/10 mt-auto animate-in fade-in duration-300">
+                                <div className="space-y-0 pt-2 border-t border-white/10 mt-auto animate-in fade-in duration-300">
                                     {subTasks.length === 0 ? (
-                                        <p className="text-xs text-white/40 italic">Nenhuma tarefa.</p>
+                                        <p className="text-xs text-white/40 italic py-2">Nenhuma tarefa.</p>
                                     ) : (
-                                        <div className="space-y-1">
+                                        <div className="flex flex-col">
                                             {subTasks.map((sub: any, i: number) => (
-                                                <div key={i} className="flex items-center gap-3 text-sm text-white/90 group/item">
-                                                    {/* Duration Left */}
-                                                    <span className="text-[10px] font-mono text-white/40 min-w-[30px] text-right group-hover/item:text-white/60 transition-colors">
-                                                        {sub.duration}m
-                                                    </span>
-                                                    {/* Dot */}
-                                                    <div className="w-1.5 h-1.5 rounded-full bg-white/50 shrink-0" />
-                                                    {/* Title */}
-                                                    <span className={cn("truncate flex-1 flex items-center gap-2", optimisticCompleted ? "line-through opacity-50" : "")}>
-                                                        {sub.title}
-                                                        {/* Fixed Indication or Archive Action */}
-                                                        {sub.isFixed ? (
-                                                            <Repeat className="w-3 h-3 text-white/30" />
-                                                        ) : (
-                                                            <button
-                                                                onClick={(e) => {
-                                                                    e.stopPropagation();
-                                                                    const promise = unassignTaskFromBlock(block.id, i, sub);
-                                                                    toast.promise(promise, {
-                                                                        loading: 'Arquivando...',
-                                                                        success: 'Tarefa arquivada!',
-                                                                        error: 'Erro ao arquivar'
-                                                                    });
-                                                                }}
-                                                                className="ml-auto opacity-100 lg:opacity-0 lg:group-hover/item:opacity-100 p-1 hover:bg-white/10 rounded transition-all"
-                                                                title="Arquivar tarefa"
-                                                            >
-                                                                <Archive className="w-3 h-3 text-white/50 hover:text-white" />
-                                                            </button>
-                                                        )}
-                                                    </span>
+                                                <div key={i} className="flex items-start gap-3 group/item relative">
+                                                    {/* Duration Column */}
+                                                    <div className="w-[30px] text-right pt-[2px]">
+                                                        <span className="text-[10px] font-mono text-white/40 group-hover/item:text-white/60 transition-colors block leading-none">
+                                                            {sub.duration}m
+                                                        </span>
+                                                    </div>
+
+                                                    {/* Visual Bar Column */}
+                                                    <div className="flex flex-col items-center pt-[2px]">
+                                                        {/* The Bar */}
+                                                        <div
+                                                            className={cn("w-1 rounded-full transition-all duration-300", optimisticCompleted ? "bg-white/20" : "bg-white/50")}
+                                                            style={{
+                                                                height: `${Math.max(12, parseInt(sub.duration) * 1.5)}px`
+                                                            }}
+                                                        />
+                                                    </div>
+
+                                                    {/* Content Column */}
+                                                    <div className="flex-1 min-w-0 pb-2 pt-[2px]">
+                                                        <div className="flex items-start justify-between gap-2">
+                                                            <span className={cn(
+                                                                "text-sm font-medium leading-none truncate transition-colors",
+                                                                optimisticCompleted ? "line-through opacity-50 text-white/50" : "text-white/90"
+                                                            )}>
+                                                                {sub.title}
+                                                            </span>
+
+                                                            {/* Actions */}
+                                                            <div className="flex shrink-0">
+                                                                {sub.isFixed ? (
+                                                                    <Repeat className="w-3 h-3 text-white/30" />
+                                                                ) : (
+                                                                    <button
+                                                                        onClick={(e) => {
+                                                                            e.stopPropagation();
+                                                                            const promise = unassignTaskFromBlock(block.id, i, sub);
+                                                                            toast.promise(promise, {
+                                                                                loading: 'Arquivando...',
+                                                                                success: 'Tarefa arquivada!',
+                                                                                error: 'Erro ao arquivar'
+                                                                            });
+                                                                        }}
+                                                                        className="opacity-100 lg:opacity-0 lg:group-hover/item:opacity-100 p-0.5 hover:bg-white/10 rounded transition-all -mt-1"
+                                                                        title="Arquivar tarefa"
+                                                                    >
+                                                                        <Archive className="w-3 h-3 text-white/50 hover:text-white" />
+                                                                    </button>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    </div>
                                                 </div>
                                             ))}
                                         </div>
