@@ -1,7 +1,7 @@
 "use client";
 
 import { UserButton } from "@clerk/nextjs";
-import { Zap, Target, Heart, Plus, Trash2, Calendar as CalendarIcon } from "lucide-react";
+import { Zap, Target, Heart, Plus, Trash2, Calendar as CalendarIcon, AlertTriangle } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import { CartesianGrid, PolarAngleAxis, PolarGrid, Radar, RadarChart, ResponsiveContainer } from "recharts";
 import { MissionBlock, getUniqueBlockTypes } from "@/lib/actions/mission.actions";
@@ -464,6 +464,16 @@ export default function DashboardClient({
                                                             onConvertToBlock={(t) => handleConvertToBlock(t)}
                                                             onAddTask={() => setTaskPickerState({ open: true, startTime: minutesToTime(gapStart), date: selectedDate })}
                                                         />
+                                                    )}
+
+                                                    {/* Conflict Indicator */}
+                                                    {index > 0 && blockStart < gapStart && (
+                                                        <div className="relative z-20 -mt-6 mb-2 flex justify-end pr-12 pointer-events-none">
+                                                            <div className="bg-red-500 text-white text-[10px] font-black uppercase px-3 py-1 rounded-b-lg shadow-lg flex items-center gap-2 animate-in slide-in-from-top-2 duration-300">
+                                                                <AlertTriangle className="w-3 h-3 text-white" fill="currentColor" />
+                                                                <span>CONFLITO: {gapStart - blockStart} MIN</span>
+                                                            </div>
+                                                        </div>
                                                     )}
 
                                                     <DroppableMissionBlock
