@@ -1,7 +1,7 @@
 "use client";
 
 import { useDroppable } from "@dnd-kit/core";
-import { MissionBlock, toggleMissionBlock, assignTasksToBlock, updateMissionBlock, unassignTaskFromBlock, deleteMissionBlock } from "@/lib/actions/mission.actions";
+import { MissionBlock, toggleMissionBlock, assignTasksToBlock, updateMissionBlock, unassignTaskFromBlock, deleteMissionBlock, toggleSubTaskCompletion } from "@/lib/actions/mission.actions";
 import { BLOCK_ICONS } from "./constants";
 import { Zap, Trash2, Pencil, Check, Repeat, X, Plus, ChevronDown, ChevronUp, AlertTriangle, Archive } from "lucide-react";
 // ... (rest of imports)
@@ -341,7 +341,10 @@ export function DroppableMissionBlock({ block, onDelete, onEdit, pendingBacklogT
                                                     <div className="flex flex-col items-center pt-[2px]">
                                                         {/* The Bar */}
                                                         <div
-                                                            className={cn("w-1 rounded-full transition-all duration-300", optimisticCompleted ? "bg-white/20" : "bg-white/50")}
+                                                            className={cn("w-1 rounded-full transition-all duration-300",
+                                                                optimisticCompleted ? "bg-white/20" : "bg-white/50",
+                                                                sub.done ? "bg-emerald-500/50" : ""
+                                                            )}
                                                             style={{
                                                                 height: `${Math.max(12, parseInt(sub.duration) * 1.5)}px`
                                                             }}
@@ -350,35 +353,63 @@ export function DroppableMissionBlock({ block, onDelete, onEdit, pendingBacklogT
 
                                                     {/* Content Column */}
                                                     <div className="flex-1 min-w-0 pb-2 pt-[2px]">
-                                                        <div className="flex items-start justify-between gap-2">
-                                                            <span className={cn(
-                                                                "text-sm font-medium leading-none truncate transition-colors",
-                                                                optimisticCompleted ? "line-through opacity-50 text-white/50" : "text-white/90"
-                                                            )}>
-                                                                {sub.title}
-                                                            </span>
-
-                                                            {/* Actions */}
-                                                            <div className="flex shrink-0">
-                                                                {sub.isFixed ? (
-                                                                    <Repeat className="w-3 h-3 text-white/30" />
-                                                                ) : (
-                                                                    <button
-                                                                        onClick={(e) => {
-                                                                            e.stopPropagation();
-                                                                            const promise = unassignTaskFromBlock(block.id, i, sub);
-                                                                            toast.promise(promise, {
-                                                                                loading: 'Arquivando...',
-                                                                                success: 'Tarefa arquivada!',
-                                                                                error: 'Erro ao arquivar'
-                                                                            });
-                                                                        }}
-                                                                        className="opacity-100 lg:opacity-0 lg:group-hover/item:opacity-100 p-0.5 hover:bg-white/10 rounded transition-all -mt-1"
-                                                                        title="Arquivar tarefa"
-                                                                    >
-                                                                        <Archive className="w-3 h-3 text-white/50 hover:text-white" />
-                                                                    </button>
+                                                        <div className="flex items-start gap-2">
+                                                            {/* Checkbox for Subtask */}
+                                                            <div
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    const promise = toggleSubTaskCompletion(block.id, i, !!sub.done);
+                                                                    // Optimistic update could be added locally but let's rely on revalidation for now or simple toast
+                                                                    toast.promise(promise, {
+                                                                        loading: 'Atualizando...',
+                                                                        success: 'Atualizado!',
+                                                                        error: 'Erro'
+                                                                    });
+                                                                }}
+                                                                className={cn(
+                                                                    "mt-0.5 w-3 h-3 rounded-[3px] border border-white/30 cursor-pointer flex items-center justify-center transition-colors hover:border-white/60 shrink-0",
+                                                                    sub.done ? "bg-emerald-500 border-emerald-500" : "bg-transparent"
                                                                 )}
+                                                            >
+                                                                {sub.done && <Check className="w-2.5 h-2.5 text-black" strokeWidth={4} />}
+                                                            </div>
+
+                                                            <div className="flex-1 flex justify-between items-start gap-2 min-w-0">
+                                                                <span className={cn(
+                                                                    "text-sm font-medium leading-none truncate transition-colors cursor-pointer",
+                                                                    optimisticCompleted ? "line-through opacity-50 text-white/50" : "text-white/90",
+                                                                    sub.done ? "line-through text-white/40" : ""
+                                                                )}
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        toggleSubTaskCompletion(block.id, i, !!sub.done);
+                                                                    }}
+                                                                >
+                                                                    {sub.title}
+                                                                </span>
+
+                                                                {/* Actions */}
+                                                                <div className="flex shrink-0">
+                                                                    {sub.isFixed ? (
+                                                                        <Repeat className="w-3 h-3 text-white/30" />
+                                                                    ) : (
+                                                                        <button
+                                                                            onClick={(e) => {
+                                                                                e.stopPropagation();
+                                                                                const promise = unassignTaskFromBlock(block.id, i, sub);
+                                                                                toast.promise(promise, {
+                                                                                    loading: 'Arquivando...',
+                                                                                    success: 'Tarefa arquivada!',
+                                                                                    error: 'Erro ao arquivar'
+                                                                                });
+                                                                            }}
+                                                                            className="opacity-100 lg:opacity-0 lg:group-hover/item:opacity-100 p-0.5 hover:bg-white/10 rounded transition-all -mt-1"
+                                                                            title="Arquivar tarefa"
+                                                                        >
+                                                                            <Archive className="w-3 h-3 text-white/50 hover:text-white" />
+                                                                        </button>
+                                                                    )}
+                                                                </div>
                                                             </div>
                                                         </div>
                                                     </div>
