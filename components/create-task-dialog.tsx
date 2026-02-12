@@ -146,7 +146,7 @@ export function CreateTaskDialog({ availableBlockTypes = [], taskToEdit, open: c
             } else {
                 form.reset({
                     title: "",
-                    linkedBlockType: "none",
+                    linkedBlockType: values.linkedBlockType || "none", // Keeps the current block type
                     priority: "medium",
                     estimatedDuration: 30,
                     deadline: "",
