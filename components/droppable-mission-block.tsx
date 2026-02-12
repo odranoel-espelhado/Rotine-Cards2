@@ -192,10 +192,21 @@ export function DroppableMissionBlock({ block, onDelete, onEdit, pendingBacklogT
         }
     };
 
+    // Dynamic Height Logic
+    // Base height for 30m = 80px (from passed height prop or default)
+    // Rule: +5% height for every extra 30 mins
+    const expandedHeight = height || 80;
+    const baseHeight = 80;
+    const extra30Segments = Math.max(0, (block.totalDuration - 30) / 30);
+    const collapsedHeight = baseHeight * (1 + extra30Segments * 0.05);
+
+    const currentHeight = expanded ? expandedHeight : collapsedHeight;
+
     // Style for Neon Border (Top, Bottom, Left)
     const containerStyle: React.CSSProperties = {
         '--block-color': glowColor,
-        minHeight: height ? `${height}px` : 'auto',
+        height: `${currentHeight}px`,
+        transition: 'height 0.3s cubic-bezier(0.4, 0, 0.2, 1)', // Smooth resize
     } as React.CSSProperties;
 
     // Custom Border Logic
