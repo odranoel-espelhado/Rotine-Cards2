@@ -3,7 +3,7 @@
 import { auth } from "@clerk/nextjs/server";
 import { db } from "@/db";
 import { missionBlocks, backlogTasks } from "@/db/schema";
-import { eq, and, desc, inArray } from "drizzle-orm";
+import { eq, and, desc, inArray, lt } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { startOfWeek, addDays, format, parseISO } from "date-fns";
 
@@ -755,5 +755,60 @@ export async function toggleSubTaskCompletion(blockId: string, taskIndex: number
     } catch (error: any) {
         console.error("Error toggling subtask:", error);
         return { error: error.message || "Erro ao atualizar tarefa" };
+    }
+}
+
+export async function checkAndArchivePastTasks() {
+    const { userId } = await auth();
+    if (!userId) return { error: "Unauthorized" };
+
+    try {
+        const today = format(new Date(), 'yyyy-MM-dd');
+
+        const pastBlocks = await db.select()
+            .from(missionBlocks)
+            .where(and(
+                eq(missionBlocks.userId, userId),
+                lt(missionBlocks.date, today),
+                eq(missionBlocks.type, 'unique')
+            ));
+
+        for (const block of pastBlocks) {
+            const currentSubtasks = (block.subTasks as any[]) || [];
+            if (currentSubtasks.length === 0) continue;
+
+            const tasksToArchive = currentSubtasks.filter(t => !t.done && !t.isFixed);
+
+            if (tasksToArchive.length > 0) {
+                // Archive tasks (batch insert possible?)
+                for (const task of tasksToArchive) {
+                    await db.insert(backlogTasks).values({
+                        userId,
+                        title: task.title,
+                        estimatedDuration: parseInt(task.duration) || 15,
+                        status: 'pending',
+                        createdAt: new Date(),
+                        priority: task.originalPriority || 'medium',
+                        linkedBlockType: task.originalLinkedBlockType,
+                        color: task.originalColor || '#27272a',
+                        deadline: task.deadline
+                    });
+                }
+
+                // Update block: Keep only Done OR Fixed tasks
+                const remainingSubtasks = currentSubtasks.filter(t => t.done || t.isFixed);
+
+                await db.update(missionBlocks)
+                    .set({ subTasks: remainingSubtasks })
+                    .where(eq(missionBlocks.id, block.id));
+            }
+        }
+
+        revalidatePath("/dashboard");
+        return { success: true };
+
+    } catch (error: any) {
+        console.error("Error archiving past tasks:", error);
+        return { error: error.message || "Failed to archive tasks" };
     }
 }

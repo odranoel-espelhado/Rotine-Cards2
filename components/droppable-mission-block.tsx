@@ -404,7 +404,9 @@ export function DroppableMissionBlock({ block, onDelete, onEdit, pendingBacklogT
                                                                 {/* Actions */}
                                                                 <div className="flex shrink-0">
                                                                     {sub.isFixed ? (
-                                                                        <Repeat className="w-3 h-3 text-white/30" />
+                                                                        <div className="mr-1" title="Tarefa fixa do bloco">
+                                                                            <Repeat className="w-3 h-3 text-white/30" />
+                                                                        </div>
                                                                     ) : (
                                                                         <button
                                                                             onClick={(e) => {

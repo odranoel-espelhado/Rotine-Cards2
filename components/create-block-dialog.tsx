@@ -141,7 +141,7 @@ export function CreateBlockDialog({
             color: values.color,
             icon: values.icon,
             date: currentDate,
-            subTasks: values.subTasks.map(s => ({ ...s, done: false })),
+            subTasks: values.subTasks.map(s => ({ ...s, done: false, isFixed: true })),
             type: values.isRecurring ? 'recurring' as const : 'unique' as const,
             recurrencePattern: values.replicateWeekdays ? 'weekdays' as const : undefined,
         };
@@ -184,7 +184,7 @@ export function CreateBlockDialog({
             color: values.color,
             icon: values.icon,
             date: currentDate,
-            subTasks: values.subTasks.map(s => ({ ...s, done: false })),
+            subTasks: values.subTasks.map(s => ({ ...s, done: false, isFixed: true })),
             type: values.isRecurring ? 'recurring' as const : 'unique' as const,
             recurrencePattern: values.replicateWeekdays ? 'weekdays' as const : undefined,
         };

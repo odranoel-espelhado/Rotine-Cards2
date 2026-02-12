@@ -4,7 +4,7 @@ import { UserButton } from "@clerk/nextjs";
 import { Zap, Target, Heart, Plus, Trash2, Calendar as CalendarIcon, AlertTriangle } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import { CartesianGrid, PolarAngleAxis, PolarGrid, Radar, RadarChart, ResponsiveContainer } from "recharts";
-import { MissionBlock, getUniqueBlockTypes } from "@/lib/actions/mission.actions";
+import { MissionBlock, getUniqueBlockTypes, checkAndArchivePastTasks } from "@/lib/actions/mission.actions";
 import { Button } from "@/components/ui/button";
 import { deleteMissionBlock } from "@/lib/actions/mission.actions";
 import { useRouter } from "next/navigation";
@@ -128,6 +128,11 @@ export default function DashboardClient({
         updateTime();
         const interval = setInterval(updateTime, 60000); // Update every minute
         return () => clearInterval(interval);
+    }, []);
+
+    // Check for past tasks to archive on mount
+    useEffect(() => {
+        checkAndArchivePastTasks();
     }, []);
 
     // Auto-scroll logic for current time line
