@@ -18,16 +18,16 @@ export const BacklogItemCard = forwardRef<HTMLDivElement, BacklogItemCardProps>(
         // Default to Gray if no specific block color or if it's the default "none" color
         const bgColor = task.color && task.color !== '#27272a' ? task.color : '#27272a';
 
-        const getPriorityLabel = (p: string) => {
+        const getPriorityColor = (p: string) => {
             switch (p) {
-                case 'high': return { label: 'Alta', color: 'bg-red-500/20 text-red-200 border-red-500/30' };
-                case 'medium': return { label: 'Média', color: 'bg-amber-500/20 text-amber-200 border-amber-500/30' };
-                case 'low': return { label: 'Baixa', color: 'bg-emerald-500/20 text-emerald-200 border-emerald-500/30' };
-                default: return { label: 'Média', color: 'bg-amber-500/20 text-amber-200 border-amber-500/30' }; // Default medium
+                case 'high': return 'bg-red-500';
+                case 'medium': return 'bg-amber-500';
+                case 'low': return 'bg-emerald-500';
+                default: return 'bg-amber-500'; // Default medium
             }
         };
 
-        const priorityInfo = getPriorityLabel(task.priority || 'medium');
+        const priorityColor = getPriorityColor(task.priority || 'medium');
 
         return (
             <div
@@ -58,18 +58,17 @@ export const BacklogItemCard = forwardRef<HTMLDivElement, BacklogItemCardProps>(
                             {/* Duration Badge always visible or only in expanded? Design choice. Let's keep minimal. */}
                         </div>
 
-                        {/* Right Side: Priority & Actions */}
+                        {/* Right Side: Empty for now, actions are absolute/hover */}
                         <div className="flex items-center gap-2 shrink-0">
-                            {/* Priority Badge */}
-                            <div className={cn("px-2 py-0.5 rounded text-[9px] uppercase font-black tracking-wide border", priorityInfo.color)}>
-                                {priorityInfo.label}
-                            </div>
                         </div>
                     </div>
 
                     {/* Actions (Hover) - visible if NOT dragging */}
                     {!isDragging && (
-                        <div className="flex items-center gap-1 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity absolute right-2 top-2 bg-black/50 backdrop-blur-sm rounded-lg p-0.5 border border-white/10 shadow-xl">
+                        <div className="flex items-center gap-1 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity absolute right-2 top-2 bg-black/50 backdrop-blur-sm rounded-lg p-0.5 border border-white/10 shadow-xl pl-2">
+                            {/* Priority Dot */}
+                            <div className={cn("w-2 h-2 rounded-full mr-1", priorityColor)} title={`Prioridade ${task.priority}`} />
+
                             {onEdit && (
                                 <Button
                                     size="icon"

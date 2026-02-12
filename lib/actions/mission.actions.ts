@@ -40,6 +40,9 @@ export async function getMissionBlocks(date: string) {
         const virtualBlocks = [];
 
         for (const rBlock of recurringBlocks) {
+            // Check start date: recurrence only applies from start date onwards
+            if (date < rBlock.date) continue;
+
             // Check exceptions (dates where this instance was deleted/modified)
             const exceptions = (rBlock.exceptions as string[]) || [];
             if (exceptions.includes(date)) continue;
@@ -47,6 +50,7 @@ export async function getMissionBlocks(date: string) {
             let matches = false;
 
             if (rBlock.recurrencePattern === 'weekdays') {
+                // Legacy support or specific logic for single-block weekdays if any
                 if (isWeekday) matches = true;
             } else if (rBlock.recurrencePattern === 'weekly') {
                 // Check if same day of week
@@ -102,7 +106,14 @@ export async function createMissionBlock(data: Omit<NewMissionBlock, "id" | "use
 
                 // Create blocks for Mon(0) through Fri(4) relative to the mondayDate
                 for (let i = 0; i < 5; i++) {
-                    const blockDate = addDays(mondayDate, i);
+                    let blockDate = addDays(mondayDate, i);
+                    const blockDateStr = format(blockDate, 'yyyy-MM-dd');
+
+                    // If this weekday is in the past relative to the start date, 
+                    // start the series next week.
+                    if (blockDateStr < data.date) {
+                        blockDate = addDays(blockDate, 7);
+                    }
 
                     await db.insert(missionBlocks).values({
                         userId: userId,
