@@ -130,6 +130,16 @@ export default function DashboardClient({
         return () => clearInterval(interval);
     }, []);
 
+    // Auto-scroll logic for current time line
+    useEffect(() => {
+        setTimeout(() => {
+            const timeLine = document.getElementById('current-time-line');
+            if (timeLine) {
+                timeLine.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+        }, 500);
+    }, [selectedDate, currentDate]);
+
     const getMinutes = (time: string) => {
         const [h, m] = time.split(':').map(Number);
         return h * 60 + m;
@@ -443,7 +453,7 @@ export default function DashboardClient({
 
                                             // Only calculate gap if blockStart > gapStart
                                             if (blockStart > gapStart) {
-                                                if (index > 0) {
+                                                if (index >= 0) {
                                                     showGap = true;
                                                     gapDuration = blockStart - gapStart;
                                                 }
@@ -451,6 +461,12 @@ export default function DashboardClient({
 
                                             // Suggestion for Gap
                                             const suggestedGapTask = getBestSuggestion(initialBacklog, gapDuration, 'gap');
+
+                                            // Current Time Logic
+                                            const isToday = selectedDate === format(new Date(), 'yyyy-MM-dd');
+                                            const isGapCurrent = isToday && currentMinutes >= gapStart && currentMinutes < (gapStart + gapDuration);
+                                            const isBlockCurrent = isToday && currentMinutes >= blockStart && currentMinutes < (blockStart + block.totalDuration);
+                                            const blockTimeOffset = isBlockCurrent ? currentMinutes - blockStart : undefined;
 
                                             return (
                                                 <div key={block.id}>
@@ -463,6 +479,7 @@ export default function DashboardClient({
                                                             suggestedTask={suggestedGapTask}
                                                             onConvertToBlock={(t) => handleConvertToBlock(t)}
                                                             onAddTask={() => setTaskPickerState({ open: true, startTime: minutesToTime(gapStart), date: selectedDate })}
+                                                            isCurrent={isGapCurrent}
                                                         />
                                                     )}
 
@@ -482,6 +499,7 @@ export default function DashboardClient({
                                                         onEdit={setEditingBlock}
                                                         pendingBacklogTasks={initialBacklog}
                                                         height={Math.max(80, block.totalDuration * PIXELS_PER_MINUTE)}
+                                                        currentTimeOffset={blockTimeOffset}
                                                     />
                                                 </div>
                                             );
@@ -518,6 +536,9 @@ export default function DashboardClient({
                                         }
                                         return null;
                                     })()}
+
+                                    {/* Auto-scroll to Current Time */}
+                                    <div id="scroll-target" />
                                     <div className="h-20"></div>
                                 </div>
                             </div>

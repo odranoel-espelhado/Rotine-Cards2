@@ -12,9 +12,10 @@ interface DroppableGapProps {
     onConvertToBlock: (task: BacklogTask) => void;
     onAddTask: () => void;
     suggestedTask?: BacklogTask;
+    isCurrent?: boolean;
 }
 
-export function DroppableGap({ id, durationMinutes, startTime, onConvertToBlock, onAddTask, suggestedTask }: DroppableGapProps) {
+export function DroppableGap({ id, durationMinutes, startTime, onConvertToBlock, onAddTask, suggestedTask, isCurrent }: DroppableGapProps) {
     const { isOver, setNodeRef } = useDroppable({
         id,
         data: { type: 'gap', startTime, duration: durationMinutes }
@@ -28,6 +29,17 @@ export function DroppableGap({ id, durationMinutes, startTime, onConvertToBlock,
                 isOver ? "bg-white/10 scale-[1.02] border border-white/20 border-dashed" : ""
             )}
         >
+            {/* Current Time Line Indicator for Gap */}
+            {isCurrent && (
+                <div
+                    className="absolute top-1/2 -translate-y-1/2 left-0 w-full z-30 pointer-events-none flex items-center"
+                    id="current-time-line"
+                >
+                    <div className="w-full h-[2px] bg-blue-500 shadow-[0_0_10px_2px_rgba(59,130,246,0.5)]"></div>
+                    <div className="absolute -left-1.5 w-3 h-3 bg-blue-500 rounded-full shadow-[0_0_10px_2px_rgba(59,130,246,0.5)]"></div>
+                </div>
+            )}
+
             {/* Side Label */}
             <div className="absolute -left-2 top-1/2 -translate-y-1/2 flex items-center gap-2">
                 <span className={cn(

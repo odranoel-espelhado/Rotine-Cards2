@@ -88,9 +88,10 @@ interface MissionBlockProps {
     onEdit?: (block: MissionBlock) => void;
     pendingBacklogTasks?: BacklogTask[];
     height?: number; // Visual height
+    currentTimeOffset?: number; // Minutes into the block (if current)
 }
 
-export function DroppableMissionBlock({ block, onDelete, onEdit, pendingBacklogTasks = [], height }: MissionBlockProps) {
+export function DroppableMissionBlock({ block, onDelete, onEdit, pendingBacklogTasks = [], height, currentTimeOffset }: MissionBlockProps) {
     const { isOver, setNodeRef } = useDroppable({
         id: block.id,
         data: { type: 'mission-block', block }
@@ -243,6 +244,18 @@ export function DroppableMissionBlock({ block, onDelete, onEdit, pendingBacklogT
                     )}
                     style={{ ...containerStyle, ...borderStyle }}
                 >
+                    {/* Current Time Line Indicator */}
+                    {currentTimeOffset !== undefined && (
+                        <div
+                            className="absolute left-0 w-full z-30 pointer-events-none flex items-center"
+                            style={{ top: `${(currentTimeOffset / block.totalDuration) * 100}%` }}
+                            id="current-time-line"
+                        >
+                            <div className="w-full h-[2px] bg-blue-500 shadow-[0_0_10px_2px_rgba(59,130,246,0.5)]"></div>
+                            <div className="absolute -left-1.5 w-3 h-3 bg-blue-500 rounded-full shadow-[0_0_10px_2px_rgba(59,130,246,0.5)]"></div>
+                        </div>
+                    )}
+
                     <div className="p-4 flex gap-4 relative z-10 h-full">
                         {/* Column for Checkbox + Vertical Timeline */}
                         <div className="flex flex-col items-center gap-1 shrink-0">
