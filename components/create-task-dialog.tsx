@@ -55,9 +55,10 @@ interface CreateTaskDialogProps {
     open?: boolean;
     onOpenChange?: (open: boolean) => void;
     trigger?: React.ReactNode;
+    defaultLinkedBlockType?: string;
 }
 
-export function CreateTaskDialog({ availableBlockTypes = [], taskToEdit, open: controlledOpen, onOpenChange: setControlledOpen, trigger }: CreateTaskDialogProps) {
+export function CreateTaskDialog({ availableBlockTypes = [], taskToEdit, open: controlledOpen, onOpenChange: setControlledOpen, trigger, defaultLinkedBlockType }: CreateTaskDialogProps) {
     const [internalOpen, setInternalOpen] = useState(false);
     const [fetchedBlockTypes, setFetchedBlockTypes] = useState(availableBlockTypes);
 
@@ -80,7 +81,7 @@ export function CreateTaskDialog({ availableBlockTypes = [], taskToEdit, open: c
         resolver: zodResolver(detailedSchema) as any,
         defaultValues: {
             title: taskToEdit?.title || "",
-            linkedBlockType: taskToEdit?.linkedBlockType || "none",
+            linkedBlockType: taskToEdit?.linkedBlockType || defaultLinkedBlockType || "none",
             priority: (taskToEdit?.priority as 'low' | 'medium' | 'high') || "medium",
             estimatedDuration: taskToEdit?.estimatedDuration || 30,
             deadline: taskToEdit?.deadline || "",
@@ -97,7 +98,7 @@ export function CreateTaskDialog({ availableBlockTypes = [], taskToEdit, open: c
         if (open) {
             form.reset({
                 title: taskToEdit?.title || "",
-                linkedBlockType: taskToEdit?.linkedBlockType || "none",
+                linkedBlockType: taskToEdit?.linkedBlockType || defaultLinkedBlockType || "none",
                 priority: (taskToEdit?.priority as 'low' | 'medium' | 'high') || "medium",
                 estimatedDuration: taskToEdit?.estimatedDuration || 30,
                 deadline: taskToEdit?.deadline || "",
@@ -109,7 +110,7 @@ export function CreateTaskDialog({ availableBlockTypes = [], taskToEdit, open: c
                 setFetchedBlockTypes(types);
             });
         }
-    }, [open, taskToEdit, form]);
+    }, [open, taskToEdit, form, defaultLinkedBlockType]);
 
     async function onSubmit(values: z.infer<typeof detailedSchema>, keepOpen: boolean = false) {
         // Find selected color

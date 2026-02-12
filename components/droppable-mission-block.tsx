@@ -78,6 +78,7 @@ import { BacklogTask } from "@/lib/actions/backlog.actions";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
+import { CreateTaskDialog } from "@/components/create-task-dialog";
 
 // ... imports
 
@@ -97,6 +98,7 @@ export function DroppableMissionBlock({ block, onDelete, onEdit, pendingBacklogT
 
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
     const [addTasksDialogOpen, setAddTasksDialogOpen] = useState(false);
+    const [createTaskDialogOpen, setCreateTaskDialogOpen] = useState(false);
     const [expanded, setExpanded] = useState(false);
 
     const [optimisticCompleted, setOptimisticCompleted] = useState(block.status === 'completed');
@@ -433,7 +435,18 @@ export function DroppableMissionBlock({ block, onDelete, onEdit, pendingBacklogT
             < Dialog open={addTasksDialogOpen} onOpenChange={setAddTasksDialogOpen} >
                 <DialogContent className="bg-[#050506] border-white/10 text-white sm:max-w-[400px]">
                     <DialogHeader>
-                        <DialogTitle>Adicionar Tarefas</DialogTitle>
+                        <div className="flex justify-between items-center pr-8">
+                            <DialogTitle>Adicionar Tarefas</DialogTitle>
+                            <Button
+                                size="icon"
+                                variant="ghost"
+                                className="h-6 w-6 rounded-full bg-zinc-800 hover:bg-zinc-700 text-zinc-400"
+                                onClick={() => setCreateTaskDialogOpen(true)}
+                                title="Criar nova tarefa vinculada"
+                            >
+                                <Plus className="w-4 h-4" />
+                            </Button>
+                        </div>
                         <DialogDescription>Tarefas do backlog para {block.title}</DialogDescription>
                     </DialogHeader>
                     <ScrollArea className="h-[250px] bg-white/5 rounded-xl p-2">
@@ -498,6 +511,13 @@ export function DroppableMissionBlock({ block, onDelete, onEdit, pendingBacklogT
                     )}
                 </DialogContent>
             </Dialog>
+
+
+            <CreateTaskDialog
+                open={createTaskDialogOpen}
+                onOpenChange={setCreateTaskDialogOpen}
+                defaultLinkedBlockType={block.title}
+            />
         </>
     );
 }
