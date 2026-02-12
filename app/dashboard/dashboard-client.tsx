@@ -318,9 +318,13 @@ export default function DashboardClient({
         getUniqueBlockTypes().then(setAllBlockTypes);
     }, []);
 
-    const handleConvertToBlock = async (task: BacklogTask) => {
-        if (!taskPickerState.date || !taskPickerState.startTime) return;
-        toast.promise(convertTaskToBlock(task.id, taskPickerState.date, taskPickerState.startTime), {
+    const handleConvertToBlock = async (task: BacklogTask, targetDate?: string, targetTime?: string) => {
+        const dateToUse = targetDate || taskPickerState.date;
+        const timeToUse = targetTime || taskPickerState.startTime;
+
+        if (!dateToUse || !timeToUse) return;
+
+        toast.promise(convertTaskToBlock(task.id, dateToUse, timeToUse), {
             loading: 'Alocando tarefa...',
             success: 'Tarefa alocada na timeline!',
             error: 'Erro ao alocar tarefa'
@@ -459,11 +463,28 @@ export default function DashboardClient({
                                                 }
                                             }
 
-                                            // Suggestion for Gap
-                                            const suggestedGapTask = getBestSuggestion(initialBacklog, gapDuration, 'gap');
-
                                             // Current Time Logic
                                             const isToday = selectedDate === format(new Date(), 'yyyy-MM-dd');
+
+                                            // Effective Gap Logic (Dynamic Adjustment)
+                                            let effectiveGapStart = gapStart;
+                                            let effectiveGapDuration = gapDuration;
+
+                                            if (showGap && isToday && currentMinutes > gapStart) {
+                                                // If current time is INSIDE the gap
+                                                if (currentMinutes < gapStart + gapDuration) {
+                                                    effectiveGapStart = currentMinutes;
+                                                    effectiveGapDuration = (gapStart + gapDuration) - currentMinutes;
+                                                } else {
+                                                    // Gap is in the past
+                                                    effectiveGapDuration = 0; // Or keep it but show as past? 
+                                                    // User said "não tem mais o horario". Implies it's gone.
+                                                }
+                                            }
+
+                                            // Only suggest if we have time
+                                            const suggestedGapTask = effectiveGapDuration > 0 ? getBestSuggestion(initialBacklog, effectiveGapDuration, 'gap') : undefined;
+
                                             const isGapCurrent = isToday && currentMinutes >= gapStart && currentMinutes < (gapStart + gapDuration);
                                             const isBlockCurrent = isToday && currentMinutes >= blockStart && currentMinutes < (blockStart + block.totalDuration);
                                             const blockTimeOffset = isBlockCurrent ? currentMinutes - blockStart : undefined;
@@ -471,17 +492,23 @@ export default function DashboardClient({
                                             return (
                                                 <div key={block.id}>
                                                     {/* Gap Indicator */}
-                                                    {showGap && gapDuration > 0 && (
+                                                    {showGap && gapDuration > 0 && effectiveGapDuration > 0 && (
                                                         <DroppableGap
                                                             id={`gap-${selectedDate}-${minutesToTime(gapStart)}`}
-                                                            durationMinutes={gapDuration}
-                                                            startTime={minutesToTime(gapStart)}
+                                                            durationMinutes={effectiveGapDuration}
+                                                            startTime={minutesToTime(effectiveGapStart)}
                                                             suggestedTask={suggestedGapTask}
-                                                            onConvertToBlock={(t) => handleConvertToBlock(t)}
-                                                            onAddTask={() => setTaskPickerState({ open: true, startTime: minutesToTime(gapStart), date: selectedDate })}
+                                                            onConvertToBlock={(t) => handleConvertToBlock(t, selectedDate, minutesToTime(effectiveGapStart))}
+                                                            onAddTask={() => setTaskPickerState({ open: true, startTime: minutesToTime(effectiveGapStart), date: selectedDate })}
                                                             isCurrent={isGapCurrent}
                                                         />
                                                     )}
+
+                                                    {/* If gap is fully passed, maybe render a disabled/mini gap or nothing? 
+                                                        Currently, if effectiveGapDuration <= 0, it renders nothing. 
+                                                        This creates a visual jump if we don't have something there.
+                                                        Let's keep it simple: If passed, it disappears.
+                                                    */}
 
                                                     {/* Conflict Indicator */}
                                                     {index > 0 && blockStart < gapStart && (
@@ -520,17 +547,34 @@ export default function DashboardClient({
                                         }
 
                                         const gapDuration = dayEndMins - gapStart;
-                                        const suggestedGapTask = getBestSuggestion(initialBacklog, gapDuration, 'gap');
 
-                                        if (gapDuration > 0) {
+                                        // Effective Gap Logic for End of Day
+                                        const isToday = selectedDate === format(new Date(), 'yyyy-MM-dd');
+                                        let effectiveGapStart = gapStart;
+                                        let effectiveGapDuration = gapDuration;
+
+                                        if (isToday && currentMinutes > gapStart) {
+                                            if (currentMinutes < dayEndMins) {
+                                                effectiveGapStart = currentMinutes;
+                                                effectiveGapDuration = dayEndMins - currentMinutes;
+                                            } else {
+                                                effectiveGapDuration = 0;
+                                            }
+                                        }
+
+                                        const suggestedGapTask = effectiveGapDuration > 0 ? getBestSuggestion(initialBacklog, effectiveGapDuration, 'gap') : undefined;
+                                        const isGapCurrent = isToday && currentMinutes >= gapStart && currentMinutes < dayEndMins;
+
+                                        if (gapDuration > 0 && effectiveGapDuration > 0) {
                                             return (
                                                 <DroppableGap
                                                     id={`gap-${selectedDate}-${minutesToTime(gapStart)}`}
-                                                    durationMinutes={gapDuration}
-                                                    startTime={minutesToTime(gapStart)}
+                                                    durationMinutes={effectiveGapDuration}
+                                                    startTime={minutesToTime(effectiveGapStart)}
                                                     suggestedTask={suggestedGapTask}
-                                                    onConvertToBlock={(t) => handleConvertToBlock(t)}
-                                                    onAddTask={() => setTaskPickerState({ open: true, startTime: minutesToTime(gapStart), date: selectedDate })}
+                                                    onConvertToBlock={(t) => handleConvertToBlock(t, selectedDate, minutesToTime(effectiveGapStart))}
+                                                    onAddTask={() => setTaskPickerState({ open: true, startTime: minutesToTime(effectiveGapStart), date: selectedDate })}
+                                                    isCurrent={isGapCurrent}
                                                 />
                                             );
                                         }
