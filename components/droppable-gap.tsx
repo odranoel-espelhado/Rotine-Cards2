@@ -31,8 +31,8 @@ export function DroppableGap({ id, durationMinutes, startTime, onConvertToBlock,
             {/* Side Label */}
             <div className="absolute -left-2 top-1/2 -translate-y-1/2 flex items-center gap-2">
                 <span className={cn(
-                    "text-[10px] font-mono transition-colors",
-                    isOver ? "text-white font-bold" : "text-zinc-600 group-hover/gap:text-zinc-400"
+                    "text-xs font-mono font-bold text-white transition-colors",
+                    isOver ? "scale-110" : "opacity-70 group-hover/gap:opacity-100"
                 )}>
                     GAP: {Math.floor(durationMinutes / 60)}H {durationMinutes % 60}M
                 </span>

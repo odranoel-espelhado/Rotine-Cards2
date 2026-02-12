@@ -200,7 +200,7 @@ export function DroppableMissionBlock({ block, onDelete, onEdit, pendingBacklogT
     const expandedHeight = height || 80;
     const baseHeight = 80;
     const extra30Segments = Math.max(0, (block.totalDuration - 30) / 30);
-    const collapsedHeight = baseHeight * (1 + extra30Segments * 0.05);
+    const collapsedHeight = baseHeight * (1 + extra30Segments * 0.10);
 
     const currentHeight = expanded ? expandedHeight : collapsedHeight;
 
