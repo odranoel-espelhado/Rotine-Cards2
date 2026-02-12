@@ -32,7 +32,7 @@ export function DroppableGap({ id, durationMinutes, startTime, onConvertToBlock,
             {/* Current Time Line Indicator for Gap */}
             {isCurrent && (
                 <div
-                    className="absolute top-1/2 -translate-y-1/2 left-0 w-full z-30 pointer-events-none flex items-center"
+                    className="absolute top-0 left-0 w-full z-0 pointer-events-none flex items-center"
                     id="current-time-line"
                 >
                     <div className="w-full h-[2px] bg-blue-500 shadow-[0_0_10px_2px_rgba(59,130,246,0.5)]"></div>
