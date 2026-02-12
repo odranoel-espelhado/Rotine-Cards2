@@ -313,14 +313,25 @@ export async function toggleMissionBlock(id: string, status: 'pending' | 'comple
                 type: 'unique',
                 recurrencePattern: null,
                 status: status, // The new status
-                subTasks: masterBlock.subTasks,
+                subTasks: (masterBlock.subTasks as any[]).map(t => ({ ...t, done: status === 'completed' })),
                 exceptions: [],
             });
 
         } else {
-            await db.update(missionBlocks)
-                .set({ status })
+            // Update simple block
+            const [currentBlock] = await db.select().from(missionBlocks)
                 .where(and(eq(missionBlocks.id, id), eq(missionBlocks.userId, userId)));
+
+            if (currentBlock) {
+                const updatedSubtasks = (currentBlock.subTasks as any[]).map(t => ({
+                    ...t,
+                    done: status === 'completed'
+                }));
+
+                await db.update(missionBlocks)
+                    .set({ status, subTasks: updatedSubtasks })
+                    .where(and(eq(missionBlocks.id, id), eq(missionBlocks.userId, userId)));
+            }
         }
 
         revalidatePath("/dashboard");
@@ -723,6 +734,20 @@ export async function toggleSubTaskCompletion(blockId: string, taskIndex: number
         await db.update(missionBlocks)
             .set({ subTasks: newSubtasks })
             .where(eq(missionBlocks.id, targetBlockId));
+
+        // Check if ALL are done to auto-complete block
+        const allDone = newSubtasks.every((t: any) => t.done);
+        if (allDone) {
+            await db.update(missionBlocks)
+                .set({ status: 'completed' })
+                .where(eq(missionBlocks.id, targetBlockId));
+        } else {
+            // Optional: If unchecking one, should we uncheck the block? Valid UX.
+            // Let's do it to keep state consistent.
+            await db.update(missionBlocks)
+                .set({ status: 'pending' })
+                .where(eq(missionBlocks.id, targetBlockId));
+        }
 
         revalidatePath("/dashboard");
         return { success: true };

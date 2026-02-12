@@ -131,3 +131,34 @@ export async function moveTaskToBlock(taskId: string, blockId: string) {
         return { error: "Failed to move task" };
     }
 }
+
+export async function toggleBacklogSubTask(taskId: string, subTaskIndex: number, currentDone: boolean) {
+    const { userId } = await auth();
+    if (!userId) return { error: "Unauthorized" };
+
+    try {
+        const [task] = await db.select().from(backlogTasks)
+            .where(and(eq(backlogTasks.id, taskId), eq(backlogTasks.userId, userId)));
+
+        if (!task) return { error: "Task not found" };
+
+        const currentSubtasks = (task.subTasks as any[]) || [];
+        if (subTaskIndex < 0 || subTaskIndex >= currentSubtasks.length) return { error: "Subtask not found" };
+
+        const newSubtasks = [...currentSubtasks];
+
+        // Ensure the subtask object has a state. If it was just { title, duration }, add done.
+        const target = newSubtasks[subTaskIndex];
+        newSubtasks[subTaskIndex] = { ...target, done: !currentDone };
+
+        await db.update(backlogTasks)
+            .set({ subTasks: newSubtasks })
+            .where(eq(backlogTasks.id, taskId));
+
+        revalidatePath("/dashboard");
+        return { success: true };
+    } catch (error) {
+        console.error("Error toggling backlog subtask:", error);
+        return { error: "Failed to toggle subtask" };
+    }
+}

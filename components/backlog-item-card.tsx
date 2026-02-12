@@ -1,8 +1,11 @@
-import { BacklogTask } from "@/lib/actions/backlog.actions";
+"use client";
+
+import { BacklogTask, toggleBacklogSubTask } from "@/lib/actions/backlog.actions";
 import { Button } from "@/components/ui/button";
-import { Pencil, Clock, Trash2 } from "lucide-react";
+import { Pencil, Clock, Trash2, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { forwardRef } from "react";
+import { toast } from "sonner";
 
 interface BacklogItemCardProps extends React.HTMLAttributes<HTMLDivElement> {
     task: BacklogTask;
@@ -104,9 +107,30 @@ export const BacklogItemCard = forwardRef<HTMLDivElement, BacklogItemCardProps>(
                                 <div className="space-y-1">
                                     <p className="text-[10px] uppercase font-bold text-white/50">Subtarefas</p>
                                     {(task.subTasks as any[]).map((st: any, i: number) => (
-                                        <div key={i} className="flex justify-between items-center text-xs text-white/90 bg-black/20 p-1.5 rounded">
-                                            <span>{st.title}</span>
-                                            <span className="font-mono text-[10px] opacity-70">{st.duration}m</span>
+                                        <div key={i} className="flex gap-2 items-center text-xs text-white/90 bg-black/20 p-1.5 rounded group/sub">
+                                            {/* Checkbox */}
+                                            <div
+                                                className={cn(
+                                                    "w-3 h-3 rounded-[3px] border border-white/30 flex items-center justify-center cursor-pointer transition-colors hover:border-white/60 shrink-0",
+                                                    st.done ? "bg-emerald-500 border-emerald-500" : "bg-transparent"
+                                                )}
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    const promise = toggleBacklogSubTask(task.id, i, !!st.done);
+                                                    toast.promise(promise, {
+                                                        loading: 'Atualizando...',
+                                                        success: 'Atualizado!',
+                                                        error: 'Erro'
+                                                    });
+                                                }}
+                                            >
+                                                {st.done && <Check className="w-2.5 h-2.5 text-black" strokeWidth={4} />}
+                                            </div>
+
+                                            <div className="flex-1 min-w-0 flex justify-between items-center">
+                                                <span className={cn("truncate", st.done && "line-through text-white/50")}>{st.title}</span>
+                                                <span className="font-mono text-[10px] opacity-70 shrink-0 ml-2">{st.duration}m</span>
+                                            </div>
                                         </div>
                                     ))}
                                 </div>
