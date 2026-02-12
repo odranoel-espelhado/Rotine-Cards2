@@ -205,8 +205,9 @@ export function DroppableMissionBlock({ block, onDelete, onEdit, pendingBacklogT
     // Style for Neon Border (Top, Bottom, Left)
     const containerStyle: React.CSSProperties = {
         '--block-color': glowColor,
-        height: `${currentHeight}px`,
-        transition: 'height 0.3s cubic-bezier(0.4, 0, 0.2, 1)', // Smooth resize
+        height: expanded ? 'auto' : `${currentHeight}px`,
+        minHeight: expanded ? `${expandedHeight}px` : '0px',
+        transition: expanded ? 'none' : 'height 0.3s cubic-bezier(0.4, 0, 0.2, 1)', // Disable transition on auto height to avoid snap
     } as React.CSSProperties;
 
     // Custom Border Logic
@@ -293,45 +294,47 @@ export function DroppableMissionBlock({ block, onDelete, onEdit, pendingBacklogT
                                 )}
                             </div>
 
-                            <div className={cn(
-                                "flex gap-2 text-[10px] font-bold uppercase tracking-widest transition-colors duration-300 mb-2",
-                                optimisticCompleted ? "text-[#3a3a3a]" : "text-white/60"
-                            )}>
-                                <span>{block.totalDuration} MIN</span>
-                            </div>
+                            <div className="flex flex-wrap items-center gap-4 mb-2">
+                                <div className={cn(
+                                    "flex gap-2 text-[10px] font-bold uppercase tracking-widest transition-colors duration-300",
+                                    optimisticCompleted ? "text-[#3a3a3a]" : "text-white/60"
+                                )}>
+                                    <span>{block.totalDuration} MIN</span>
+                                </div>
 
-                            {/* Suggestion Buttons */}
-                            <div className="flex flex-col gap-2 mb-2 w-full">
-                                {suggestedTask && (
+                                {/* Suggestion Buttons (Now inline) */}
+                                <div className="flex items-center gap-2">
+                                    {suggestedTask && (
+                                        <Button
+                                            size="sm"
+                                            variant="ghost"
+                                            className="h-6 text-[9px] bg-white/10 hover:bg-white/20 text-white border border-white/5 px-2 rounded-full"
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                toast.promise(assignTasksToBlock(block.id, [suggestedTask]), {
+                                                    loading: 'Adicionando...',
+                                                    success: 'Tarefa adicionada!',
+                                                    error: 'Erro'
+                                                });
+                                            }}
+                                        >
+                                            <Plus className="w-3 h-3 mr-1" />
+                                            {suggestedTask.title}
+                                        </Button>
+                                    )}
                                     <Button
                                         size="sm"
                                         variant="ghost"
-                                        className="h-8 text-[10px] bg-white/10 hover:bg-white/20 text-white border border-white/5 w-full justify-start px-2"
+                                        className="h-6 text-[9px] bg-white/5 hover:bg-white/10 text-white/70 px-2 rounded-full"
                                         onClick={(e) => {
                                             e.stopPropagation();
-                                            toast.promise(assignTasksToBlock(block.id, [suggestedTask]), {
-                                                loading: 'Adicionando...',
-                                                success: 'Tarefa adicionada!',
-                                                error: 'Erro'
-                                            });
+                                            setAddTasksDialogOpen(true);
                                         }}
                                     >
-                                        <Plus className="w-3 h-3 mr-2" />
-                                        Adicionar {suggestedTask.title}
+                                        <Plus className="w-3 h-3 mr-1" />
+                                        Organizar
                                     </Button>
-                                )}
-                                <Button
-                                    size="sm"
-                                    variant="ghost"
-                                    className="h-8 text-[10px] bg-white/5 hover:bg-white/10 text-white/70 w-full justify-start px-2"
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        setAddTasksDialogOpen(true);
-                                    }}
-                                >
-                                    <Plus className="w-3 h-3 mr-2" />
-                                    Organizar Tarefas
-                                </Button>
+                                </div>
                             </div>
 
                             {/* Expanded Content: Subtasks List */}
