@@ -2,7 +2,8 @@
 
 import { BacklogTask, toggleBacklogSubTask } from "@/lib/actions/backlog.actions";
 import { Button } from "@/components/ui/button";
-import { Pencil, Clock, Trash2, Check } from "lucide-react";
+import { Pencil, Clock, Trash2, Check, AlertTriangle } from "lucide-react";
+import { differenceInCalendarDays, parseISO } from "date-fns";
 import { cn } from "@/lib/utils";
 import { forwardRef } from "react";
 import { toast } from "sonner";
@@ -32,17 +33,52 @@ export const BacklogItemCard = forwardRef<HTMLDivElement, BacklogItemCardProps>(
 
         const priorityColor = getPriorityColor(task.priority || 'medium');
 
+        // Deadline Logic
+        const today = new Date();
+        // Reset time part for accurate day comparison
+        today.setHours(0, 0, 0, 0);
+
+        let daysLeft: number | null = null;
+        if (task.deadline) {
+            const deadlineDate = parseISO(task.deadline);
+            deadlineDate.setHours(0, 0, 0, 0); // Ensure deadline is compared as date only
+            daysLeft = differenceInCalendarDays(deadlineDate, today);
+        }
+
+        let neonClass = "";
+        // Neon Logic: 5 days -> Yellow (Amber), 2 days -> Red
+        if (daysLeft !== null) {
+            if (daysLeft <= 2) {
+                neonClass = "shadow-[0_0_15px_rgba(239,68,68,0.6)] border-red-500/80 ring-1 ring-red-500/50";
+            } else if (daysLeft <= 5) {
+                neonClass = "shadow-[0_0_15px_rgba(245,158,11,0.6)] border-amber-500/80 ring-1 ring-amber-500/50";
+            }
+        }
+
+        // Icon Logic: 5 days -> Yellow (Amber), 3 days -> Red
+        let DangerIcon = null;
+        if (daysLeft !== null && daysLeft <= 5) {
+            const isRed = daysLeft <= 3;
+            DangerIcon = (
+                <div className={cn("flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider", isRed ? "bg-red-500/20 text-red-500 border border-red-500/30" : "bg-amber-500/20 text-amber-500 border border-amber-500/30")}>
+                    <AlertTriangle className="w-3 h-3" strokeWidth={3} />
+                    <span>{daysLeft < 0 ? `${Math.abs(daysLeft)}d Atrasado` : daysLeft === 0 ? "Hoje" : `${daysLeft}d`}</span>
+                </div>
+            );
+        }
+
         return (
             <div
                 ref={ref}
                 style={{
                     backgroundColor: bgColor,
-                    borderColor: bgColor !== '#27272a' ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.1)',
+                    borderColor: daysLeft !== null && daysLeft <= 5 ? undefined : (bgColor !== '#27272a' ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.1)'),
                     ...style
                 }}
                 onClick={onToggleExpand}
                 className={cn(
                     "group relative border rounded-xl overflow-hidden transition-all shadow-lg",
+                    neonClass, // Apply Neon
                     isDragging ? "cursor-grabbing scale-105 rotate-2 z-[9999] opacity-90 ring-2 ring-primary" : "cursor-grab hover:scale-[1.01] active:scale-95",
                     className
                 )}
@@ -54,11 +90,13 @@ export const BacklogItemCard = forwardRef<HTMLDivElement, BacklogItemCardProps>(
                 <div className="relative p-3 z-10 flex flex-col gap-2">
                     <div className="flex items-start justify-between gap-3">
                         {/* Title */}
-                        <div className="flex-1 min-w-0">
+                        <div className="flex-1 min-w-0 flex flex-col gap-1">
+                            <div className="flex items-center gap-2 flex-wrap">
+                                {DangerIcon}
+                            </div>
                             <span className="text-sm font-bold text-white leading-tight shadow-black drop-shadow-md break-words block">
                                 {task.title}
                             </span>
-                            {/* Duration Badge always visible or only in expanded? Design choice. Let's keep minimal. */}
                         </div>
 
                         {/* Right Side: Empty for now, actions are absolute/hover */}
