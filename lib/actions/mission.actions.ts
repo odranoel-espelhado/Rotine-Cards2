@@ -280,71 +280,42 @@ export async function deleteMissionBlock(id: string, deleteAll: boolean = false)
     }
 }
 
-// Helper to safely fork or retrieve existing fork
-async function ensureUniqueBlockForDate(userId: string, masterBlock: MissionBlock, date: string) {
-    // 1. Check if unique block already exists (Duplicate prevention)
-    const [existing] = await db.select().from(missionBlocks)
-        .where(and(
-            eq(missionBlocks.userId, userId),
-            eq(missionBlocks.date, date),
-            eq(missionBlocks.startTime, masterBlock.startTime),
-            eq(missionBlocks.title, masterBlock.title),
-            eq(missionBlocks.type, 'unique')
-        ))
-        .limit(1);
-
-    if (existing) return existing;
-
-    // 2. Add Exception to Master
-    const currentExceptions = (masterBlock.exceptions as string[]) || [];
-    if (!currentExceptions.includes(date)) {
-        await db.update(missionBlocks)
-            .set({ exceptions: [...currentExceptions, date] })
-            .where(eq(missionBlocks.id, masterBlock.id));
-    }
-
-    // 3. Create New Unique Block (Clone)
-    // Preserving recurrencePattern so it visually looks recurring (if UI supports it)
-    const [newBlock] = await db.insert(missionBlocks).values({
-        userId: userId,
-        title: masterBlock.title,
-        date: date,
-        startTime: masterBlock.startTime,
-        totalDuration: masterBlock.totalDuration,
-        color: masterBlock.color,
-        icon: masterBlock.icon,
-        type: 'unique',
-        recurrencePattern: masterBlock.recurrencePattern, // Keep pattern for visual ref
-        status: masterBlock.status,
-        subTasks: masterBlock.subTasks,
-        exceptions: [],
-    }).returning();
-
-    return newBlock;
-}
-
 export async function toggleMissionBlock(id: string, status: 'pending' | 'completed') {
     const { userId } = await auth();
     if (!userId) return { error: "Unauthorized" };
 
     try {
         if (id.includes("-virtual-")) {
-            // Forking logic
+            // Forking logic similar to update
             const [realId, date] = id.split("-virtual-");
             const [masterBlock] = await db.select().from(missionBlocks)
                 .where(and(eq(missionBlocks.id, realId), eq(missionBlocks.userId, userId)));
 
             if (!masterBlock) return { error: "Master block not found" };
 
-            // Ensure Unique Block Exists (Anti-Duplicate + Fork)
-            const uniqueBlock = await ensureUniqueBlockForDate(userId, masterBlock, date);
+            // 1. Add Exception
+            const currentExceptions = (masterBlock.exceptions as string[]) || [];
+            if (!currentExceptions.includes(date)) {
+                await db.update(missionBlocks)
+                    .set({ exceptions: [...currentExceptions, date] })
+                    .where(eq(missionBlocks.id, realId));
+            }
 
-            // Update Status of the Unique Block
-            const updatedSubtasks = (uniqueBlock.subTasks as any[]).map(t => ({ ...t, done: status === 'completed' }));
-
-            await db.update(missionBlocks)
-                .set({ status, subTasks: updatedSubtasks })
-                .where(eq(missionBlocks.id, uniqueBlock.id));
+            // 2. Create Unique Block with new status
+            await db.insert(missionBlocks).values({
+                userId: userId,
+                title: masterBlock.title,
+                date: date,
+                startTime: masterBlock.startTime,
+                totalDuration: masterBlock.totalDuration,
+                color: masterBlock.color,
+                icon: masterBlock.icon,
+                type: 'unique',
+                recurrencePattern: null,
+                status: status, // The new status
+                subTasks: (masterBlock.subTasks as any[]).map(t => ({ ...t, done: status === 'completed' })),
+                exceptions: [],
+            });
 
         } else {
             // Update simple block
@@ -391,13 +362,29 @@ export async function updateMissionBlock(id: string, data: Partial<Omit<NewMissi
 
                 if (!masterBlock) return { error: "Master block not found" };
 
-                // Anti-Duplicate Fork
-                const uniqueBlock = await ensureUniqueBlockForDate(userId, masterBlock, date);
+                // 1. Add Exception
+                const currentExceptions = (masterBlock.exceptions as string[]) || [];
+                if (!currentExceptions.includes(date)) {
+                    await db.update(missionBlocks)
+                        .set({ exceptions: [...currentExceptions, date] })
+                        .where(eq(missionBlocks.id, realId));
+                }
 
-                // Update the forked block
-                await db.update(missionBlocks)
-                    .set(data)
-                    .where(eq(missionBlocks.id, uniqueBlock.id));
+                // 2. Create Unique Block (Clone + Update)
+                await db.insert(missionBlocks).values({
+                    userId: userId,
+                    title: data.title || masterBlock.title,
+                    date: date,
+                    startTime: data.startTime || masterBlock.startTime,
+                    totalDuration: data.totalDuration || masterBlock.totalDuration,
+                    color: data.color || masterBlock.color,
+                    icon: data.icon || masterBlock.icon,
+                    type: 'unique',
+                    recurrencePattern: null,
+                    status: (data.status as any) || masterBlock.status,
+                    subTasks: data.subTasks || masterBlock.subTasks,
+                    exceptions: [],
+                });
             }
 
         } else {
@@ -430,8 +417,31 @@ export async function assignTasksToBlock(blockId: string, tasksToAssign: any[]) 
 
             if (!masterBlock) return { error: "Master block not found" };
 
-            const uniqueBlock = await ensureUniqueBlockForDate(userId, masterBlock, date);
-            targetBlockId = uniqueBlock.id;
+            // 1. Add Exception
+            const currentExceptions = (masterBlock.exceptions as string[]) || [];
+            if (!currentExceptions.includes(date)) {
+                await db.update(missionBlocks)
+                    .set({ exceptions: [...currentExceptions, date] })
+                    .where(eq(missionBlocks.id, realId));
+            }
+
+            // 2. Create Unique Block (Clone)
+            const [newBlock] = await db.insert(missionBlocks).values({
+                userId: userId,
+                title: masterBlock.title,
+                date: date,
+                startTime: masterBlock.startTime,
+                totalDuration: masterBlock.totalDuration,
+                color: masterBlock.color,
+                icon: masterBlock.icon,
+                type: 'unique',
+                recurrencePattern: null,
+                status: masterBlock.status,
+                subTasks: masterBlock.subTasks,
+                exceptions: [],
+            }).returning();
+
+            targetBlockId = newBlock.id;
         }
 
         const [block] = await db.select().from(missionBlocks)
@@ -478,9 +488,106 @@ export async function assignTasksToBlock(blockId: string, tasksToAssign: any[]) 
     }
 }
 
-// ... getUniqueBlockTypes and deleteAllUserData unchanged ...
+export async function getUniqueBlockTypes() {
+    const { userId } = await auth();
+    if (!userId) return [];
 
-// ... convertTaskToBlock unchanged ...
+    try {
+        const blocks = await db.select({
+            title: missionBlocks.title,
+            icon: missionBlocks.icon,
+            color: missionBlocks.color,
+            createdAt: missionBlocks.createdAt
+        })
+            .from(missionBlocks)
+            .where(eq(missionBlocks.userId, userId))
+            .orderBy(desc(missionBlocks.createdAt));
+
+        const seen = new Set();
+        const uniqueBlocks: { label: string; icon: string; color: string; value: string }[] = [];
+
+        for (const block of blocks) {
+            const normalizedTitle = block.title.trim().toLowerCase();
+            const key = `${normalizedTitle}|${block.icon}`;
+
+            if (!seen.has(key)) {
+                seen.add(key);
+                uniqueBlocks.push({
+                    label: block.title,
+                    value: block.title,
+                    icon: block.icon || 'zap',
+                    color: block.color || '#3b82f6'
+                });
+            }
+        }
+
+        return uniqueBlocks;
+    } catch (error) {
+        console.error("Error getting unique block types:", error);
+        return [];
+    }
+}
+
+export async function deleteAllUserData() {
+    const { userId } = await auth();
+    if (!userId) return { error: "Unauthorized" };
+
+    try {
+        await db.delete(missionBlocks).where(eq(missionBlocks.userId, userId));
+        await db.delete(backlogTasks).where(eq(backlogTasks.userId, userId));
+        revalidatePath("/dashboard");
+        return { success: true };
+    } catch (error: any) {
+        console.error("Error deleting all data:", error);
+        return { error: error.message || "Erro ao limpar dados" };
+    }
+}
+
+export async function convertTaskToBlock(taskId: string, date: string, startTime: string) {
+    const { userId } = await auth();
+    if (!userId) return { error: "Unauthorized" };
+
+    try {
+        const [task] = await db.select().from(backlogTasks).where(and(eq(backlogTasks.id, taskId), eq(backlogTasks.userId, userId)));
+        if (!task) return { error: "Tarefa não encontrada" };
+
+        // Lookup existing block style based on linkedBlockType or title
+        const [existingBlock] = await db.select().from(missionBlocks)
+            .where(and(
+                eq(missionBlocks.userId, userId),
+                eq(missionBlocks.title, task.linkedBlockType || task.title)
+            ))
+            .limit(1);
+
+        const newBlock = {
+            userId,
+            title: task.title,
+            color: existingBlock?.color || task.color || '#3b82f6',
+            icon: existingBlock?.icon || 'zap',
+            date: date,
+            startTime: startTime,
+            totalDuration: task.estimatedDuration || 30,
+            status: 'pending' as const,
+            type: 'unique' as const,
+            subTasks: [{ title: task.title, duration: task.estimatedDuration || 30, done: false }]
+        };
+
+        if (task.subTasks && Array.isArray(task.subTasks) && task.subTasks.length > 0) {
+            newBlock.subTasks = task.subTasks as any;
+        }
+
+        await db.insert(missionBlocks).values(newBlock);
+
+        await db.delete(backlogTasks).where(eq(backlogTasks.id, taskId));
+
+        revalidatePath("/dashboard");
+        return { success: true };
+
+    } catch (error: any) {
+        console.error("Error converting task:", error);
+        return { error: error.message || "Erro ao converter tarefa" };
+    }
+}
 
 export async function unassignTaskFromBlock(blockId: string, taskIndex: number, taskData: any) {
     const { userId } = await auth();
@@ -497,8 +604,31 @@ export async function unassignTaskFromBlock(blockId: string, taskIndex: number, 
 
             if (!masterBlock) return { error: "Master block not found" };
 
-            const uniqueBlock = await ensureUniqueBlockForDate(userId, masterBlock, date);
-            targetBlockId = uniqueBlock.id;
+            // 1. Add Exception
+            const currentExceptions = (masterBlock.exceptions as string[]) || [];
+            if (!currentExceptions.includes(date)) {
+                await db.update(missionBlocks)
+                    .set({ exceptions: [...currentExceptions, date] })
+                    .where(eq(missionBlocks.id, realId));
+            }
+
+            // 2. Create Unique Block (Clone)
+            const [newBlock] = await db.insert(missionBlocks).values({
+                userId: userId,
+                title: masterBlock.title,
+                date: date,
+                startTime: masterBlock.startTime,
+                totalDuration: masterBlock.totalDuration,
+                color: masterBlock.color,
+                icon: masterBlock.icon,
+                type: 'unique',
+                recurrencePattern: null,
+                status: masterBlock.status,
+                subTasks: masterBlock.subTasks,
+                exceptions: [],
+            }).returning();
+
+            targetBlockId = newBlock.id;
         }
 
         const [block] = await db.select().from(missionBlocks)
@@ -560,8 +690,31 @@ export async function toggleSubTaskCompletion(blockId: string, taskIndex: number
 
             if (!masterBlock) return { error: "Master block not found" };
 
-            const uniqueBlock = await ensureUniqueBlockForDate(userId, masterBlock, date);
-            targetBlockId = uniqueBlock.id;
+            // 1. Add Exception
+            const currentExceptions = (masterBlock.exceptions as string[]) || [];
+            if (!currentExceptions.includes(date)) {
+                await db.update(missionBlocks)
+                    .set({ exceptions: [...currentExceptions, date] })
+                    .where(eq(missionBlocks.id, realId));
+            }
+
+            // 2. Create Unique Block (Clone)
+            const [newBlock] = await db.insert(missionBlocks).values({
+                userId: userId,
+                title: masterBlock.title,
+                date: date,
+                startTime: masterBlock.startTime,
+                totalDuration: masterBlock.totalDuration,
+                color: masterBlock.color,
+                icon: masterBlock.icon,
+                type: 'unique',
+                recurrencePattern: null,
+                status: masterBlock.status,
+                subTasks: masterBlock.subTasks,
+                exceptions: [],
+            }).returning();
+
+            targetBlockId = newBlock.id;
         }
 
         const [block] = await db.select().from(missionBlocks)
