@@ -131,6 +131,7 @@ export function CreateTaskDialog({ availableBlockTypes = [], taskToEdit, open: c
                 linkedBlockType: values.linkedBlockType === "none" ? undefined : values.linkedBlockType,
                 color: color,
                 subTasks: values.subTasks,
+                description: values.description,
                 deadline: values.deadline,
             })
         } else {
@@ -141,6 +142,7 @@ export function CreateTaskDialog({ availableBlockTypes = [], taskToEdit, open: c
                 linkedBlockType: values.linkedBlockType === "none" ? undefined : values.linkedBlockType,
                 color: color,
                 subTasks: values.subTasks,
+                description: values.description,
                 deadline: values.deadline,
             });
         }
