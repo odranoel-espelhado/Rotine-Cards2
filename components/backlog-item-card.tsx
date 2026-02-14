@@ -134,6 +134,14 @@ export const BacklogItemCard = forwardRef<HTMLDivElement, BacklogItemCardProps>(
                     {/* Subtasks Preview or Expanded View */}
                     {expanded && (
                         <div className="pt-2 border-t border-white/10 mt-1 space-y-2 animate-in slide-in-from-top-2 duration-200">
+
+                            {/* Description */}
+                            {task.description && (
+                                <p className="text-xs text-zinc-400 line-clamp-3 mb-2 px-1 whitespace-pre-wrap">
+                                    {task.description}
+                                </p>
+                            )}
+
                             <div className="flex items-center gap-2 text-[10px] text-white/80 font-mono">
                                 <Clock className="w-3 h-3" />
                                 <span>{task.estimatedDuration} min</span>

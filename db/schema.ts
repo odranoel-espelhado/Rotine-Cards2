@@ -46,6 +46,7 @@ export const backlogTasks = pgTable('backlog_tasks', {
     status: text('status').default('pending'),
     subTasks: jsonb('sub_tasks').default([]),
     color: text('color').default('#27272a'), // Default gray like zinc-800
+    description: text('description'), // Descrição detalhada (opcional)
     deadline: text('deadline'), // Prazo (dd/mm/yyyy or YYYY-MM-DD)
     createdAt: timestamp('created_at').defaultNow().notNull(),
 });

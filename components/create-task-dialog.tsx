@@ -61,6 +61,7 @@ interface CreateTaskDialogProps {
 export function CreateTaskDialog({ availableBlockTypes = [], taskToEdit, open: controlledOpen, onOpenChange: setControlledOpen, trigger, defaultLinkedBlockType }: CreateTaskDialogProps) {
     const [internalOpen, setInternalOpen] = useState(false);
     const [fetchedBlockTypes, setFetchedBlockTypes] = useState(availableBlockTypes);
+    const [showDescription, setShowDescription] = useState(false);
 
     const isControlled = controlledOpen !== undefined;
     const open = isControlled ? controlledOpen : internalOpen;
@@ -74,6 +75,7 @@ export function CreateTaskDialog({ availableBlockTypes = [], taskToEdit, open: c
         priority: z.enum(['low', 'medium', 'high']),
         estimatedDuration: z.coerce.number().min(5, "Mínimo 5 min"),
         deadline: z.string().optional(),
+        description: z.string().optional(),
         subTasks: z.array(subtaskSchema).default([]),
     });
 
@@ -85,6 +87,7 @@ export function CreateTaskDialog({ availableBlockTypes = [], taskToEdit, open: c
             priority: (taskToEdit?.priority as 'low' | 'medium' | 'high') || "medium",
             estimatedDuration: taskToEdit?.estimatedDuration || 30,
             deadline: taskToEdit?.deadline || "",
+            description: taskToEdit?.description || "",
             subTasks: (taskToEdit?.subTasks as any[]) || [],
         },
     });
@@ -102,6 +105,7 @@ export function CreateTaskDialog({ availableBlockTypes = [], taskToEdit, open: c
                 priority: (taskToEdit?.priority as 'low' | 'medium' | 'high') || "medium",
                 estimatedDuration: taskToEdit?.estimatedDuration || 30,
                 deadline: taskToEdit?.deadline || "",
+                description: taskToEdit?.description || "",
                 subTasks: (taskToEdit?.subTasks as any[]) || [],
             });
 
@@ -150,6 +154,7 @@ export function CreateTaskDialog({ availableBlockTypes = [], taskToEdit, open: c
                     priority: "medium",
                     estimatedDuration: 30,
                     deadline: "",
+                    description: "",
                     subTasks: [],
                 });
             }
@@ -300,6 +305,38 @@ export function CreateTaskDialog({ availableBlockTypes = [], taskToEdit, open: c
                             />
                         </div>
 
+                        {/* Description Field */}
+                        <div className="space-y-2">
+                            <div className="flex justify-between items-center">
+                                <FormLabel className="text-[10px] font-black text-zinc-500 uppercase ml-1">Descrição</FormLabel>
+                                {(!showDescription && !form.getValues("description")) && (
+                                    <Button
+                                        type="button"
+                                        onClick={() => setShowDescription(true)}
+                                        variant="ghost"
+                                        size="sm"
+                                        className="h-5 text-[10px] text-emerald-500 hover:text-emerald-400 px-0"
+                                    >
+                                        + Adicionar
+                                    </Button>
+                                )}
+                            </div>
+                            {(showDescription || form.getValues("description")) && (
+                                <FormField
+                                    control={form.control}
+                                    name="description"
+                                    render={({ field }) => (
+                                        <Textarea
+                                            {...field}
+                                            placeholder="Detalhes da tarefa..."
+                                            className="bg-white/5 border-white/10 rounded-xl text-xs custom-scrollbar resize-none min-h-[60px]"
+                                            rows={3}
+                                        />
+                                    )}
+                                />
+                            )}
+                        </div>
+
                         {/* Subtarefas */}
                         <div className="space-y-2">
                             <div className="flex justify-between items-center">
@@ -346,8 +383,10 @@ export function CreateTaskDialog({ availableBlockTypes = [], taskToEdit, open: c
                         </div>
 
 
+
+
                         <div className="pt-2 flex flex-col gap-2">
-                            <Button type="button" onClick={form.handleSubmit((v) => onSubmit(v, true))} className="w-full h-12 bg-[#10b981] hover:bg-[#10b981]/90 text-black font-black tracking-widest text-sm rounded-xl uppercase">
+                            <Button type="button" onClick={form.handleSubmit((v) => onSubmit(v, !isEditing))} className="w-full h-12 bg-[#10b981] hover:bg-[#10b981]/90 text-black font-black tracking-widest text-sm rounded-xl uppercase">
                                 Salvar
                             </Button>
 
