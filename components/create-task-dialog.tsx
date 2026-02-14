@@ -108,6 +108,7 @@ export function CreateTaskDialog({ availableBlockTypes = [], taskToEdit, open: c
                 description: taskToEdit?.description || "",
                 subTasks: (taskToEdit?.subTasks as any[]) || [],
             });
+            setShowDescription(!!taskToEdit?.description);
 
             // Refresh block types on open to ensure we have the latest
             getUniqueBlockTypes().then((types) => {
@@ -157,6 +158,7 @@ export function CreateTaskDialog({ availableBlockTypes = [], taskToEdit, open: c
                     description: "",
                     subTasks: [],
                 });
+                setShowDescription(false);
             }
             toast.success(isEditing ? "Tarefa atualizada!" : "Tarefa criada!");
         } else {
