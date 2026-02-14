@@ -576,7 +576,7 @@ export async function convertTaskToBlock(taskId: string, date: string, startTime
         if (isVirtual && subTaskIndex !== -1 && task.subTasks) {
             const sub = (task.subTasks as any[])[subTaskIndex];
             if (sub) {
-                blockTitle = `Subtarefa (${sub.title}) - Tarefa (${task.title})`;
+                blockTitle = `${sub.title} - ${task.title}`;
                 blockDuration = parseInt(sub.duration) || 15;
                 subTasksForBlock = [{
                     title: blockTitle,
@@ -693,19 +693,21 @@ export async function unassignTaskFromBlock(blockId: string, taskIndex: number, 
 
         // Create backlog task from removed task
         // "Archives back to task list"
-        await db.insert(backlogTasks).values({
-            userId,
-            title: taskData.title,
-            estimatedDuration: parseInt(taskData.duration) || 15,
-            status: 'pending',
-            createdAt: new Date(),
-            // Restore original data
-            priority: taskData.originalPriority || 'media',
-            linkedBlockType: taskData.originalLinkedBlockType,
-            color: taskData.originalColor || '#27272a',
-            deadline: taskData.deadline,
-            subTasks: taskData.subTasks || []
-        });
+        if (!taskData.isVirtual) {
+            await db.insert(backlogTasks).values({
+                userId,
+                title: taskData.title,
+                estimatedDuration: parseInt(taskData.duration) || 15,
+                status: 'pending',
+                createdAt: new Date(),
+                // Restore original data
+                priority: taskData.originalPriority || 'media',
+                linkedBlockType: taskData.originalLinkedBlockType,
+                color: taskData.originalColor || '#27272a',
+                deadline: taskData.deadline,
+                subTasks: taskData.subTasks || []
+            });
+        }
 
         revalidatePath("/dashboard");
         return { success: true };

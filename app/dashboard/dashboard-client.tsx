@@ -64,7 +64,7 @@ function getBestSuggestion(tasks: BacklogTask[], maxDuration: number, mode: 'blo
                         candidates.push({
                             ...t,
                             id: `${t.id}-sub-${firstPendingIndex}`,
-                            title: `Subtarefa (${sub.title}) - Tarefa (${t.title})`,
+                            title: `${sub.title} - ${t.title}`,
                             estimatedDuration: subDuration,
                             isVirtual: true,
                             originalTaskId: t.id,
