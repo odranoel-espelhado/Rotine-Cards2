@@ -12,14 +12,53 @@ import { differenceInCalendarDays, parseISO } from "date-fns";
 
 // Helper for Suggestions
 function getBestSuggestion(tasks: BacklogTask[], maxDuration: number, mode: 'block' | 'gap', blockType?: string): BacklogTask | undefined {
-    const candidates = tasks.filter(t => {
-        if (t.status !== 'pending') return false;
+    const candidates: any[] = [];
+
+    tasks.forEach(t => {
+        if (t.status !== 'pending') return;
         const duration = t.estimatedDuration || 30;
-        if (duration > maxDuration) return false;
-        if (mode === 'block') {
-            if (t.linkedBlockType && t.linkedBlockType !== blockType && t.linkedBlockType !== 'Geral') return false;
+
+        // 1. Try Main Task
+        if (duration <= maxDuration) {
+            if (mode === 'block') {
+                if (!t.linkedBlockType || t.linkedBlockType === blockType || t.linkedBlockType === 'Geral') {
+                    candidates.push(t);
+                }
+            } else {
+                candidates.push(t);
+            }
         }
-        return true;
+        // 2. Try Subtasks (If Main Task too big)
+        else {
+            if (t.subTasks && (t.subTasks as any[]).length > 0) {
+                const subs = t.subTasks as any[];
+                const firstPendingIndex = subs.findIndex(s => !s.done);
+
+                if (firstPendingIndex !== -1) {
+                    const sub = subs[firstPendingIndex];
+                    const subDuration = parseInt(sub.duration) || 15;
+
+                    if (subDuration <= maxDuration) {
+                        // Check Block Type Constraint (inherited from parent)
+                        if (mode === 'block') {
+                            if (t.linkedBlockType && t.linkedBlockType !== blockType && t.linkedBlockType !== 'Geral') return;
+                        }
+
+                        // Create Virtual Task
+                        candidates.push({
+                            ...t,
+                            id: `${t.id}-sub-${firstPendingIndex}`, // Virtual ID to distinguish
+                            title: `Subtarefa (${sub.title}) - Tarefa (${t.title})`,
+                            estimatedDuration: subDuration,
+                            // specific props for backend
+                            isVirtual: true,
+                            originalTaskId: t.id,
+                            subTaskIndex: firstPendingIndex
+                        });
+                    }
+                }
+            }
+        }
     });
 
     if (candidates.length === 0) return undefined;
@@ -49,7 +88,7 @@ function getBestSuggestion(tasks: BacklogTask[], maxDuration: number, mode: 'blo
             }
         }
 
-        // 2. Duration (If priority is equal)
+        // 3. Duration (If priority is equal)
         const dA = a.estimatedDuration || 30;
         const dB = b.estimatedDuration || 30;
 

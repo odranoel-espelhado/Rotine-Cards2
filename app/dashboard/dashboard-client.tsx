@@ -29,20 +29,51 @@ import { TaskPickerDialog } from "@/components/task-picker-dialog";
 
 // Helper for Suggestions
 function getBestSuggestion(tasks: BacklogTask[], maxDuration: number, mode: 'block' | 'gap', blockType?: string): BacklogTask | undefined {
-    // Filter applicable tasks
-    const candidates = tasks.filter(t => {
-        if (t.status !== 'pending') return false;
+    const candidates: any[] = [];
 
-        // Duration check
-        const duration = t.estimatedDuration || 30; // default 30 if null
-        if (duration > maxDuration) return false;
+    tasks.forEach(t => {
+        if (t.status !== 'pending') return;
+        const duration = t.estimatedDuration || 30;
 
-        // For 'block' mode, prefer matching block type or general
-        if (mode === 'block') {
-            if (t.linkedBlockType && t.linkedBlockType !== blockType && t.linkedBlockType !== 'Geral') return false;
+        // 1. Try Main Task
+        if (duration <= maxDuration) {
+            if (mode === 'block') {
+                if (t.linkedBlockType && t.linkedBlockType !== blockType && t.linkedBlockType !== 'Geral') return;
+                candidates.push(t);
+            } else {
+                candidates.push(t);
+            }
         }
+        // 2. Try Subtasks (If Main Task too big)
+        else {
+            if (t.subTasks && (t.subTasks as any[]).length > 0) {
+                const subs = t.subTasks as any[];
+                const firstPendingIndex = subs.findIndex(s => !s.done);
 
-        return true;
+                if (firstPendingIndex !== -1) {
+                    const sub = subs[firstPendingIndex];
+                    const subDuration = parseInt(sub.duration) || 15;
+
+                    if (subDuration <= maxDuration) {
+                        // Check Block Type Constraint (inherited from parent)
+                        if (mode === 'block') {
+                            if (t.linkedBlockType && t.linkedBlockType !== blockType && t.linkedBlockType !== 'Geral') return;
+                        }
+
+                        // Create Virtual Task
+                        candidates.push({
+                            ...t,
+                            id: `${t.id}-sub-${firstPendingIndex}`,
+                            title: `Subtarefa (${sub.title}) - Tarefa (${t.title})`,
+                            estimatedDuration: subDuration,
+                            isVirtual: true,
+                            originalTaskId: t.id,
+                            subTaskIndex: firstPendingIndex
+                        });
+                    }
+                }
+            }
+        }
     });
 
     if (candidates.length === 0) return undefined;
@@ -73,7 +104,7 @@ function getBestSuggestion(tasks: BacklogTask[], maxDuration: number, mode: 'blo
             }
         }
 
-        // 2. Duration (If priority is equal)
+        // 3. Duration (If priority is equal)
         const dA = a.estimatedDuration || 30;
         const dB = b.estimatedDuration || 30;
 

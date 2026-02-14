@@ -6,6 +6,7 @@ import { missionBlocks, backlogTasks } from "@/db/schema";
 import { eq, and, desc, inArray, lt } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { startOfWeek, addDays, format, parseISO } from "date-fns";
+import { toggleBacklogSubTask } from "@/lib/actions/backlog.actions";
 
 export type MissionBlock = typeof missionBlocks.$inferSelect;
 export type NewMissionBlock = typeof missionBlocks.$inferInsert;
@@ -460,7 +461,11 @@ export async function assignTasksToBlock(blockId: string, tasksToAssign: any[]) 
             originalLinkedBlockType: t.linkedBlockType,
             originalColor: t.color,
             deadline: t.deadline,
-            subTasks: t.subTasks || []
+            subTasks: t.subTasks || [],
+            // Virtual Task Metadata
+            isVirtual: t.isVirtual,
+            originalTaskId: t.originalTaskId,
+            originalSubTaskIndex: t.subTaskIndex
         }));
 
         const updatedSubtasks = [...currentSubtasks, ...newSubtasks];
@@ -469,7 +474,8 @@ export async function assignTasksToBlock(blockId: string, tasksToAssign: any[]) 
             .set({ subTasks: updatedSubtasks })
             .where(eq(missionBlocks.id, targetBlockId));
 
-        const taskIds = tasksToAssign.map(t => t.id);
+        // Only delete REAL tasks, not virtual subtasks
+        const taskIds = tasksToAssign.filter(t => !t.isVirtual).map(t => t.id);
         if (taskIds.length > 0) {
             await db.delete(backlogTasks)
                 .where(
@@ -549,8 +555,43 @@ export async function convertTaskToBlock(taskId: string, date: string, startTime
     if (!userId) return { error: "Unauthorized" };
 
     try {
-        const [task] = await db.select().from(backlogTasks).where(and(eq(backlogTasks.id, taskId), eq(backlogTasks.userId, userId)));
+        let realTaskId = taskId;
+        let subTaskIndex = -1;
+        let isVirtual = false;
+
+        if (taskId.includes("-sub-")) {
+            const parts = taskId.split("-sub-");
+            realTaskId = parts[0];
+            subTaskIndex = parseInt(parts[1]);
+            isVirtual = true;
+        }
+
+        const [task] = await db.select().from(backlogTasks).where(and(eq(backlogTasks.id, realTaskId), eq(backlogTasks.userId, userId)));
         if (!task) return { error: "Tarefa não encontrada" };
+
+        let blockTitle = task.title;
+        let blockDuration = task.estimatedDuration || 30;
+        let subTasksForBlock: any[] = [{ title: task.title, duration: blockDuration, done: false }];
+
+        if (isVirtual && subTaskIndex !== -1 && task.subTasks) {
+            const sub = (task.subTasks as any[])[subTaskIndex];
+            if (sub) {
+                blockTitle = `Subtarefa (${sub.title}) - Tarefa (${task.title})`;
+                blockDuration = parseInt(sub.duration) || 15;
+                subTasksForBlock = [{
+                    title: blockTitle,
+                    duration: blockDuration,
+                    done: false,
+                    isVirtual: true,
+                    originalTaskId: realTaskId,
+                    originalSubTaskIndex: subTaskIndex
+                }];
+            }
+        } else {
+            if (task.subTasks && Array.isArray(task.subTasks) && task.subTasks.length > 0) {
+                subTasksForBlock = task.subTasks as any;
+            }
+        }
 
         // Lookup existing block style based on linkedBlockType or title
         const [existingBlock] = await db.select().from(missionBlocks)
@@ -562,24 +603,22 @@ export async function convertTaskToBlock(taskId: string, date: string, startTime
 
         const newBlock = {
             userId,
-            title: task.title,
+            title: blockTitle,
             color: existingBlock?.color || task.color || '#3b82f6',
             icon: existingBlock?.icon || 'zap',
             date: date,
             startTime: startTime,
-            totalDuration: task.estimatedDuration || 30,
+            totalDuration: blockDuration,
             status: 'pending' as const,
             type: 'unique' as const,
-            subTasks: [{ title: task.title, duration: task.estimatedDuration || 30, done: false }]
+            subTasks: subTasksForBlock
         };
-
-        if (task.subTasks && Array.isArray(task.subTasks) && task.subTasks.length > 0) {
-            newBlock.subTasks = task.subTasks as any;
-        }
 
         await db.insert(missionBlocks).values(newBlock);
 
-        await db.delete(backlogTasks).where(eq(backlogTasks.id, taskId));
+        if (!isVirtual) {
+            await db.delete(backlogTasks).where(eq(backlogTasks.id, realTaskId));
+        }
 
         revalidatePath("/dashboard");
         return { success: true };
@@ -736,6 +775,14 @@ export async function toggleSubTaskCompletion(blockId: string, taskIndex: number
         await db.update(missionBlocks)
             .set({ subTasks: newSubtasks })
             .where(eq(missionBlocks.id, targetBlockId));
+
+        if (newSubtasks[taskIndex].isVirtual) {
+            const t = newSubtasks[taskIndex];
+            if (t.originalTaskId && t.originalSubTaskIndex !== undefined) {
+                // Sync with backlog: pass currentDone so it flips to the new state
+                await toggleBacklogSubTask(t.originalTaskId, t.originalSubTaskIndex, currentDone);
+            }
+        }
 
         // Check if ALL are done to auto-complete block
         const allDone = newSubtasks.every((t: any) => t.done);
