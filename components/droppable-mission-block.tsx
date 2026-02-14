@@ -110,7 +110,7 @@ export function DroppableMissionBlock({ block, onDelete, onEdit, pendingBacklogT
     }, [block.status]);
 
     const glowColor = block.color || '#3b82f6';
-    const isRecurring = block.type === 'recurring' || block.recurrencePattern === 'weekdays';
+    const isRecurring = block.type === 'recurring' || !!block.recurrencePattern;
 
     const handleToggle = async (e?: React.MouseEvent) => {
         e?.stopPropagation();
