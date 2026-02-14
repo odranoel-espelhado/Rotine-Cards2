@@ -813,3 +813,87 @@ export async function checkAndArchivePastTasks() {
         return { error: error.message || "Failed to archive tasks" };
     }
 }
+
+export async function toggleNestedSubTaskCompletion(id: string, parentTaskIndex: number, subTaskIndex: number, currentDone: boolean) {
+    const { userId } = await auth();
+    if (!userId) return { error: "Unauthorized" };
+
+    try {
+        let targetBlockId = id;
+
+        // Fork if virtual
+        if (id.includes("-virtual-")) {
+            const [realId, date] = id.split("-virtual-");
+            const [masterBlock] = await db.select().from(missionBlocks)
+                .where(and(eq(missionBlocks.id, realId), eq(missionBlocks.userId, userId)));
+
+            if (!masterBlock) return { error: "Master block not found" };
+
+            // 1. Add Exception
+            const currentExceptions = (masterBlock.exceptions as string[]) || [];
+            if (!currentExceptions.includes(date)) {
+                await db.update(missionBlocks)
+                    .set({ exceptions: [...currentExceptions, date] })
+                    .where(eq(missionBlocks.id, realId));
+            }
+
+            // 2. Create Unique Block (Clone)
+            const [newBlock] = await db.insert(missionBlocks).values({
+                userId: userId,
+                title: masterBlock.title,
+                date: date,
+                startTime: masterBlock.startTime,
+                totalDuration: masterBlock.totalDuration,
+                color: masterBlock.color,
+                icon: masterBlock.icon,
+                type: 'unique',
+                recurrencePattern: null,
+                status: masterBlock.status,
+                subTasks: masterBlock.subTasks,
+                exceptions: [],
+            }).returning();
+
+            targetBlockId = newBlock.id;
+        }
+
+        const [block] = await db.select().from(missionBlocks)
+            .where(and(eq(missionBlocks.id, targetBlockId), eq(missionBlocks.userId, userId)));
+
+        if (!block) return { error: "Bloco não encontrado" };
+
+        const currentSubtasks = (block.subTasks as any[]) || [];
+
+        if (parentTaskIndex < 0 || parentTaskIndex >= currentSubtasks.length) {
+            return { error: "Tarefa pai não encontrada" };
+        }
+
+        // Clone deeply enough
+        const newSubtasks = [...currentSubtasks];
+        const parentTask = { ...newSubtasks[parentTaskIndex] };
+
+        const nestedSubTasks = [...(parentTask.subTasks || [])];
+
+        if (subTaskIndex < 0 || subTaskIndex >= nestedSubTasks.length) {
+            return { error: "Subtarefa não encontrada" };
+        }
+
+        nestedSubTasks[subTaskIndex] = {
+            ...nestedSubTasks[subTaskIndex],
+            done: !currentDone
+        };
+
+        parentTask.subTasks = nestedSubTasks;
+        newSubtasks[parentTaskIndex] = parentTask;
+
+        await db.update(missionBlocks)
+            .set({ subTasks: newSubtasks })
+            .where(eq(missionBlocks.id, targetBlockId));
+
+        revalidatePath("/dashboard");
+        return { success: true };
+
+    } catch (error: any) {
+        console.error("Error toggling nested subtask:", error);
+        return { error: error.message || "Erro ao atualizar subtarefa" };
+    }
+}

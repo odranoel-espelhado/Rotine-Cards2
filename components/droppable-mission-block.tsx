@@ -1,7 +1,7 @@
 "use client";
 
 import { useDroppable } from "@dnd-kit/core";
-import { MissionBlock, toggleMissionBlock, assignTasksToBlock, updateMissionBlock, unassignTaskFromBlock, deleteMissionBlock, toggleSubTaskCompletion } from "@/lib/actions/mission.actions";
+import { MissionBlock, toggleMissionBlock, assignTasksToBlock, updateMissionBlock, unassignTaskFromBlock, deleteMissionBlock, toggleSubTaskCompletion, toggleNestedSubTaskCompletion } from "@/lib/actions/mission.actions";
 import { BLOCK_ICONS } from "./constants";
 import { Zap, Trash2, Pencil, Check, Repeat, X, Plus, ChevronDown, ChevronUp, AlertTriangle, Archive } from "lucide-react";
 import { differenceInCalendarDays, parseISO } from "date-fns";
@@ -431,16 +431,30 @@ export function DroppableMissionBlock({ block, onDelete, onEdit, pendingBacklogT
 
                                                                 {/* Nested Sub-Tasks */}
                                                                 {sub.subTasks && sub.subTasks.length > 0 && (
-                                                                    <div className="mt-1 flex flex-col gap-0.5 animate-in slide-in-from-top-1">
+                                                                    <div className="mt-1 flex flex-col gap-1.5 animate-in slide-in-from-top-1 pl-1">
                                                                         {sub.subTasks.map((nested: any, j: number) => (
-                                                                            <div key={j} className="flex gap-2 items-center text-[10px] text-white/50 pl-0.5">
+                                                                            <div
+                                                                                key={j}
+                                                                                className="flex gap-2 items-start group/nested cursor-pointer"
+                                                                                onClick={(e) => {
+                                                                                    e.stopPropagation();
+                                                                                    toggleNestedSubTaskCompletion(block.id, i, j, !!nested.done);
+                                                                                }}
+                                                                            >
                                                                                 <div className={cn(
-                                                                                    "w-2 h-2 rounded-[2px] border border-white/20 flex items-center justify-center",
-                                                                                    nested.done && "bg-emerald-500/50 border-emerald-500/50"
+                                                                                    "w-3.5 h-3.5 mt-0.5 rounded-[3px] border transition-colors flex items-center justify-center shrink-0",
+                                                                                    nested.done
+                                                                                        ? "bg-emerald-500/50 border-emerald-500/50 group-hover/nested:bg-emerald-500 group-hover/nested:border-emerald-500"
+                                                                                        : "border-white/20 bg-transparent group-hover/nested:border-white/40"
                                                                                 )}>
-                                                                                    {nested.done && <Check className="w-1.5 h-1.5 text-white" />}
+                                                                                    {nested.done && <Check className="w-2.5 h-2.5 text-white" strokeWidth={3} />}
                                                                                 </div>
-                                                                                <span className={cn("truncate", nested.done && "line-through")}>{nested.title}</span>
+                                                                                <span className={cn(
+                                                                                    "text-[11px] leading-tight transition-colors",
+                                                                                    nested.done ? "line-through text-white/30" : "text-white/60 group-hover/nested:text-white/80"
+                                                                                )}>
+                                                                                    {nested.title}
+                                                                                </span>
                                                                             </div>
                                                                         ))}
                                                                     </div>
