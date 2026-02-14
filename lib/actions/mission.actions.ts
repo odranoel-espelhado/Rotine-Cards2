@@ -664,7 +664,8 @@ export async function unassignTaskFromBlock(blockId: string, taskIndex: number, 
             priority: taskData.originalPriority || 'media',
             linkedBlockType: taskData.originalLinkedBlockType,
             color: taskData.originalColor || '#27272a',
-            deadline: taskData.deadline
+            deadline: taskData.deadline,
+            subTasks: taskData.subTasks || []
         });
 
         revalidatePath("/dashboard");
@@ -792,7 +793,8 @@ export async function checkAndArchivePastTasks() {
                         priority: task.originalPriority || 'medium',
                         linkedBlockType: task.originalLinkedBlockType,
                         color: task.originalColor || '#27272a',
-                        deadline: task.deadline
+                        deadline: task.deadline,
+                        subTasks: task.subTasks || []
                     });
                 }
 
