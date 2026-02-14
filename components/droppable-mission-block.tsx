@@ -388,44 +388,63 @@ export function DroppableMissionBlock({ block, onDelete, onEdit, pendingBacklogT
                                                                 {sub.done && <Check className="w-2.5 h-2.5 text-black" strokeWidth={4} />}
                                                             </div>
 
-                                                            <div className="flex-1 flex justify-between items-start gap-2 min-w-0">
-                                                                <span className={cn(
-                                                                    "text-sm font-medium leading-none truncate transition-colors cursor-pointer",
-                                                                    optimisticCompleted ? "line-through opacity-50 text-white/50" : "text-white/90",
-                                                                    sub.done ? "line-through text-white/40" : ""
-                                                                )}
-                                                                    onClick={(e) => {
-                                                                        e.stopPropagation();
-                                                                        toggleSubTaskCompletion(block.id, i, !!sub.done);
-                                                                    }}
-                                                                >
-                                                                    {sub.title}
-                                                                </span>
-
-                                                                {/* Actions */}
-                                                                <div className="flex shrink-0">
-                                                                    {sub.isFixed ? (
-                                                                        <div className="mr-1" title="Tarefa fixa do bloco">
-                                                                            <Repeat className="w-3 h-3 text-white/30" />
-                                                                        </div>
-                                                                    ) : (
-                                                                        <button
-                                                                            onClick={(e) => {
-                                                                                e.stopPropagation();
-                                                                                const promise = unassignTaskFromBlock(block.id, i, sub);
-                                                                                toast.promise(promise, {
-                                                                                    loading: 'Arquivando...',
-                                                                                    success: 'Tarefa arquivada!',
-                                                                                    error: 'Erro ao arquivar'
-                                                                                });
-                                                                            }}
-                                                                            className="opacity-100 lg:opacity-0 lg:group-hover/item:opacity-100 p-0.5 hover:bg-white/10 rounded transition-all -mt-1"
-                                                                            title="Arquivar tarefa"
-                                                                        >
-                                                                            <Archive className="w-3 h-3 text-white/50 hover:text-white" />
-                                                                        </button>
+                                                            <div className="flex-1 flex flex-col min-w-0">
+                                                                <div className="flex justify-between items-start gap-2">
+                                                                    <span className={cn(
+                                                                        "text-sm font-medium leading-none truncate transition-colors cursor-pointer",
+                                                                        optimisticCompleted ? "line-through opacity-50 text-white/50" : "text-white/90",
+                                                                        sub.done ? "line-through text-white/40" : ""
                                                                     )}
+                                                                        onClick={(e) => {
+                                                                            e.stopPropagation();
+                                                                            toggleSubTaskCompletion(block.id, i, !!sub.done);
+                                                                        }}
+                                                                    >
+                                                                        {sub.title}
+                                                                    </span>
+
+                                                                    {/* Actions */}
+                                                                    <div className="flex shrink-0">
+                                                                        {sub.isFixed ? (
+                                                                            <div className="mr-1" title="Tarefa fixa do bloco">
+                                                                                <Repeat className="w-3 h-3 text-white/30" />
+                                                                            </div>
+                                                                        ) : (
+                                                                            <button
+                                                                                onClick={(e) => {
+                                                                                    e.stopPropagation();
+                                                                                    const promise = unassignTaskFromBlock(block.id, i, sub);
+                                                                                    toast.promise(promise, {
+                                                                                        loading: 'Arquivando...',
+                                                                                        success: 'Tarefa arquivada!',
+                                                                                        error: 'Erro ao arquivar'
+                                                                                    });
+                                                                                }}
+                                                                                className="opacity-100 lg:opacity-0 lg:group-hover/item:opacity-100 p-0.5 hover:bg-white/10 rounded transition-all -mt-1"
+                                                                                title="Arquivar tarefa"
+                                                                            >
+                                                                                <Archive className="w-3 h-3 text-white/50 hover:text-white" />
+                                                                            </button>
+                                                                        )}
+                                                                    </div>
                                                                 </div>
+
+                                                                {/* Nested Sub-Tasks */}
+                                                                {sub.subTasks && sub.subTasks.length > 0 && (
+                                                                    <div className="mt-1 flex flex-col gap-0.5 animate-in slide-in-from-top-1">
+                                                                        {sub.subTasks.map((nested: any, j: number) => (
+                                                                            <div key={j} className="flex gap-2 items-center text-[10px] text-white/50 pl-0.5">
+                                                                                <div className={cn(
+                                                                                    "w-2 h-2 rounded-[2px] border border-white/20 flex items-center justify-center",
+                                                                                    nested.done && "bg-emerald-500/50 border-emerald-500/50"
+                                                                                )}>
+                                                                                    {nested.done && <Check className="w-1.5 h-1.5 text-white" />}
+                                                                                </div>
+                                                                                <span className={cn("truncate", nested.done && "line-through")}>{nested.title}</span>
+                                                                            </div>
+                                                                        ))}
+                                                                    </div>
+                                                                )}
                                                             </div>
                                                         </div>
                                                     </div>

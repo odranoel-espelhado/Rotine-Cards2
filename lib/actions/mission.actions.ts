@@ -459,7 +459,8 @@ export async function assignTasksToBlock(blockId: string, tasksToAssign: any[]) 
             originalPriority: t.priority,
             originalLinkedBlockType: t.linkedBlockType,
             originalColor: t.color,
-            deadline: t.deadline
+            deadline: t.deadline,
+            subTasks: t.subTasks || []
         }));
 
         const updatedSubtasks = [...currentSubtasks, ...newSubtasks];

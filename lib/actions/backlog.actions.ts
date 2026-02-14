@@ -114,7 +114,8 @@ export async function moveTaskToBlock(taskId: string, blockId: string) {
             originalPriority: task.priority,
             originalLinkedBlockType: task.linkedBlockType,
             originalColor: task.color,
-            deadline: task.deadline
+            deadline: task.deadline,
+            subTasks: task.subTasks || []
         };
 
         await db.update(missionBlocks)
