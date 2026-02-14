@@ -49,9 +49,9 @@ export const BacklogItemCard = forwardRef<HTMLDivElement, BacklogItemCardProps>(
         // Neon Logic: 5 days -> Yellow (Amber), 2 days -> Red
         if (daysLeft !== null) {
             if (daysLeft <= 2) {
-                neonClass = "shadow-[0_0_15px_rgba(239,68,68,0.6)] border-red-500/80 ring-1 ring-red-500/50";
+                neonClass = "shadow-[0_0_15px_rgba(239,68,68,0.6)] border-red-500 ring-1 ring-red-500/50";
             } else if (daysLeft <= 5) {
-                neonClass = "shadow-[0_0_15px_rgba(245,158,11,0.6)] border-amber-500/80 ring-1 ring-amber-500/50";
+                neonClass = "shadow-[0_0_15px_rgba(245,158,11,0.6)] border-amber-500 ring-1 ring-amber-500/50";
             }
         }
 
@@ -60,7 +60,7 @@ export const BacklogItemCard = forwardRef<HTMLDivElement, BacklogItemCardProps>(
         if (daysLeft !== null && daysLeft <= 5) {
             const isRed = daysLeft <= 3;
             DangerIcon = (
-                <div className={cn("flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider", isRed ? "bg-red-500/20 text-red-500 border border-red-500/30" : "bg-amber-500/20 text-amber-500 border border-amber-500/30")}>
+                <div className={cn("flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider", isRed ? "bg-red-500/20 text-red-500 border border-red-500/50" : "bg-amber-500/20 text-amber-500 border border-amber-500/50")}>
                     <AlertTriangle className="w-3 h-3" strokeWidth={3} />
                     <span>{daysLeft < 0 ? `${Math.abs(daysLeft)}d Atrasado` : daysLeft === 0 ? "Hoje" : `${daysLeft}d`}</span>
                 </div>
@@ -91,16 +91,14 @@ export const BacklogItemCard = forwardRef<HTMLDivElement, BacklogItemCardProps>(
                     <div className="flex items-start justify-between gap-3">
                         {/* Title */}
                         <div className="flex-1 min-w-0 flex flex-col gap-1">
-                            <div className="flex items-center gap-2 flex-wrap">
-                                {DangerIcon}
-                            </div>
                             <span className="text-sm font-bold text-white leading-tight shadow-black drop-shadow-md break-words block">
                                 {task.title}
                             </span>
                         </div>
 
-                        {/* Right Side: Empty for now, actions are absolute/hover */}
+                        {/* Right Side: Icons & Actions */}
                         <div className="flex items-center gap-2 shrink-0">
+                            {DangerIcon}
                         </div>
                     </div>
 

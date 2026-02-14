@@ -4,6 +4,7 @@ import { useDroppable } from "@dnd-kit/core";
 import { MissionBlock, toggleMissionBlock, assignTasksToBlock, updateMissionBlock, unassignTaskFromBlock, deleteMissionBlock, toggleSubTaskCompletion } from "@/lib/actions/mission.actions";
 import { BLOCK_ICONS } from "./constants";
 import { Zap, Trash2, Pencil, Check, Repeat, X, Plus, ChevronDown, ChevronUp, AlertTriangle, Archive } from "lucide-react";
+import { differenceInCalendarDays, parseISO } from "date-fns";
 // ... (rest of imports)
 
 // ... inside component ...
@@ -500,12 +501,47 @@ export function DroppableMissionBlock({ block, onDelete, onEdit, pendingBacklogT
                         <DialogDescription>Tarefas do backlog para {block.title}</DialogDescription>
                     </DialogHeader>
                     <ScrollArea className="h-[250px] bg-white/5 rounded-xl p-2">
-                        {availableTasksForBlock.map(task => (
-                            <div key={task.id} className="flex gap-2 p-2 hover:bg-white/10 rounded cursor-pointer" onClick={() => setSelectedTasks(p => p.includes(task.id) ? p.filter(x => x !== task.id) : [...p, task.id])}>
-                                <Checkbox checked={selectedTasks.includes(task.id)} />
-                                <span className="text-sm">{task.title}</span>
-                            </div>
-                        ))}
+                        {availableTasksForBlock.map(task => {
+                            // Calculation Logic (same as BacklogItemCard)
+                            const today = new Date();
+                            today.setHours(0, 0, 0, 0);
+                            let daysLeft: number | null = null;
+                            if (task.deadline) {
+                                const deadlineDate = parseISO(task.deadline);
+                                deadlineDate.setHours(0, 0, 0, 0);
+                                daysLeft = differenceInCalendarDays(deadlineDate, today);
+                            }
+
+                            let DangerIcon = null;
+                            if (daysLeft !== null && daysLeft <= 5) {
+                                const isRed = daysLeft <= 3;
+                                DangerIcon = (
+                                    <div className={cn("text-[10px] font-bold uppercase tracking-wider", isRed ? "text-red-500" : "text-amber-500")} title={`${daysLeft} dias restantes`}>
+                                        <AlertTriangle className="w-4 h-4" strokeWidth={2.5} />
+                                    </div>
+                                );
+                            }
+
+                            let priorityColor = 'bg-amber-500';
+                            switch (task.priority) {
+                                case 'high': priorityColor = 'bg-red-500'; break;
+                                case 'medium': priorityColor = 'bg-amber-500'; break;
+                                case 'low': priorityColor = 'bg-emerald-500'; break;
+                            }
+
+                            return (
+                                <div key={task.id} className="flex items-center gap-3 p-2 hover:bg-white/10 rounded-lg cursor-pointer transition-colors group" onClick={() => setSelectedTasks(p => p.includes(task.id) ? p.filter(x => x !== task.id) : [...p, task.id])}>
+                                    <div className="flex items-center gap-3 flex-1 min-w-0">
+                                        <Checkbox checked={selectedTasks.includes(task.id)} className="border-white/20 data-[state=checked]:bg-primary data-[state=checked]:border-primary" />
+                                        <span className={cn("text-sm truncate", selectedTasks.includes(task.id) && "text-primary font-medium")}>{task.title}</span>
+                                    </div>
+                                    <div className="flex items-center gap-2 shrink-0">
+                                        {DangerIcon}
+                                        <div className={cn("w-2 h-2 rounded-full ring-1 ring-white/10 shadow-[0_0_8px_rgba(0,0,0,0.5)]", priorityColor)} title={`Prioridade: ${task.priority}`} />
+                                    </div>
+                                </div>
+                            );
+                        })}
                         {availableTasksForBlock.length === 0 && <p className="text-xs text-zinc-500 text-center py-4">Sem tarefas disponíveis.</p>}
                     </ScrollArea>
                     <DialogFooter>
