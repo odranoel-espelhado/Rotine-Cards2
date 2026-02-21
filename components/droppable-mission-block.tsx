@@ -500,11 +500,11 @@ export function DroppableMissionBlock({ block, onDelete, onEdit, pendingBacklogT
                                                                 <div className="flex justify-between items-start gap-2">
                                                                     <span className={cn(
                                                                         "text-sm font-medium leading-none truncate transition-colors",
-                                                                        (sub.isFromTask || sub.originalTaskId) ? "cursor-pointer hover:underline hover:text-blue-400" : "",
+                                                                        "cursor-pointer hover:underline hover:text-blue-400",
                                                                         optimisticCompleted ? "line-through opacity-50 text-white/50" : "text-white/90",
                                                                         sub.done ? "line-through text-white/40" : ""
                                                                     )}
-                                                                        onClick={(sub.isFromTask || sub.originalTaskId) ? (e) => {
+                                                                        onClick={(e) => {
                                                                             e.stopPropagation();
                                                                             setExecutionData({
                                                                                 id: block.id,
@@ -516,8 +516,8 @@ export function DroppableMissionBlock({ block, onDelete, onEdit, pendingBacklogT
                                                                                 subTasks: sub.subTasks || []
                                                                             });
                                                                             setExecutionDialogOpen(true);
-                                                                        } : undefined}
-                                                                        title={(sub.isFromTask || sub.originalTaskId) ? "Executar Tarefa" : undefined}
+                                                                        }}
+                                                                        title="Executar Tarefa"
                                                                     >
                                                                         {sub.title}
                                                                     </span>
