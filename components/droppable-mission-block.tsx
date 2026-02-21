@@ -223,7 +223,43 @@ export function DroppableMissionBlock({ block, onDelete, onEdit, pendingBacklogT
     // I will make a fixed height line or proportional max height.
     // Let's make it proportional to the list of subtasks.
 
-    const availableTasksForBlock = pendingBacklogTasks.filter(t => t.linkedBlockType === block.title && t.status === 'pending');
+    const availableTasksForBlock: any[] = [];
+    pendingBacklogTasks.forEach((t) => {
+        if (t.linkedBlockType === block.title && t.status === 'pending') {
+            const tDuration = t.estimatedDuration || 30;
+            if (remainder > 0 && tDuration > remainder) {
+                // Main task exceeds remaining time. Try showing its subtasks instead.
+                let addedSub = false;
+                if (t.subTasks && (t.subTasks as any[]).length > 0) {
+                    (t.subTasks as any[]).forEach((sub, index) => {
+                        if (!sub.done) {
+                            const subDur = parseInt(sub.duration) || 15;
+                            if (subDur <= remainder) {
+                                availableTasksForBlock.push({
+                                    ...t,
+                                    id: `${t.id}-sub-${index}`,
+                                    title: `${sub.title} - ${t.title}`,
+                                    estimatedDuration: subDur,
+                                    isVirtual: true,
+                                    originalTaskId: t.id,
+                                    subTaskIndex: index,
+                                    subTasks: t.subTasks // kept so it can be viewed in execution modal
+                                });
+                                addedSub = true;
+                            }
+                        }
+                    });
+                }
+                if (!addedSub) {
+                    // No subtasks fit, so just show the main task as a fallback
+                    availableTasksForBlock.push(t);
+                }
+            } else {
+                // Main task fits, so show it normally
+                availableTasksForBlock.push(t);
+            }
+        }
+    });
     const [selectedTasks, setSelectedTasks] = useState<string[]>([]);
 
     const handleAddTasks = async () => {
@@ -547,9 +583,8 @@ export function DroppableMissionBlock({ block, onDelete, onEdit, pendingBacklogT
                                                                         )}
                                                                     </div>
                                                                 </div>
-
                                                                 {/* Nested Sub-Tasks */}
-                                                                {sub.subTasks && sub.subTasks.length > 0 && (
+                                                                {(!sub.isVirtual || !sub.originalTaskId) && sub.subTasks && sub.subTasks.length > 0 && (
                                                                     <div className="mt-1 flex flex-col gap-1.5 animate-in slide-in-from-top-1 pl-1">
                                                                         {sub.subTasks.map((nested: any, j: number) => (
                                                                             <div
