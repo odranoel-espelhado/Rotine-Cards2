@@ -488,6 +488,7 @@ export async function assignTasksToBlock(blockId: string, tasksToAssign: any[]) 
             duration: t.estimatedDuration || 15,
             done: false,
             isFixed: false, // Allocated tasks are NOT fixed
+            isFromTask: true,
             // Store original data
             originalPriority: t.priority,
             originalLinkedBlockType: t.linkedBlockType,

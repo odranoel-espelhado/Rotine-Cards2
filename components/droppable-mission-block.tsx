@@ -375,7 +375,7 @@ export function DroppableMissionBlock({ block, onDelete, onEdit, pendingBacklogT
                             <div className="flex items-center gap-2 mb-1">
                                 <Icon className={cn("w-5 h-5", optimisticCompleted ? "text-[var(--block-color)]" : "text-white")} />
                                 <h3
-                                    onClick={(e) => {
+                                    onClick={isFromTask ? (e) => {
                                         e.stopPropagation();
                                         setExecutionData({
                                             id: block.id,
@@ -385,12 +385,13 @@ export function DroppableMissionBlock({ block, onDelete, onEdit, pendingBacklogT
                                             subTasks: block.subTasks as any[] || []
                                         });
                                         setExecutionDialogOpen(true);
-                                    }}
+                                    } : undefined}
                                     className={cn(
-                                        "text-lg font-black uppercase tracking-wider truncate transition-colors duration-300 cursor-pointer hover:underline hover:text-blue-400",
+                                        "text-lg font-black uppercase tracking-wider truncate transition-colors duration-300",
+                                        isFromTask ? "cursor-pointer hover:underline hover:text-blue-400" : "",
                                         optimisticCompleted ? "text-[var(--block-color)] line-through" : "text-white"
                                     )}
-                                    title="Executar Bloco"
+                                    title={isFromTask ? "Executar Bloco" : undefined}
                                 >
                                     {block.title}
                                 </h3>
@@ -498,11 +499,12 @@ export function DroppableMissionBlock({ block, onDelete, onEdit, pendingBacklogT
                                                             <div className="flex-1 flex flex-col min-w-0">
                                                                 <div className="flex justify-between items-start gap-2">
                                                                     <span className={cn(
-                                                                        "text-sm font-medium leading-none truncate transition-colors cursor-pointer",
+                                                                        "text-sm font-medium leading-none truncate transition-colors",
+                                                                        (sub.isFromTask || sub.originalTaskId) ? "cursor-pointer hover:underline hover:text-blue-400" : "",
                                                                         optimisticCompleted ? "line-through opacity-50 text-white/50" : "text-white/90",
                                                                         sub.done ? "line-through text-white/40" : ""
                                                                     )}
-                                                                        onClick={(e) => {
+                                                                        onClick={(sub.isFromTask || sub.originalTaskId) ? (e) => {
                                                                             e.stopPropagation();
                                                                             setExecutionData({
                                                                                 id: block.id,
@@ -511,10 +513,11 @@ export function DroppableMissionBlock({ block, onDelete, onEdit, pendingBacklogT
                                                                                 title: sub.title,
                                                                                 linkedBlockType: block.title,
                                                                                 description: sub.description || "",
-                                                                                subTasks: []
+                                                                                subTasks: sub.subTasks || []
                                                                             });
                                                                             setExecutionDialogOpen(true);
-                                                                        }}
+                                                                        } : undefined}
+                                                                        title={(sub.isFromTask || sub.originalTaskId) ? "Executar Tarefa" : undefined}
                                                                     >
                                                                         {sub.title}
                                                                     </span>

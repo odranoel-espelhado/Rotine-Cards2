@@ -119,7 +119,8 @@ export function TaskExecutionDialog({ open, onOpenChange, data }: TaskExecutionD
                 });
             } else if (data.type === 'mission-subtask' && data.subTaskIndex !== undefined) {
                 await updateMissionSubTask(data.id, data.subTaskIndex, {
-                    description: description
+                    description: description,
+                    subTasks: subTasks
                 });
             }
 
