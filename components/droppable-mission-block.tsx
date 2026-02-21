@@ -28,26 +28,25 @@ function getBestSuggestion(tasks: BacklogTask[], maxDuration: number, mode: 'blo
         if (duration <= maxDuration) {
             candidates.push(t);
         }
-
-        // 2. Explode and Try all unsolved Subtasks individually so they compete on duration and info
-        if (t.subTasks && (t.subTasks as any[]).length > 0) {
+        // 2. Try ONLY the first unsolved Subtask if the Main Task is too big
+        else if (t.subTasks && (t.subTasks as any[]).length > 0) {
             const subs = t.subTasks as any[];
-            subs.forEach((sub, index) => {
-                if (!sub.done) {
-                    const subDuration = parseInt(sub.duration) || 15;
-                    if (subDuration <= maxDuration) {
-                        candidates.push({
-                            ...t,
-                            id: `${t.id}-sub-${index}`, // Virtual ID to distinguish
-                            title: `${sub.title} - ${t.title}`,
-                            estimatedDuration: subDuration,
-                            isVirtual: true,
-                            originalTaskId: t.id,
-                            subTaskIndex: index
-                        });
-                    }
+            const firstPendingIndex = subs.findIndex(s => !s.done);
+            if (firstPendingIndex !== -1) {
+                const sub = subs[firstPendingIndex];
+                const subDuration = parseInt(sub.duration) || 15;
+                if (subDuration <= maxDuration) {
+                    candidates.push({
+                        ...t,
+                        id: `${t.id}-sub-${firstPendingIndex}`, // Virtual ID to distinguish
+                        title: `${sub.title} - ${t.title}`,
+                        estimatedDuration: subDuration,
+                        isVirtual: true,
+                        originalTaskId: t.id,
+                        subTaskIndex: firstPendingIndex
+                    });
                 }
-            });
+            }
         }
     });
 
@@ -70,20 +69,22 @@ function getBestSuggestion(tasks: BacklogTask[], maxDuration: number, mode: 'blo
             return deadlineB - deadlineA; // Higher score (1) comes first 
         }
 
-        // 1. Priority (Higher is better: alta > media > baixa)
+        // 1. Duration (Maximize time usage! Largest possible fit wins)
+        const dA = a.estimatedDuration || 30;
+        const dB = b.estimatedDuration || 30;
+        if (dA !== dB) {
+            return dB - dA; // Longest duration first (descending)
+        }
+
+        // 2. Priority (Higher is better: alta > media > baixa)
         const priorityWeight: Record<string, number> = { high: 3, medium: 2, low: 1, alta: 3, media: 2, baixa: 1 };
-
-        const priorityA = a.priority?.toLowerCase() || 'medium';
-        const priorityB = b.priority?.toLowerCase() || 'medium';
-
-        const pA = priorityWeight[priorityA] || 1;
-        const pB = priorityWeight[priorityB] || 1;
-
+        const pA = priorityWeight[a.priority?.toLowerCase() || 'medium'] || 1;
+        const pB = priorityWeight[b.priority?.toLowerCase() || 'medium'] || 1;
         if (pA !== pB) {
             return pB - pA; // Higher priority first
         }
 
-        // 2. GAP Bonus: Prefer tasks without specific block (Geral)
+        // 3. GAP Bonus: Prefer tasks without specific block (Geral)
         if (mode === 'gap') {
             const isGeralA = !a.linkedBlockType || a.linkedBlockType === 'Geral';
             const isGeralB = !b.linkedBlockType || b.linkedBlockType === 'Geral';
@@ -92,17 +93,7 @@ function getBestSuggestion(tasks: BacklogTask[], maxDuration: number, mode: 'blo
             }
         }
 
-        // 3. Duration (If priority is equal)
-        const dA = a.estimatedDuration || 30;
-        const dB = b.estimatedDuration || 30;
-
-        if (mode === 'block') {
-            // Block: Longest time first (Descending)
-            return dB - dA;
-        } else {
-            // Gap: Shortest time first (Ascending)
-            return dA - dB;
-        }
+        return 0;
     })[0];
 }
 
