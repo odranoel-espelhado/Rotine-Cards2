@@ -119,6 +119,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { CreateTaskDialog } from "@/components/create-task-dialog";
+import { TaskExecutionDialog } from "./task-execution-dialog";
 
 // ... imports
 
@@ -146,6 +147,9 @@ export function DroppableMissionBlock({ block, onDelete, onEdit, pendingBacklogT
     const [addTasksDialogOpen, setAddTasksDialogOpen] = useState(false);
     const [createTaskDialogOpen, setCreateTaskDialogOpen] = useState(false);
     const [expanded, setExpanded] = useState(false);
+
+    const [executionDialogOpen, setExecutionDialogOpen] = useState(false);
+    const [executionData, setExecutionData] = useState<any>(null);
 
     const [optimisticCompleted, setOptimisticCompleted] = useState(block.status === 'completed');
 
@@ -370,10 +374,24 @@ export function DroppableMissionBlock({ block, onDelete, onEdit, pendingBacklogT
 
                             <div className="flex items-center gap-2 mb-1">
                                 <Icon className={cn("w-5 h-5", optimisticCompleted ? "text-[var(--block-color)]" : "text-white")} />
-                                <h3 className={cn(
-                                    "text-lg font-black uppercase tracking-wider truncate transition-colors duration-300",
-                                    optimisticCompleted ? "text-[var(--block-color)] line-through" : "text-white"
-                                )}>
+                                <h3
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        setExecutionData({
+                                            id: block.id,
+                                            type: 'mission-block',
+                                            title: block.title,
+                                            description: (block as any).description || "",
+                                            subTasks: block.subTasks as any[] || []
+                                        });
+                                        setExecutionDialogOpen(true);
+                                    }}
+                                    className={cn(
+                                        "text-lg font-black uppercase tracking-wider truncate transition-colors duration-300 cursor-pointer hover:underline hover:text-blue-400",
+                                        optimisticCompleted ? "text-[var(--block-color)] line-through" : "text-white"
+                                    )}
+                                    title="Executar Bloco"
+                                >
                                     {block.title}
                                 </h3>
                                 {isRecurring && (
@@ -486,7 +504,16 @@ export function DroppableMissionBlock({ block, onDelete, onEdit, pendingBacklogT
                                                                     )}
                                                                         onClick={(e) => {
                                                                             e.stopPropagation();
-                                                                            toggleSubTaskCompletion(block.id, i, !!sub.done);
+                                                                            setExecutionData({
+                                                                                id: block.id,
+                                                                                type: 'mission-subtask',
+                                                                                subTaskIndex: i,
+                                                                                title: sub.title,
+                                                                                linkedBlockType: block.title,
+                                                                                description: sub.description || "",
+                                                                                subTasks: []
+                                                                            });
+                                                                            setExecutionDialogOpen(true);
                                                                         }}
                                                                     >
                                                                         {sub.title}
@@ -744,6 +771,12 @@ export function DroppableMissionBlock({ block, onDelete, onEdit, pendingBacklogT
                 open={createTaskDialogOpen}
                 onOpenChange={setCreateTaskDialogOpen}
                 defaultLinkedBlockType={block.title}
+            />
+
+            <TaskExecutionDialog
+                open={executionDialogOpen}
+                onOpenChange={setExecutionDialogOpen}
+                data={executionData}
             />
         </>
     );

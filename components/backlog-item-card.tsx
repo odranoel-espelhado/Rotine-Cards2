@@ -5,8 +5,9 @@ import { Button } from "@/components/ui/button";
 import { Pencil, Clock, Trash2, Check, AlertTriangle } from "lucide-react";
 import { differenceInCalendarDays, parseISO } from "date-fns";
 import { cn } from "@/lib/utils";
-import { forwardRef } from "react";
+import { forwardRef, useState } from "react";
 import { toast } from "sonner";
+import { TaskExecutionDialog, TaskExecutionData } from "./task-execution-dialog";
 
 interface BacklogItemCardProps extends React.HTMLAttributes<HTMLDivElement> {
     task: BacklogTask;
@@ -19,6 +20,8 @@ interface BacklogItemCardProps extends React.HTMLAttributes<HTMLDivElement> {
 
 export const BacklogItemCard = forwardRef<HTMLDivElement, BacklogItemCardProps>(
     ({ task, isDragging, expanded, onToggleExpand, onEdit, onDelete, className, style, ...props }, ref) => {
+        const [executionDialogOpen, setExecutionDialogOpen] = useState(false);
+
         // Default to Gray if no specific block color or if it's the default "none" color
         const bgColor = task.color && task.color !== '#27272a' ? task.color : '#27272a';
 
@@ -91,7 +94,14 @@ export const BacklogItemCard = forwardRef<HTMLDivElement, BacklogItemCardProps>(
                     <div className="flex items-start justify-between gap-3">
                         {/* Title */}
                         <div className="flex-1 min-w-0 flex flex-col gap-1">
-                            <span className="text-sm font-bold text-white leading-tight shadow-black drop-shadow-md break-words block">
+                            <span
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    setExecutionDialogOpen(true);
+                                }}
+                                className="text-sm font-bold text-white leading-tight shadow-black drop-shadow-md break-words block cursor-pointer hover:underline hover:text-blue-400 transition-colors"
+                                title="Executar / Ver Tarefa"
+                            >
                                 {task.title}
                             </span>
                         </div>
@@ -185,6 +195,21 @@ export const BacklogItemCard = forwardRef<HTMLDivElement, BacklogItemCardProps>(
                         </div>
                     )}
                 </div>
+
+                <TaskExecutionDialog
+                    open={executionDialogOpen}
+                    onOpenChange={setExecutionDialogOpen}
+                    data={{
+                        id: task.id,
+                        type: 'backlog',
+                        title: task.title,
+                        linkedBlockType: task.linkedBlockType || 'Geral',
+                        deadline: task.deadline || undefined,
+                        priority: task.priority || 'medium',
+                        description: task.description || "",
+                        subTasks: task.subTasks as any[] || []
+                    }}
+                />
             </div>
         );
     }

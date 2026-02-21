@@ -23,6 +23,7 @@ export const missionBlocks = pgTable('mission_blocks', {
 
     // Sub-tarefas guardadas como JSON estruturado
     subTasks: jsonb('sub_tasks').notNull().default([]),
+    description: text('description'),
 
     totalDuration: integer('total_duration').notNull(),
     type: text('type').default('unique'), // 'unique' | 'recurring'

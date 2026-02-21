@@ -767,6 +767,77 @@ export async function unassignTaskFromBlock(blockId: string, taskIndex: number, 
     }
 }
 
+export async function updateMissionSubTask(blockId: string, taskIndex: number, updates: any) {
+    const { userId } = await auth();
+    if (!userId) return { error: "Unauthorized" };
+
+    try {
+        let targetBlockId = blockId;
+
+        // Fork if virtual
+        if (blockId.includes("-virtual-")) {
+            const [realId, date] = blockId.split("-virtual-");
+            const [masterBlock] = await db.select().from(missionBlocks)
+                .where(and(eq(missionBlocks.id, realId), eq(missionBlocks.userId, userId)));
+
+            if (!masterBlock) return { error: "Master block not found" };
+
+            // Add Exception
+            const currentExceptions = (masterBlock.exceptions as string[]) || [];
+            if (!currentExceptions.includes(date)) {
+                await db.update(missionBlocks)
+                    .set({ exceptions: [...currentExceptions, date] })
+                    .where(eq(missionBlocks.id, realId));
+            }
+
+            // Create Unique Block
+            const [newBlock] = await db.insert(missionBlocks).values({
+                userId: userId,
+                title: masterBlock.title,
+                date: date,
+                startTime: masterBlock.startTime,
+                totalDuration: masterBlock.totalDuration,
+                color: masterBlock.color,
+                icon: masterBlock.icon,
+                type: 'unique',
+                recurrencePattern: null,
+                status: masterBlock.status,
+                subTasks: masterBlock.subTasks,
+                exceptions: [],
+            }).returning();
+
+            targetBlockId = newBlock.id;
+        }
+
+        const [block] = await db.select().from(missionBlocks)
+            .where(and(eq(missionBlocks.id, targetBlockId), eq(missionBlocks.userId, userId)));
+
+        if (!block) return { error: "Bloco não encontrado" };
+
+        const currentSubtasks = (block.subTasks as any[]) || [];
+
+        // Check index
+        if (taskIndex < 0 || taskIndex >= currentSubtasks.length) {
+            return { error: "Tarefa não encontrada no bloco" };
+        }
+
+        const newSubtasks = [...currentSubtasks];
+        newSubtasks[taskIndex] = { ...newSubtasks[taskIndex], ...updates };
+
+        // Update block
+        await db.update(missionBlocks)
+            .set({ subTasks: newSubtasks })
+            .where(eq(missionBlocks.id, targetBlockId));
+
+        revalidatePath("/dashboard");
+        return { success: true };
+
+    } catch (error: any) {
+        console.error("Error updating subtask:", error);
+        return { error: error.message || "Erro ao atualizar subtarefa" };
+    }
+}
+
 export async function toggleSubTaskCompletion(blockId: string, taskIndex: number, currentDone: boolean) {
     const { userId } = await auth();
     if (!userId) return { error: "Unauthorized" };
