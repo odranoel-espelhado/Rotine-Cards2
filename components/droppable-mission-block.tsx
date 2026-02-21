@@ -243,11 +243,11 @@ export function DroppableMissionBlock({ block, onDelete, onEdit, pendingBacklogT
 
     // Dynamic Height Logic
     // Base height for 30m = 80px (from passed height prop or default)
-    // Rule: +5% height for every extra 30 mins
+    // Rule: +5% height for every extra 10 mins (beyond base 30m)
     const expandedHeight = height || 80;
     const baseHeight = 80;
-    const extra30Segments = Math.max(0, (block.totalDuration - 30) / 30);
-    const collapsedHeight = baseHeight * (1 + extra30Segments * 0.10);
+    const extra10Segments = Math.max(0, (block.totalDuration - 30) / 10);
+    const collapsedHeight = baseHeight * (1 + extra10Segments * 0.05);
 
     const currentHeight = expanded ? expandedHeight : collapsedHeight;
 
