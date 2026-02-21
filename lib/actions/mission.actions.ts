@@ -504,6 +504,8 @@ export async function getUniqueBlockTypes() {
             title: missionBlocks.title,
             icon: missionBlocks.icon,
             color: missionBlocks.color,
+            subTasks: missionBlocks.subTasks,
+            type: missionBlocks.type,
             createdAt: missionBlocks.createdAt
         })
             .from(missionBlocks)
@@ -514,6 +516,15 @@ export async function getUniqueBlockTypes() {
         const uniqueBlocks: { label: string; icon: string; color: string; value: string }[] = [];
 
         for (const block of blocks) {
+            // Check if this block was explicitly created (not converted from a task)
+            // Explicit blocks are recurring, have NO subtasks, or have at least one fixed subtask.
+            const subTasksArr = Array.isArray(block.subTasks) ? block.subTasks : [];
+            const isExplicit = block.type === 'recurring' ||
+                subTasksArr.length === 0 ||
+                subTasksArr.some((s: any) => s.isFixed === true);
+
+            if (!isExplicit) continue;
+
             const normalizedTitle = block.title.trim().toLowerCase();
             const key = `${normalizedTitle}|${block.icon}`;
 

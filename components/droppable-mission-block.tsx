@@ -274,6 +274,25 @@ export function DroppableMissionBlock({ block, onDelete, onEdit, pendingBacklogT
 
     const Icon = BLOCK_ICONS.find(i => i.name === block.icon)?.icon || Zap;
 
+    // Calculate preview time during drag
+    let displayTime = block.startTime;
+    let isTimeChanged = false;
+    if (isDragging && transform) {
+        const deltaY = transform.y;
+        const steps = Math.round(deltaY / 37.5);
+        if (steps !== 0) {
+            const timeChangeMins = steps * 15;
+            const [h, m] = block.startTime.split(':').map(Number);
+            const totalMins = h * 60 + m + timeChangeMins;
+            if (totalMins >= 0 && totalMins < 24 * 60) {
+                const newH = Math.floor(totalMins / 60);
+                const newM = totalMins % 60;
+                displayTime = `${String(newH).padStart(2, '0')}:${String(newM).padStart(2, '0')}`;
+                isTimeChanged = true;
+            }
+        }
+    }
+
     return (
         <>
             <div
@@ -298,7 +317,12 @@ export function DroppableMissionBlock({ block, onDelete, onEdit, pendingBacklogT
                 </div>
 
                 {/* Time Marker */}
-                <span className="text-[10px] text-zinc-600 font-mono absolute left-2 top-0 mt-3 w-8 text-right pointer-events-none">{block.startTime}</span>
+                <span className={cn(
+                    "text-[10px] font-mono absolute left-2 top-0 mt-3 w-8 text-right pointer-events-none transition-all",
+                    isTimeChanged ? "text-amber-400 font-black scale-110 drop-shadow-[0_0_8px_rgba(251,191,36,0.8)]" : "text-zinc-600 font-medium"
+                )}>
+                    {displayTime}
+                </span>
 
                 <div
                     onClick={() => setExpanded(!expanded)}

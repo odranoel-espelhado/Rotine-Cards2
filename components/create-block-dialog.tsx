@@ -530,8 +530,8 @@ export function CreateBlockDialog({
                                 />
                             </div>
 
-                            {/* Replicate Checkbox - Only visible if Recurring */}
-                            {isRecurring && (
+                            {/* Replicate Checkbox - Only visible if Recurring and NOT editing */}
+                            {isRecurring && !isEditing && (
                                 <FormField
                                     control={form.control}
                                     name="replicateWeekdays"
