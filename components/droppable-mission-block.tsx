@@ -1,7 +1,7 @@
 "use client";
 
 import { useDroppable, useDraggable } from "@dnd-kit/core";
-import { MissionBlock, toggleMissionBlock, assignTasksToBlock, updateMissionBlock, unassignTaskFromBlock, deleteMissionBlock, toggleSubTaskCompletion, toggleNestedSubTaskCompletion } from "@/lib/actions/mission.actions";
+import { MissionBlock, toggleMissionBlock, assignTasksToBlock, updateMissionBlock, unassignTaskFromBlock, deleteMissionBlock, archiveMissionBlock, toggleSubTaskCompletion, toggleNestedSubTaskCompletion } from "@/lib/actions/mission.actions";
 import { BLOCK_ICONS } from "./constants";
 import { Zap, Trash2, Pencil, Check, Repeat, X, Plus, ChevronDown, ChevronUp, AlertTriangle, Archive, GripVertical } from "lucide-react";
 import { differenceInCalendarDays, parseISO } from "date-fns";
@@ -199,6 +199,7 @@ export function DroppableMissionBlock({ block, onDelete, onEdit, pendingBacklogT
 
     const totalDuration = block.totalDuration;
     const subTasks = (block.subTasks as any[]) || [];
+    const isFromTask = subTasks.some(s => s.isFromTask || s.originalTaskId); // Check if the block originated from a task
 
     // Calculate non-subtask time (remainder)
     const subTaskTotalDuration = subTasks.reduce((acc, curr) => acc + (parseInt(curr.duration) || 0), 0);
@@ -587,13 +588,32 @@ export function DroppableMissionBlock({ block, onDelete, onEdit, pendingBacklogT
                                 <button
                                     onClick={(e) => { e.stopPropagation(); onEdit(block); }}
                                     className="p-1 hover:bg-white/20 rounded text-white/80 hover:text-white transition-colors"
+                                    title="Editar bloco"
                                 >
                                     <Pencil className="h-3 w-3" />
+                                </button>
+                            )}
+                            {isFromTask && (
+                                <button
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        const promise = archiveMissionBlock(block.id);
+                                        toast.promise(promise, {
+                                            loading: 'Arquivando bloco...',
+                                            success: 'Bloco voltou para o backlog!',
+                                            error: 'Erro ao arquivar'
+                                        });
+                                    }}
+                                    className="p-1 hover:bg-emerald-500/20 rounded text-white/80 hover:text-emerald-500 transition-colors"
+                                    title="Arquivar bloco (voltar para Tarefas)"
+                                >
+                                    <Archive className="h-3 w-3" />
                                 </button>
                             )}
                             <button
                                 onClick={(e) => { e.stopPropagation(); setDeleteDialogOpen(true); }}
                                 className="p-1 hover:bg-red-500/20 rounded text-white/80 hover:text-red-500 transition-colors"
+                                title="Excluir bloco definitivamente"
                             >
                                 <Trash2 className="h-3 w-3" />
                             </button>

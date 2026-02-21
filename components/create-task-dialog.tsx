@@ -97,6 +97,17 @@ export function CreateTaskDialog({ availableBlockTypes = [], taskToEdit, open: c
         name: "subTasks",
     });
 
+    const watchedSubtasks = form.watch("subTasks");
+
+    useEffect(() => {
+        if (watchedSubtasks && watchedSubtasks.length > 0) {
+            const sum = watchedSubtasks.reduce((acc, sub) => acc + (Number(sub.duration) || 0), 0);
+            if (sum > 0 && form.getValues("estimatedDuration") !== sum) {
+                form.setValue("estimatedDuration", sum, { shouldValidate: true });
+            }
+        }
+    }, [watchedSubtasks, form]);
+
     useEffect(() => {
         if (open) {
             form.reset({
@@ -275,7 +286,16 @@ export function CreateTaskDialog({ availableBlockTypes = [], taskToEdit, open: c
                                     <FormItem className="flex-1">
                                         <FormLabel className="text-[10px] font-black text-zinc-500 uppercase ml-1">Duração (Min)</FormLabel>
                                         <FormControl>
-                                            <Input type="number" {...field} className="bg-white/5 border-white/10 h-10 rounded-xl text-center font-mono" />
+                                            <Input
+                                                type="number"
+                                                {...field}
+                                                className={cn(
+                                                    "bg-white/5 border-white/10 h-10 rounded-xl text-center font-mono",
+                                                    watchedSubtasks?.length > 0 && "opacity-50 cursor-not-allowed text-emerald-500/70"
+                                                )}
+                                                readOnly={watchedSubtasks?.length > 0}
+                                                title={watchedSubtasks?.length > 0 ? "Calculado automaticamente pelas subtarefas" : ""}
+                                            />
                                         </FormControl>
                                         <FormMessage />
                                     </FormItem>

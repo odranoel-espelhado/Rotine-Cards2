@@ -186,6 +186,38 @@ export async function createMissionBlock(data: Omit<NewMissionBlock, "id" | "use
     }
 }
 
+export async function archiveMissionBlock(id: string) {
+    const { userId } = await auth();
+    if (!userId) return { error: "Unauthorized" };
+
+    try {
+        // Fetch the block
+        const [block] = await db.select().from(missionBlocks).where(and(eq(missionBlocks.id, id), eq(missionBlocks.userId, userId)));
+        if (!block) return { error: "Bloco não encontrado" };
+
+        // Create backlog task from the entire block
+        await db.insert(backlogTasks).values({
+            userId,
+            title: block.title,
+            estimatedDuration: block.totalDuration,
+            status: 'pending',
+            createdAt: new Date(),
+            color: block.color,
+            subTasks: block.subTasks || [],
+            linkedBlockType: block.title !== 'Geral' ? block.title : undefined,
+        });
+
+        // Delete the block
+        await db.delete(missionBlocks).where(eq(missionBlocks.id, id));
+
+        revalidatePath("/dashboard");
+        return { success: true };
+    } catch (error: any) {
+        console.error("Error archiving block:", error);
+        return { error: error.message || "Erro ao arquivar bloco" };
+    }
+}
+
 export async function deleteMissionBlock(id: string, deleteAll: boolean = false) {
     const { userId } = await auth();
     if (!userId) return { error: "Unauthorized" };
@@ -582,7 +614,7 @@ export async function convertTaskToBlock(taskId: string, date: string, startTime
 
         let blockTitle = task.title;
         let blockDuration = task.estimatedDuration || 30;
-        let subTasksForBlock: any[] = [{ title: task.title, duration: blockDuration, done: false }];
+        let subTasksForBlock: any[] = [{ title: task.title, duration: blockDuration, done: false, isFromTask: true }];
 
         if (isVirtual && subTaskIndex !== -1 && task.subTasks) {
             const sub = (task.subTasks as any[])[subTaskIndex];
@@ -593,6 +625,8 @@ export async function convertTaskToBlock(taskId: string, date: string, startTime
                     title: blockTitle,
                     duration: blockDuration,
                     done: false,
+                    isFixed: true,
+                    isFromTask: true,
                     isVirtual: true,
                     originalTaskId: realTaskId,
                     originalSubTaskIndex: subTaskIndex
@@ -600,7 +634,11 @@ export async function convertTaskToBlock(taskId: string, date: string, startTime
             }
         } else {
             if (task.subTasks && Array.isArray(task.subTasks) && task.subTasks.length > 0) {
-                subTasksForBlock = task.subTasks as any;
+                subTasksForBlock = (task.subTasks as any[]).map(s => ({
+                    ...s,
+                    isFixed: true,
+                    isFromTask: true
+                }));
             }
         }
 
