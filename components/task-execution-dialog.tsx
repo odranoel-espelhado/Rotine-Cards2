@@ -132,10 +132,10 @@ export function TaskExecutionDialog({ open, onOpenChange, data }: TaskExecutionD
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-[450px] bg-[#050506] border border-white/10 text-white p-6 rounded-[2rem] shadow-2xl overflow-hidden max-h-[90vh] flex flex-col">
-                <DialogHeader className="mb-2 shrink-0">
-                    <DialogTitle className="text-xl font-black uppercase italic text-center text-white tracking-widest drop-shadow-[0_0_10px_rgba(255,255,255,0.5)]">
-                        Missão de Foco
+            <DialogContent className="sm:max-w-[600px] md:max-w-[800px] bg-[#050506] border border-white/10 text-white p-6 rounded-[2rem] shadow-2xl overflow-hidden max-h-[95vh] flex flex-col">
+                <DialogHeader className="mb-6 shrink-0 text-center">
+                    <DialogTitle className="text-2xl font-black uppercase italic text-white tracking-widest opacity-90">
+                        {data.type === 'mission-block' ? 'Execução do Bloco' : 'Execução da Tarefa'}
                     </DialogTitle>
                 </DialogHeader>
 
@@ -177,7 +177,7 @@ export function TaskExecutionDialog({ open, onOpenChange, data }: TaskExecutionD
                             <Textarea
                                 value={description}
                                 onChange={(e) => setDescription(e.target.value)}
-                                className="bg-[#121215] border border-blue-500/20 text-sm p-4 rounded-2xl custom-scrollbar resize-y min-h-[100px] focus-visible:ring-blue-500/30 transition-all hover:border-blue-500/40 text-white placeholder:text-zinc-700"
+                                className="bg-[#121215] border border-white/10 text-sm p-4 rounded-xl custom-scrollbar resize-y min-h-[250px] md:min-h-[350px] focus-visible:ring-emerald-500/30 transition-all hover:border-white/20 text-white placeholder:text-zinc-700"
                                 placeholder="Adicione os detalhes aqui..."
                             />
                             <Button
