@@ -13,59 +13,63 @@ import { differenceInCalendarDays, parseISO } from "date-fns";
 // Helper for Suggestions
 function getBestSuggestion(tasks: BacklogTask[], maxDuration: number, mode: 'block' | 'gap', blockType?: string): BacklogTask | undefined {
     const candidates: any[] = [];
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
 
     tasks.forEach(t => {
         if (t.status !== 'pending') return;
+
+        // Block type constraint
+        if (mode === 'block' && t.linkedBlockType && t.linkedBlockType !== blockType && t.linkedBlockType !== 'Geral') return;
+
         const duration = t.estimatedDuration || 30;
 
-        // 1. Try Main Task
+        // 1. Try Main Task whole
         if (duration <= maxDuration) {
-            if (mode === 'block') {
-                if (!t.linkedBlockType || t.linkedBlockType === blockType || t.linkedBlockType === 'Geral') {
-                    candidates.push(t);
-                }
-            } else {
-                candidates.push(t);
-            }
+            candidates.push(t);
         }
-        // 2. Try Subtasks (If Main Task too big)
-        else {
-            if (t.subTasks && (t.subTasks as any[]).length > 0) {
-                const subs = t.subTasks as any[];
-                const firstPendingIndex = subs.findIndex(s => !s.done);
 
-                if (firstPendingIndex !== -1) {
-                    const sub = subs[firstPendingIndex];
+        // 2. Explode and Try all unsolved Subtasks individually so they compete on duration and info
+        if (t.subTasks && (t.subTasks as any[]).length > 0) {
+            const subs = t.subTasks as any[];
+            subs.forEach((sub, index) => {
+                if (!sub.done) {
                     const subDuration = parseInt(sub.duration) || 15;
-
                     if (subDuration <= maxDuration) {
-                        // Check Block Type Constraint (inherited from parent)
-                        if (mode === 'block') {
-                            if (t.linkedBlockType && t.linkedBlockType !== blockType && t.linkedBlockType !== 'Geral') return;
-                        }
-
-                        // Create Virtual Task
                         candidates.push({
                             ...t,
-                            id: `${t.id}-sub-${firstPendingIndex}`, // Virtual ID to distinguish
+                            id: `${t.id}-sub-${index}`, // Virtual ID to distinguish
                             title: `${sub.title} - ${t.title}`,
                             estimatedDuration: subDuration,
-                            // specific props for backend
                             isVirtual: true,
                             originalTaskId: t.id,
-                            subTaskIndex: firstPendingIndex
+                            subTaskIndex: index
                         });
                     }
                 }
-            }
+            });
         }
     });
 
     if (candidates.length === 0) return undefined;
 
-    const priorityMap = { 'alta': 3, 'media': 2, 'baixa': 1 };
+    const getDeadlineScore = (deadline?: string) => {
+        if (!deadline) return 0;
+        const deadlineDate = parseISO(deadline);
+        deadlineDate.setHours(0, 0, 0, 0);
+        const daysLeft = differenceInCalendarDays(deadlineDate, today);
+        if (daysLeft <= 1) return 1; // Red deadline (Atrasado, Hoje, Amanhã)
+        return 0;
+    };
 
     return candidates.sort((a, b) => {
+        // 0. Deadline (Red Deadlines first -> 1 > 0)
+        const deadlineA = getDeadlineScore(a.deadline);
+        const deadlineB = getDeadlineScore(b.deadline);
+        if (deadlineA !== deadlineB) {
+            return deadlineB - deadlineA; // Higher score (1) comes first 
+        }
+
         // 1. Priority (Higher is better: alta > media > baixa)
         const priorityWeight: Record<string, number> = { high: 3, medium: 2, low: 1, alta: 3, media: 2, baixa: 1 };
 
