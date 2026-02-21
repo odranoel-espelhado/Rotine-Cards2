@@ -69,19 +69,19 @@ function getBestSuggestion(tasks: BacklogTask[], maxDuration: number, mode: 'blo
             return deadlineB - deadlineA; // Higher score (1) comes first 
         }
 
-        // 1. Duration (Maximize time usage! Largest possible fit wins)
-        const dA = a.estimatedDuration || 30;
-        const dB = b.estimatedDuration || 30;
-        if (dA !== dB) {
-            return dB - dA; // Longest duration first (descending)
-        }
-
-        // 2. Priority (Higher is better: alta > media > baixa)
+        // 1. Priority (Higher is better: alta > media > baixa)
         const priorityWeight: Record<string, number> = { high: 3, medium: 2, low: 1, alta: 3, media: 2, baixa: 1 };
         const pA = priorityWeight[a.priority?.toLowerCase() || 'medium'] || 1;
         const pB = priorityWeight[b.priority?.toLowerCase() || 'medium'] || 1;
         if (pA !== pB) {
             return pB - pA; // Higher priority first
+        }
+
+        // 2. Duration (Maximize time usage! Largest possible fit wins among same priority tasks)
+        const dA = a.estimatedDuration || 30;
+        const dB = b.estimatedDuration || 30;
+        if (dA !== dB) {
+            return dB - dA; // Longest duration first (descending)
         }
 
         // 3. GAP Bonus: Prefer tasks without specific block (Geral)
