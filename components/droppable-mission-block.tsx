@@ -1,9 +1,9 @@
 "use client";
 
-import { useDroppable } from "@dnd-kit/core";
+import { useDroppable, useDraggable } from "@dnd-kit/core";
 import { MissionBlock, toggleMissionBlock, assignTasksToBlock, updateMissionBlock, unassignTaskFromBlock, deleteMissionBlock, toggleSubTaskCompletion, toggleNestedSubTaskCompletion } from "@/lib/actions/mission.actions";
 import { BLOCK_ICONS } from "./constants";
-import { Zap, Trash2, Pencil, Check, Repeat, X, Plus, ChevronDown, ChevronUp, AlertTriangle, Archive } from "lucide-react";
+import { Zap, Trash2, Pencil, Check, Repeat, X, Plus, ChevronDown, ChevronUp, AlertTriangle, Archive, GripVertical } from "lucide-react";
 import { differenceInCalendarDays, parseISO } from "date-fns";
 // ... (rest of imports)
 
@@ -132,9 +132,14 @@ interface MissionBlockProps {
 }
 
 export function DroppableMissionBlock({ block, onDelete, onEdit, pendingBacklogTasks = [], height, currentTimeOffset }: MissionBlockProps) {
-    const { isOver, setNodeRef } = useDroppable({
+    const { isOver, setNodeRef: setDroppableRef } = useDroppable({
         id: block.id,
         data: { type: 'mission-block', block }
+    });
+
+    const { attributes, listeners, setNodeRef: setDraggableRef, transform, isDragging } = useDraggable({
+        id: `drag-${block.id}`,
+        data: { type: 'mission-block-drag', block }
     });
 
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -271,9 +276,29 @@ export function DroppableMissionBlock({ block, onDelete, onEdit, pendingBacklogT
 
     return (
         <>
-            <div ref={setNodeRef} className="relative w-full group mb-4 pl-12">
+            <div
+                ref={(node) => {
+                    setDroppableRef(node);
+                    setDraggableRef(node);
+                }}
+                className={cn("relative w-full group mb-4 pl-12 transition-opacity", isDragging ? "opacity-50 z-50" : "z-10")}
+                style={transform ? {
+                    transform: `translate3d(0, ${Math.round(transform.y / 37.5) * 37.5}px, 0)`,
+                    position: 'relative'
+                } : undefined}
+            >
+                {/* Drag Handle */}
+                <div
+                    {...listeners}
+                    {...attributes}
+                    className="absolute left-2 top-0 bottom-0 flex items-center justify-center w-8 cursor-grab active:cursor-grabbing text-zinc-600 hover:text-white opacity-0 group-hover:opacity-100 transition-opacity z-50"
+                    title="Arraste para ajustar o horário (15 em 15 min)"
+                >
+                    <GripVertical className="w-4 h-4" />
+                </div>
+
                 {/* Time Marker */}
-                <span className="text-[10px] text-zinc-600 font-mono absolute left-2 top-0 mt-3 w-8 text-right">{block.startTime}</span>
+                <span className="text-[10px] text-zinc-600 font-mono absolute left-2 top-0 mt-3 w-8 text-right pointer-events-none">{block.startTime}</span>
 
                 <div
                     onClick={() => setExpanded(!expanded)}

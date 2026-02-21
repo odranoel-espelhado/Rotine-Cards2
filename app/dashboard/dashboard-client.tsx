@@ -6,7 +6,7 @@ import { useState, useRef, useEffect } from "react";
 import { CartesianGrid, PolarAngleAxis, PolarGrid, Radar, RadarChart, ResponsiveContainer } from "recharts";
 import { MissionBlock, getUniqueBlockTypes, checkAndArchivePastTasks } from "@/lib/actions/mission.actions";
 import { Button } from "@/components/ui/button";
-import { deleteMissionBlock } from "@/lib/actions/mission.actions";
+import { deleteMissionBlock, updateMissionBlock } from "@/lib/actions/mission.actions";
 import { useRouter } from "next/navigation";
 import { format, addDays, subDays, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -283,6 +283,34 @@ export default function DashboardClient({
                 success: 'Bloco criado!',
                 error: 'Erro ao criar bloco'
             });
+        }
+
+        // Handle block time drag (15 min intervals)
+        if (active.data.current?.type === 'mission-block-drag') {
+            const deltaY = event.delta.y;
+            // 15 minutes = 37.5 pixels (assuming PIXELS_PER_MINUTE = 2.5)
+            const steps = Math.round(deltaY / 37.5);
+
+            if (steps !== 0) {
+                const block = active.data.current.block as MissionBlock;
+                const timeChangeMins = steps * 15;
+
+                const [h, m] = block.startTime.split(':').map(Number);
+                const totalMins = h * 60 + m + timeChangeMins;
+
+                // Ensure it stays within the same day
+                if (totalMins >= 0 && totalMins < 24 * 60) {
+                    const newH = Math.floor(totalMins / 60);
+                    const newM = totalMins % 60;
+                    const newTime = `${String(newH).padStart(2, '0')}:${String(newM).padStart(2, '0')}`;
+
+                    toast.promise(updateMissionBlock(block.id, { startTime: newTime }), {
+                        loading: 'Reprogramando...',
+                        success: 'Horário ajustado!',
+                        error: 'Erro ao ajustar horário'
+                    });
+                }
+            }
         }
     };
 
