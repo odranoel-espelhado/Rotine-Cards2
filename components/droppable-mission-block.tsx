@@ -382,7 +382,10 @@ export function DroppableMissionBlock({ block, onDelete, onEdit, pendingBacklogT
                                             type: 'mission-block',
                                             title: block.title,
                                             description: (block as any).description || "",
-                                            subTasks: block.subTasks as any[] || []
+                                            subTasks: block.subTasks as any[] || [],
+                                            priority: (block as any).priority || 'media',
+                                            linkedBlockType: (block as any).linkedBlockType || block.title,
+                                            deadline: (block as any).deadline
                                         });
                                         setExecutionDialogOpen(true);
                                     } : undefined}
@@ -511,9 +514,11 @@ export function DroppableMissionBlock({ block, onDelete, onEdit, pendingBacklogT
                                                                                 type: 'mission-subtask',
                                                                                 subTaskIndex: i,
                                                                                 title: sub.title,
-                                                                                linkedBlockType: block.title,
-                                                                                description: sub.description || "",
-                                                                                subTasks: sub.subTasks || []
+                                                                                linkedBlockType: sub.originalLinkedBlockType || (block as any).linkedBlockType || block.title,
+                                                                                description: sub.description || (block as any).description || "",
+                                                                                subTasks: sub.subTasks || [],
+                                                                                priority: sub.originalPriority || (block as any).priority || 'media',
+                                                                                deadline: sub.deadline || (block as any).deadline
                                                                             });
                                                                             setExecutionDialogOpen(true);
                                                                         }}

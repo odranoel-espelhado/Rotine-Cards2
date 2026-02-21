@@ -203,8 +203,11 @@ export async function archiveMissionBlock(id: string) {
             status: 'pending',
             createdAt: new Date(),
             color: block.color,
+            description: block.description,
+            priority: block.priority || 'media',
+            deadline: block.deadline,
             subTasks: block.subTasks || [],
-            linkedBlockType: block.title !== 'Geral' ? block.title : undefined,
+            linkedBlockType: block.linkedBlockType || (block.title !== 'Geral' ? block.title : undefined),
         });
 
         // Delete the block
@@ -661,7 +664,11 @@ export async function convertTaskToBlock(taskId: string, date: string, startTime
             totalDuration: blockDuration,
             status: 'pending' as const,
             type: 'unique' as const,
-            subTasks: subTasksForBlock
+            subTasks: subTasksForBlock,
+            description: task.description,
+            priority: task.priority,
+            linkedBlockType: task.linkedBlockType,
+            deadline: task.deadline
         };
 
         await db.insert(missionBlocks).values(newBlock);
@@ -755,6 +762,7 @@ export async function unassignTaskFromBlock(blockId: string, taskIndex: number, 
                 linkedBlockType: taskData.originalLinkedBlockType,
                 color: taskData.originalColor || '#27272a',
                 deadline: taskData.deadline,
+                description: taskData.description,
                 subTasks: taskData.subTasks || []
             });
         }
