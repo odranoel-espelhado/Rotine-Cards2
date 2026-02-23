@@ -340,10 +340,6 @@ export function DroppableMissionBlock({ block, onDelete, onEdit, pendingBacklogT
                     setDraggableRef(node);
                 }}
                 className={cn("relative w-full group mb-4 pl-12 transition-opacity", isDragging ? "opacity-50 z-50" : "z-10")}
-                style={transform ? {
-                    transform: `translate3d(0, ${visualDeltaY}px, 0)`,
-                    position: 'relative'
-                } : undefined}
             >
                 {/* Drag Handle */}
                 <div
