@@ -134,14 +134,16 @@ export default function DashboardClient({
     initialCards,
     initialStats,
     userId,
-    currentDate
+    currentDate,
+    settings
 }: {
     initialBlocks: MissionBlock[],
     initialBacklog: BacklogTask[],
     initialCards: TacticalCard[],
-    initialStats: any[], // TODO: Define proper type
+    initialStats: any[],
     userId: string,
-    currentDate: string
+    currentDate: string,
+    settings: any
 }) {
     const router = useRouter();
     const [selectedDate, setSelectedDate] = useState<string>(currentDate);
@@ -163,7 +165,10 @@ export default function DashboardClient({
 
     // Check for past tasks to archive on mount
     useEffect(() => {
-        checkAndArchivePastTasks(format(new Date(), 'yyyy-MM-dd'));
+        checkAndArchivePastTasks(
+            format(new Date(), 'yyyy-MM-dd'),
+            format(new Date(), 'HH:mm')
+        );
     }, []);
 
     // Auto-scroll logic for current time line
@@ -415,7 +420,7 @@ export default function DashboardClient({
 
                     <div className="flex items-center gap-4">
                         {!focusMode && (
-                            <SettingsDialog />
+                            <SettingsDialog initialSettings={settings} />
                         )}
                         {focusMode && (
                             <Button variant="outline" size="sm" onClick={() => setFocusMode(false)} className="border-red-500/50 text-red-500 hover:bg-red-500/10">
@@ -514,7 +519,7 @@ export default function DashboardClient({
                                             const prevBlock = index > 0 ? blocks[index - 1] : null;
 
                                             // Gap Logic: Between Blocks
-                                            let gapStart = prevBlock ? getMinutes(prevBlock.startTime) + prevBlock.totalDuration : 0;
+                                            let gapStart = prevBlock ? getMinutes(prevBlock.startTime) + prevBlock.totalDuration : getMinutes(settings.timelineStart || '08:00');
 
                                             let showGap = false;
                                             let gapDuration = 0;
@@ -602,8 +607,8 @@ export default function DashboardClient({
                                         // If no blocks, gap starts at 0.
                                         // If blocks, gap starts at lastBlockEnd.
 
-                                        const dayEndMins = 24 * 60; // 1440
-                                        let gapStart = 0;
+                                        const dayEndMins = getMinutes(settings.timelineEnd || '24:00');
+                                        let gapStart = getMinutes(settings.timelineStart || '08:00');
 
                                         if (lastBlock) {
                                             const getMins = (t: string) => { const [h, m] = t.split(':').map(Number); return h * 60 + m; };

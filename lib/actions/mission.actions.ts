@@ -7,6 +7,7 @@ import { eq, and, desc, inArray, lt } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { startOfWeek, addDays, format, parseISO } from "date-fns";
 import { toggleBacklogSubTask } from "@/lib/actions/backlog.actions";
+import { getUserSettings } from "@/lib/actions/user.actions";
 
 export type MissionBlock = typeof missionBlocks.$inferSelect;
 export type NewMissionBlock = typeof missionBlocks.$inferInsert;
@@ -938,20 +939,41 @@ export async function toggleSubTaskCompletion(blockId: string, taskIndex: number
     }
 }
 
-export async function checkAndArchivePastTasks(clientDate?: string) {
+export async function checkAndArchivePastTasks(clientDate?: string, clientTime?: string) {
     const { userId } = await auth();
     if (!userId) return { error: "Unauthorized" };
 
     try {
-        const today = clientDate || format(new Date(), 'yyyy-MM-dd');
+        const settings = await getUserSettings();
+        if (!settings?.autoArchive) {
+            return { success: true, reason: "Auto-archive disabled" };
+        }
 
-        const pastBlocks = await db.select()
+        const today = clientDate || format(new Date(), 'yyyy-MM-dd');
+        const currentTime = clientTime || format(new Date(), 'HH:mm');
+        const autoArchiveTime = settings.autoArchiveTime || '23:59';
+
+        // Is it time to archive today's tasks?
+        const isPastTodayArchiveTime = currentTime >= autoArchiveTime;
+
+        // Condition to archive:
+        // 1. Block date is less than today (yesterday or before).
+        // 2. OR: Block date is today, AND current time is >= autoArchiveTime.
+        // Wait, if autoArchiveTime is 03:00, and current time is 01:00 (next day, so Date is "today" for the system, but meant to be "yesterday" for user).
+        // Let's keep it simple: We fetch all unique blocks that are not completed. We then filter them by time.
+
+        const pendingBlocks = await db.select()
             .from(missionBlocks)
             .where(and(
                 eq(missionBlocks.userId, userId),
-                lt(missionBlocks.date, today),
                 eq(missionBlocks.type, 'unique')
             ));
+
+        const pastBlocks = pendingBlocks.filter(block => {
+            if (block.date < today) return true;
+            if (block.date === today && currentTime >= autoArchiveTime) return true;
+            return false;
+        });
 
         for (const block of pastBlocks) {
             const currentSubtasks = (block.subTasks as any[]) || [];

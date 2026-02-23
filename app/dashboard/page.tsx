@@ -1,10 +1,10 @@
 import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
-import { syncUser } from "@/lib/actions/user.actions";
 import { getMissionBlocks } from "@/lib/actions/mission.actions";
 import { getBacklogTasks } from "@/lib/actions/backlog.actions";
 import { getTacticalCards } from "@/lib/actions/cards.actions";
 import { getEfficiencyStats } from "@/lib/actions/analytics.actions";
+import { getUserSettings, syncUser } from "@/lib/actions/user.actions";
 import DashboardClient from "./dashboard-client";
 
 type SearchParams = Promise<{ [key: string]: string | string[] | undefined }>
@@ -21,6 +21,7 @@ export default async function DashboardPage(props: {
 
     // 1. Ensure user exists in our DB
     await syncUser();
+    const settings = await getUserSettings();
 
     // 2. Determine Date (default to today)
     const today = new Date().toISOString().split('T')[0];
@@ -41,6 +42,7 @@ export default async function DashboardPage(props: {
             initialStats={stats}
             userId={userId}
             currentDate={currentDate}
+            settings={settings}
         />
     );
 }

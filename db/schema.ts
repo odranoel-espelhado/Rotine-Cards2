@@ -7,6 +7,7 @@ export const users = pgTable('users', {
     email: text('email').notNull(),
     name: text('name'),
     avatarUrl: text('avatar_url'),
+    settings: jsonb('settings').default({}),
     createdAt: timestamp('created_at').defaultNow().notNull(),
 });
 
