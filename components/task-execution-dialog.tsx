@@ -133,7 +133,15 @@ export function TaskExecutionDialog({ open, onOpenChange, data }: TaskExecutionD
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-[600px] md:max-w-[800px] bg-[#050506] border border-white/10 text-white p-6 rounded-[2rem] shadow-2xl overflow-hidden max-h-[95vh] flex flex-col">
+            <DialogContent
+                className="sm:max-w-[600px] md:max-w-[800px] bg-[#050506] border border-white/10 text-white p-6 rounded-[2rem] shadow-2xl overflow-hidden max-h-[95vh] flex flex-col"
+                onPointerDown={(e) => e.stopPropagation()}
+                onPointerMove={(e) => e.stopPropagation()}
+                onPointerUp={(e) => e.stopPropagation()}
+                onTouchStart={(e) => e.stopPropagation()}
+                onTouchMove={(e) => e.stopPropagation()}
+                onTouchEnd={(e) => e.stopPropagation()}
+            >
                 <DialogHeader className="mb-6 shrink-0 text-center">
                     <DialogTitle className="text-2xl font-black uppercase italic text-white tracking-widest opacity-90">
                         {data.type === 'mission-block' ? 'Execução do Bloco' : 'Execução da Tarefa'}
