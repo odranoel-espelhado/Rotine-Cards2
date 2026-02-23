@@ -938,12 +938,12 @@ export async function toggleSubTaskCompletion(blockId: string, taskIndex: number
     }
 }
 
-export async function checkAndArchivePastTasks() {
+export async function checkAndArchivePastTasks(clientDate?: string) {
     const { userId } = await auth();
     if (!userId) return { error: "Unauthorized" };
 
     try {
-        const today = format(new Date(), 'yyyy-MM-dd');
+        const today = clientDate || format(new Date(), 'yyyy-MM-dd');
 
         const pastBlocks = await db.select()
             .from(missionBlocks)

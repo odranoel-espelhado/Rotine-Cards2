@@ -163,7 +163,7 @@ export default function DashboardClient({
 
     // Check for past tasks to archive on mount
     useEffect(() => {
-        checkAndArchivePastTasks();
+        checkAndArchivePastTasks(format(new Date(), 'yyyy-MM-dd'));
     }, []);
 
     // Auto-scroll logic for current time line
