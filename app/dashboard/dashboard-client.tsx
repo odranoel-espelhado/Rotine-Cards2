@@ -452,7 +452,7 @@ export default function DashboardClient({
                                 onMouseUp={stopDragging}
                                 onMouseMove={onDrag}
                                 className={cn(
-                                    "w-full overflow-x-auto pb-4 custom-scrollbar flex gap-3 cursor-grab select-none active:cursor-grabbing",
+                                    "w-full overflow-x-auto pt-2 pb-4 custom-scrollbar flex gap-3 cursor-grab select-none active:cursor-grabbing",
                                     focusMode ? "opacity-20 pointer-events-none grayscale" : ""
                                 )}
                                 style={{ scrollBehavior: isDragging ? 'auto' : 'smooth' }}
