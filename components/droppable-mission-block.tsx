@@ -434,14 +434,14 @@ export function DroppableMissionBlock({ block, onDelete, onEdit, pendingBacklogT
                                 )}
                             </div>
 
-                            <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 mb-2">
+                            <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-4 mb-1 sm:mb-2">
                                 {/* Suggestion Buttons (Now inline, order 1 on mobile to appear above time) */}
-                                <div className="flex items-center gap-2 order-1 sm:order-2">
+                                <div className="flex items-center gap-1 sm:gap-2 order-1 sm:order-2 min-w-0">
                                     {suggestedTask && (
                                         <Button
                                             size="sm"
                                             variant="ghost"
-                                            className="h-6 text-[9px] bg-white/10 hover:bg-white/20 text-white border border-white/5 px-2 rounded-full"
+                                            className="h-4 sm:h-6 text-[8px] sm:text-[9px] bg-white/10 hover:bg-white/20 text-white border border-white/5 py-0 px-1.5 sm:px-2 rounded-full shrink"
                                             onClick={(e) => {
                                                 e.stopPropagation();
                                                 toast.promise(assignTasksToBlock(block.id, [suggestedTask]), {
@@ -451,26 +451,27 @@ export function DroppableMissionBlock({ block, onDelete, onEdit, pendingBacklogT
                                                 });
                                             }}
                                         >
-                                            <Plus className="w-3 h-3 mr-1" />
-                                            {suggestedTask.title}
+                                            <Plus className="w-2 h-2 sm:w-3 sm:h-3 mr-0.5 sm:mr-1 shrink-0" />
+                                            <span className="truncate max-w-[60px] sm:max-w-none">{suggestedTask.title}</span>
                                         </Button>
                                     )}
                                     <Button
                                         size="sm"
                                         variant="ghost"
-                                        className="h-6 text-[9px] bg-white/5 hover:bg-white/10 text-white/70 px-2 rounded-full"
+                                        className="h-4 sm:h-6 text-[8px] sm:text-[9px] bg-white/5 hover:bg-white/10 text-white/70 py-0 px-1.5 sm:px-2 rounded-full shrink-0"
                                         onClick={(e) => {
                                             e.stopPropagation();
                                             setAddTasksDialogOpen(true);
                                         }}
                                     >
-                                        <Plus className="w-3 h-3 mr-1" />
-                                        Organizar
+                                        <Plus className="w-2 h-2 sm:w-3 sm:h-3 mr-0.5 sm:mr-1 shrink-0" />
+                                        <span className="hidden xs:inline sm:hidden lg:inline">Org.</span>
+                                        <span className="inline xs:hidden sm:inline lg:hidden">Organizar</span>
                                     </Button>
                                 </div>
 
                                 <div className={cn(
-                                    "flex gap-2 text-[10px] font-bold uppercase tracking-widest transition-colors duration-300 order-2 sm:order-1",
+                                    "flex gap-2 text-[9px] sm:text-[10px] font-bold uppercase tracking-widest transition-colors duration-300 order-2 sm:order-1",
                                     optimisticCompleted ? "text-[#3a3a3a]" : "text-white/60"
                                 )}>
                                     <span>{block.totalDuration} MIN</span>

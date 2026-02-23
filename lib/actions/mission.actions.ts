@@ -957,6 +957,28 @@ export async function checkAndArchivePastTasks() {
             const currentSubtasks = (block.subTasks as any[]) || [];
             if (currentSubtasks.length === 0) continue;
 
+            const isFromTask = currentSubtasks.some(s => s.isFromTask || s.originalTaskId);
+
+            // Se o bloco foi gerado por uma tarefa e não foi concluído, arquiva o bloco inteiro
+            if (isFromTask && block.status !== 'completed') {
+                await db.insert(backlogTasks).values({
+                    userId,
+                    title: block.title,
+                    estimatedDuration: block.totalDuration,
+                    status: 'pending',
+                    createdAt: new Date(),
+                    color: block.color,
+                    description: block.description,
+                    priority: block.priority || 'media',
+                    deadline: block.deadline,
+                    subTasks: block.subTasks || [],
+                    linkedBlockType: block.linkedBlockType || (block.title !== 'Geral' ? block.title : undefined),
+                });
+                await db.delete(missionBlocks).where(eq(missionBlocks.id, block.id));
+                continue;
+            }
+
+            // Se for um bloco comum (ex: "Geral", criado no Agendar), arquiva apenas as subtarefas alocadas não fixas
             const tasksToArchive = currentSubtasks.filter(t => !t.done && !t.isFixed);
 
             if (tasksToArchive.length > 0) {
@@ -968,7 +990,7 @@ export async function checkAndArchivePastTasks() {
                         estimatedDuration: parseInt(task.duration) || 15,
                         status: 'pending',
                         createdAt: new Date(),
-                        priority: task.originalPriority || 'medium',
+                        priority: task.originalPriority || 'media',
                         linkedBlockType: task.originalLinkedBlockType,
                         color: task.originalColor || '#27272a',
                         deadline: task.deadline,
