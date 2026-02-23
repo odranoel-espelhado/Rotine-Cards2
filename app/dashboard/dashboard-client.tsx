@@ -26,6 +26,7 @@ import { cn } from "@/lib/utils";
 import { CardHistory, CardLog } from "@/components/card-history";
 import { SettingsDialog } from "@/components/settings-dialog";
 import { TaskPickerDialog } from "@/components/task-picker-dialog";
+import { DroppableBoundary } from "@/components/droppable-boundary";
 
 // Helper for Suggestions
 function getBestSuggestion(tasks: BacklogTask[], maxDuration: number, mode: 'block' | 'gap', blockType?: string): BacklogTask | undefined {
@@ -250,7 +251,7 @@ export default function DashboardClient({
         const { active, over } = event;
         setActiveTask(null);
 
-        if (over && active.data.current?.type === 'backlog-task') {
+        if (over && active.data.current?.type === 'backlog-task' && over.data.current?.type === 'mission-block') {
             const taskId = active.id as string;
             const blockId = over.id as string;
 
@@ -508,6 +509,11 @@ export default function DashboardClient({
                                 </div>
                                 <div className="flex-1 overflow-y-auto p-6 relative space-y-4 custom-scrollbar">
                                     <div className="absolute top-6 left-6 h-full w-[2px] bg-white/5 z-0"></div>
+                                    <DroppableBoundary
+                                        id={`boundary-start-${selectedDate}`}
+                                        time={settings.timelineStart || '08:00'}
+                                        label="Início do Dia"
+                                    />
                                     {blocks.length === 0 ? (
                                         <div className="flex flex-col items-center justify-center h-48 text-zinc-500 mt-10 relative z-10">
                                             <CalendarIcon className="h-12 w-12 mb-4 opacity-20" />
@@ -649,7 +655,11 @@ export default function DashboardClient({
                                         }
                                         return null;
                                     })()}
-
+                                    <DroppableBoundary
+                                        id={`boundary-end-${selectedDate}`}
+                                        time={settings.timelineEnd || '24:00'}
+                                        label="Fim do Dia"
+                                    />
                                     {/* Auto-scroll to Current Time */}
                                     <div id="scroll-target" />
                                     <div className="h-20"></div>
