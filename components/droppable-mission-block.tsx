@@ -421,7 +421,7 @@ export function DroppableMissionBlock({ block, onDelete, onEdit, pendingBacklogT
                                         setExecutionDialogOpen(true);
                                     } : undefined}
                                     className={cn(
-                                        "text-lg font-black uppercase tracking-wider truncate transition-colors duration-300",
+                                        "text-lg font-black uppercase tracking-wider truncate transition-colors duration-300 inline-block w-fit max-w-full",
                                         isFromTask ? "cursor-pointer hover:underline hover:text-blue-400" : "",
                                         optimisticCompleted ? "text-[var(--block-color)] line-through" : "text-white"
                                     )}
@@ -434,16 +434,9 @@ export function DroppableMissionBlock({ block, onDelete, onEdit, pendingBacklogT
                                 )}
                             </div>
 
-                            <div className="flex flex-wrap items-center gap-4 mb-2">
-                                <div className={cn(
-                                    "flex gap-2 text-[10px] font-bold uppercase tracking-widest transition-colors duration-300",
-                                    optimisticCompleted ? "text-[#3a3a3a]" : "text-white/60"
-                                )}>
-                                    <span>{block.totalDuration} MIN</span>
-                                </div>
-
-                                {/* Suggestion Buttons (Now inline) */}
-                                <div className="flex items-center gap-2">
+                            <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 mb-2">
+                                {/* Suggestion Buttons (Now inline, order 1 on mobile to appear above time) */}
+                                <div className="flex items-center gap-2 order-1 sm:order-2">
                                     {suggestedTask && (
                                         <Button
                                             size="sm"
@@ -474,6 +467,13 @@ export function DroppableMissionBlock({ block, onDelete, onEdit, pendingBacklogT
                                         <Plus className="w-3 h-3 mr-1" />
                                         Organizar
                                     </Button>
+                                </div>
+
+                                <div className={cn(
+                                    "flex gap-2 text-[10px] font-bold uppercase tracking-widest transition-colors duration-300 order-2 sm:order-1",
+                                    optimisticCompleted ? "text-[#3a3a3a]" : "text-white/60"
+                                )}>
+                                    <span>{block.totalDuration} MIN</span>
                                 </div>
                             </div>
 
@@ -647,8 +647,11 @@ export function DroppableMissionBlock({ block, onDelete, onEdit, pendingBacklogT
                             )}
                         </div>
 
-                        {/* Actions (Slide in on hover) */}
-                        <div className="flex flex-col gap-2 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity absolute right-4 top-4 z-20">
+                        {/* Actions (Slide in on hover / Display on expand on mobile) */}
+                        <div className={cn(
+                            "flex-col gap-2 transition-opacity absolute right-4 top-4 z-20",
+                            expanded ? "flex opacity-100" : "hidden lg:flex lg:opacity-0 lg:group-hover:opacity-100"
+                        )}>
                             {onEdit && (
                                 <button
                                     onClick={(e) => { e.stopPropagation(); onEdit(block); }}
