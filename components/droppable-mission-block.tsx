@@ -97,7 +97,7 @@ function getBestSuggestion(tasks: BacklogTask[], maxDuration: number, mode: 'blo
     })[0];
 }
 
-import { cn } from "@/lib/utils";
+import { cn, calculateDynamicTimeChange } from "@/lib/utils";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import {
@@ -313,11 +313,14 @@ export function DroppableMissionBlock({ block, onDelete, onEdit, pendingBacklogT
     // Calculate preview time during drag
     let displayTime = block.startTime;
     let isTimeChanged = false;
+    let visualDeltaY = 0;
+
     if (isDragging && transform) {
         const deltaY = transform.y;
-        const steps = Math.round(deltaY / 37.5);
-        if (steps !== 0) {
-            const timeChangeMins = steps * 15;
+        const timeChangeMins = calculateDynamicTimeChange(deltaY);
+        visualDeltaY = timeChangeMins * 2.5; // Snap visually to the calculated minutes
+
+        if (timeChangeMins !== 0) {
             const [h, m] = block.startTime.split(':').map(Number);
             const totalMins = h * 60 + m + timeChangeMins;
             if (totalMins >= 0 && totalMins < 24 * 60) {
@@ -338,7 +341,7 @@ export function DroppableMissionBlock({ block, onDelete, onEdit, pendingBacklogT
                 }}
                 className={cn("relative w-full group mb-4 pl-12 transition-opacity", isDragging ? "opacity-50 z-50" : "z-10")}
                 style={transform ? {
-                    transform: `translate3d(0, ${Math.round(transform.y / 37.5) * 37.5}px, 0)`,
+                    transform: `translate3d(0, ${visualDeltaY}px, 0)`,
                     position: 'relative'
                 } : undefined}
             >

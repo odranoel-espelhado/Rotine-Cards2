@@ -22,7 +22,7 @@ import { DndContext, DragEndEvent, DragOverlay, DragStartEvent, useSensor, useSe
 import { BacklogItemCard } from "@/components/backlog-item-card";
 import { DroppableMissionBlock } from "@/components/droppable-mission-block";
 import { toast } from "sonner";
-import { cn } from "@/lib/utils";
+import { cn, calculateDynamicTimeChange } from "@/lib/utils";
 import { CardHistory, CardLog } from "@/components/card-history";
 import { SettingsDialog } from "@/components/settings-dialog";
 import { TaskPickerDialog } from "@/components/task-picker-dialog";
@@ -291,16 +291,13 @@ export default function DashboardClient({
             });
         }
 
-        // Handle block time drag (15 min intervals)
+        // Handle block time drag (dynamic scaling by distance)
         if (active.data.current?.type === 'mission-block-drag') {
             const deltaY = event.delta.y;
-            // 15 minutes = 37.5 pixels (assuming PIXELS_PER_MINUTE = 2.5)
-            const steps = Math.round(deltaY / 37.5);
+            const timeChangeMins = calculateDynamicTimeChange(deltaY);
 
-            if (steps !== 0) {
+            if (timeChangeMins !== 0) {
                 const block = active.data.current.block as MissionBlock;
-                const timeChangeMins = steps * 15;
-
                 const [h, m] = block.startTime.split(':').map(Number);
                 const totalMins = h * 60 + m + timeChangeMins;
 
