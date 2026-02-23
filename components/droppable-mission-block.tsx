@@ -441,7 +441,7 @@ export function DroppableMissionBlock({ block, onDelete, onEdit, pendingBacklogT
                                         <Button
                                             size="sm"
                                             variant="ghost"
-                                            className="h-4 sm:h-6 text-[8px] sm:text-[9px] bg-white/10 hover:bg-white/20 text-white border border-white/5 py-0 px-1.5 sm:px-2 rounded-full shrink"
+                                            className="h-5 sm:h-6 text-[9px] sm:text-[10px] bg-white/10 hover:bg-white/20 text-white border border-white/5 py-0 px-1.5 sm:px-2 rounded-full shrink"
                                             onClick={(e) => {
                                                 e.stopPropagation();
                                                 toast.promise(assignTasksToBlock(block.id, [suggestedTask]), {
@@ -451,22 +451,21 @@ export function DroppableMissionBlock({ block, onDelete, onEdit, pendingBacklogT
                                                 });
                                             }}
                                         >
-                                            <Plus className="w-2 h-2 sm:w-3 sm:h-3 mr-0.5 sm:mr-1 shrink-0" />
+                                            <Plus className="w-2.5 h-2.5 sm:w-3 sm:h-3 mr-0.5 sm:mr-1 shrink-0" />
                                             <span className="truncate max-w-[60px] sm:max-w-none">{suggestedTask.title}</span>
                                         </Button>
                                     )}
                                     <Button
                                         size="sm"
                                         variant="ghost"
-                                        className="h-4 sm:h-6 text-[8px] sm:text-[9px] bg-white/5 hover:bg-white/10 text-white/70 py-0 px-1.5 sm:px-2 rounded-full shrink-0"
+                                        className="h-5 sm:h-6 text-[9px] sm:text-[10px] bg-white/5 hover:bg-white/10 text-white/70 py-0 px-2 sm:px-3 rounded-full shrink-0"
                                         onClick={(e) => {
                                             e.stopPropagation();
                                             setAddTasksDialogOpen(true);
                                         }}
                                     >
-                                        <Plus className="w-2 h-2 sm:w-3 sm:h-3 mr-0.5 sm:mr-1 shrink-0" />
-                                        <span className="hidden xs:inline sm:hidden lg:inline">Org.</span>
-                                        <span className="inline xs:hidden sm:inline lg:hidden">Organizar</span>
+                                        <Plus className="w-2.5 h-2.5 sm:w-3 sm:h-3 mr-1 shrink-0 text-white/50" />
+                                        <span>Organizar</span>
                                     </Button>
                                 </div>
 
