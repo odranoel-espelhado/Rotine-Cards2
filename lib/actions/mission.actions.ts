@@ -196,6 +196,9 @@ export async function archiveMissionBlock(id: string) {
         const [block] = await db.select().from(missionBlocks).where(and(eq(missionBlocks.id, id), eq(missionBlocks.userId, userId)));
         if (!block) return { error: "Bloco não encontrado" };
 
+        const currentSubtasks = (block.subTasks as any[]) || [];
+        const isFromTask = currentSubtasks.some(s => s.isFromTask || s.originalTaskId);
+
         // Create backlog task from the entire block
         await db.insert(backlogTasks).values({
             userId,
@@ -208,7 +211,7 @@ export async function archiveMissionBlock(id: string) {
             priority: block.priority || 'media',
             deadline: block.deadline,
             subTasks: block.subTasks || [],
-            linkedBlockType: block.linkedBlockType || (block.title !== 'Geral' ? block.title : undefined),
+            linkedBlockType: isFromTask ? block.linkedBlockType : (block.linkedBlockType || (block.title !== 'Geral' ? block.title : undefined)),
         });
 
         // Delete the block
@@ -994,7 +997,7 @@ export async function checkAndArchivePastTasks(clientDate?: string, clientTime?:
                     priority: block.priority || 'media',
                     deadline: block.deadline,
                     subTasks: block.subTasks || [],
-                    linkedBlockType: block.linkedBlockType || (block.title !== 'Geral' ? block.title : undefined),
+                    linkedBlockType: block.linkedBlockType,
                 });
                 await db.delete(missionBlocks).where(eq(missionBlocks.id, block.id));
                 continue;
