@@ -2,7 +2,7 @@
 
 import { UserButton } from "@clerk/nextjs";
 import { Zap, Target, Heart, Plus, Trash2, Calendar as CalendarIcon, AlertTriangle } from "lucide-react";
-import { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { CartesianGrid, PolarAngleAxis, PolarGrid, Radar, RadarChart, ResponsiveContainer } from "recharts";
 import { MissionBlock, getUniqueBlockTypes, checkAndArchivePastTasks } from "@/lib/actions/mission.actions";
 import { Button } from "@/components/ui/button";
@@ -509,28 +509,42 @@ export default function DashboardClient({
                                 </div>
                                 <div className="flex-1 overflow-y-auto p-6 relative space-y-4 custom-scrollbar">
                                     <div className="absolute top-6 left-6 h-full w-[2px] bg-white/5 z-0"></div>
-                                    <DroppableBoundary
-                                        id={`boundary-start-${selectedDate}`}
-                                        time={settings.timelineStart || '08:00'}
-                                        label="Início do Dia"
-                                    />
-                                    {blocks.length === 0 ? (
-                                        <div className="flex flex-col items-center justify-center h-48 text-zinc-500 mt-10 relative z-10">
-                                            <CalendarIcon className="h-12 w-12 mb-4 opacity-20" />
-                                            <p>Nenhuma missão para este dia.</p>
-                                        </div>
-                                    ) : (
-                                        blocks.map((block, index) => {
+                                    {(() => {
+                                        if (blocks.length === 0) {
+                                            return (
+                                                <>
+                                                    <DroppableBoundary
+                                                        id={`boundary-start-${selectedDate}`}
+                                                        time={settings.timelineStart || '08:00'}
+                                                        label="Início do Dia"
+                                                    />
+                                                    <div className="flex flex-col items-center justify-center h-48 text-zinc-500 mt-10 relative z-10">
+                                                        <CalendarIcon className="h-12 w-12 mb-4 opacity-20" />
+                                                        <p>Nenhuma missão para este dia.</p>
+                                                    </div>
+                                                    <DroppableBoundary
+                                                        id={`boundary-end-${selectedDate}`}
+                                                        time={settings.timelineEnd || '24:00'}
+                                                        label="Fim do Dia"
+                                                    />
+                                                </>
+                                            );
+                                        }
+
+                                        let startBoundaryRendered = false;
+                                        let endBoundaryRendered = false;
+                                        const timelineStartMins = getMinutes(settings.timelineStart || '08:00');
+                                        const timelineEndMins = getMinutes(settings.timelineEnd || '24:00');
+
+                                        const mapNodes = blocks.map((block, index) => {
                                             const blockStart = getMinutes(block.startTime);
                                             const prevBlock = index > 0 ? blocks[index - 1] : null;
 
                                             // Gap Logic: Between Blocks
                                             let gapStart = prevBlock ? getMinutes(prevBlock.startTime) + prevBlock.totalDuration : getMinutes(settings.timelineStart || '08:00');
-
                                             let showGap = false;
                                             let gapDuration = 0;
 
-                                            // Only calculate gap if blockStart > gapStart
                                             if (blockStart > gapStart) {
                                                 if (index >= 0) {
                                                     showGap = true;
@@ -541,30 +555,50 @@ export default function DashboardClient({
                                             // Current Time Logic
                                             const isToday = selectedDate === format(new Date(), 'yyyy-MM-dd');
 
-                                            // Effective Gap Logic (Dynamic Adjustment)
                                             let effectiveGapStart = gapStart;
                                             let effectiveGapDuration = gapDuration;
 
                                             if (showGap && isToday && currentMinutes > gapStart) {
-                                                // If current time is INSIDE the gap
                                                 if (currentMinutes < gapStart + gapDuration) {
                                                     effectiveGapStart = currentMinutes;
                                                     effectiveGapDuration = (gapStart + gapDuration) - currentMinutes;
                                                 } else {
-                                                    // Gap is in the past
-                                                    effectiveGapDuration = 0; // Or keep it but show as past? 
-                                                    // User said "não tem mais o horario". Implies it's gone.
+                                                    effectiveGapDuration = 0;
                                                 }
                                             }
 
-                                            // Only suggest if we have time
                                             const suggestedGapTask = effectiveGapDuration > 0 ? getBestSuggestion(initialBacklog, effectiveGapDuration, 'gap') : undefined;
-
                                             const isGapCurrent = isToday && currentMinutes >= gapStart && currentMinutes < (gapStart + gapDuration);
                                             const isBlockCurrent = isToday && currentMinutes >= blockStart && currentMinutes < (blockStart + block.totalDuration);
                                             const blockTimeOffset = isBlockCurrent ? currentMinutes - blockStart : undefined;
 
-                                            return (
+                                            const nodes: React.ReactNode[] = [];
+
+                                            if (!startBoundaryRendered && blockStart >= timelineStartMins) {
+                                                nodes.push(
+                                                    <DroppableBoundary
+                                                        key={`boundary-start-${selectedDate}`}
+                                                        id={`boundary-start-${selectedDate}`}
+                                                        time={settings.timelineStart || '08:00'}
+                                                        label="Início do Dia"
+                                                    />
+                                                );
+                                                startBoundaryRendered = true;
+                                            }
+
+                                            if (!endBoundaryRendered && blockStart >= timelineEndMins) {
+                                                nodes.push(
+                                                    <DroppableBoundary
+                                                        key={`boundary-end-${selectedDate}`}
+                                                        id={`boundary-end-${selectedDate}`}
+                                                        time={settings.timelineEnd || '24:00'}
+                                                        label="Fim do Dia"
+                                                    />
+                                                );
+                                                endBoundaryRendered = true;
+                                            }
+
+                                            nodes.push(
                                                 <div key={block.id}>
                                                     {/* Gap Indicator */}
                                                     {showGap && gapDuration > 0 && effectiveGapDuration > 0 && (
@@ -578,12 +612,6 @@ export default function DashboardClient({
                                                             isCurrent={isGapCurrent}
                                                         />
                                                     )}
-
-                                                    {/* If gap is fully passed, maybe render a disabled/mini gap or nothing? 
-                                                        Currently, if effectiveGapDuration <= 0, it renders nothing. 
-                                                        This creates a visual jump if we don't have something there.
-                                                        Let's keep it simple: If passed, it disappears.
-                                                    */}
 
                                                     {/* Conflict Indicator */}
                                                     {index > 0 && blockStart < gapStart && (
@@ -605,61 +633,81 @@ export default function DashboardClient({
                                                     />
                                                 </div>
                                             );
-                                        })
-                                    )}
-                                    {/* Final Gap (After last block to 24:00/End) */}
-                                    {(() => {
-                                        const lastBlock = blocks.length > 0 ? blocks[blocks.length - 1] : null;
-                                        // If no blocks, gap starts at 0.
-                                        // If blocks, gap starts at lastBlockEnd.
 
+                                            return <React.Fragment key={`frag-${block.id}`}>{nodes}</React.Fragment>;
+                                        });
+
+                                        const lastBlock = blocks[blocks.length - 1];
                                         const dayEndMins = getMinutes(settings.timelineEnd || '24:00');
-                                        let gapStart = getMinutes(settings.timelineStart || '08:00');
+                                        let finalGapStart = getMinutes(settings.timelineStart || '08:00');
 
                                         if (lastBlock) {
-                                            const getMins = (t: string) => { const [h, m] = t.split(':').map(Number); return h * 60 + m; };
-                                            gapStart = getMins(lastBlock.startTime) + lastBlock.totalDuration;
+                                            finalGapStart = getMinutes(lastBlock.startTime) + lastBlock.totalDuration;
                                         }
 
-                                        const gapDuration = dayEndMins - gapStart;
-
-                                        // Effective Gap Logic for End of Day
+                                        const finalGapDuration = dayEndMins - finalGapStart;
                                         const isToday = selectedDate === format(new Date(), 'yyyy-MM-dd');
-                                        let effectiveGapStart = gapStart;
-                                        let effectiveGapDuration = gapDuration;
+                                        let finalEffectiveGapStart = finalGapStart;
+                                        let finalEffectiveGapDuration = finalGapDuration;
 
-                                        if (isToday && currentMinutes > gapStart) {
+                                        if (isToday && currentMinutes > finalGapStart) {
                                             if (currentMinutes < dayEndMins) {
-                                                effectiveGapStart = currentMinutes;
-                                                effectiveGapDuration = dayEndMins - currentMinutes;
+                                                finalEffectiveGapStart = currentMinutes;
+                                                finalEffectiveGapDuration = dayEndMins - currentMinutes;
                                             } else {
-                                                effectiveGapDuration = 0;
+                                                finalEffectiveGapDuration = 0;
                                             }
                                         }
 
-                                        const suggestedGapTask = effectiveGapDuration > 0 ? getBestSuggestion(initialBacklog, effectiveGapDuration, 'gap') : undefined;
-                                        const isGapCurrent = isToday && currentMinutes >= gapStart && currentMinutes < dayEndMins;
+                                        const suggestedFinalGapTask = finalEffectiveGapDuration > 0 ? getBestSuggestion(initialBacklog, finalEffectiveGapDuration, 'gap') : undefined;
+                                        const isFinalGapCurrent = isToday && currentMinutes >= finalGapStart && currentMinutes < dayEndMins;
 
-                                        if (gapDuration > 0 && effectiveGapDuration > 0) {
-                                            return (
-                                                <DroppableGap
-                                                    id={`gap-${selectedDate}-${minutesToTime(gapStart)}`}
-                                                    durationMinutes={effectiveGapDuration}
-                                                    startTime={minutesToTime(effectiveGapStart)}
-                                                    suggestedTask={suggestedGapTask}
-                                                    onConvertToBlock={(t) => handleConvertToBlock(t, selectedDate, minutesToTime(effectiveGapStart))}
-                                                    onAddTask={() => setTaskPickerState({ open: true, startTime: minutesToTime(effectiveGapStart), date: selectedDate })}
-                                                    isCurrent={isGapCurrent}
+                                        const finalNodes: React.ReactNode[] = [];
+
+                                        if (!startBoundaryRendered) {
+                                            finalNodes.push(
+                                                <DroppableBoundary
+                                                    key={`boundary-start-endofloop-${selectedDate}`}
+                                                    id={`boundary-start-${selectedDate}`}
+                                                    time={settings.timelineStart || '08:00'}
+                                                    label="Início do Dia"
                                                 />
                                             );
                                         }
-                                        return null;
+
+                                        if (finalGapDuration > 0 && finalEffectiveGapDuration > 0) {
+                                            finalNodes.push(
+                                                <DroppableGap
+                                                    key={`gap-final-${selectedDate}`}
+                                                    id={`gap-${selectedDate}-${minutesToTime(finalGapStart)}`}
+                                                    durationMinutes={finalEffectiveGapDuration}
+                                                    startTime={minutesToTime(finalEffectiveGapStart)}
+                                                    suggestedTask={suggestedFinalGapTask}
+                                                    onConvertToBlock={(t) => handleConvertToBlock(t, selectedDate, minutesToTime(finalEffectiveGapStart))}
+                                                    onAddTask={() => setTaskPickerState({ open: true, startTime: minutesToTime(finalEffectiveGapStart), date: selectedDate })}
+                                                    isCurrent={isFinalGapCurrent}
+                                                />
+                                            );
+                                        }
+
+                                        if (!endBoundaryRendered) {
+                                            finalNodes.push(
+                                                <DroppableBoundary
+                                                    key={`boundary-end-endofloop-${selectedDate}`}
+                                                    id={`boundary-end-${selectedDate}`}
+                                                    time={settings.timelineEnd || '24:00'}
+                                                    label="Fim do Dia"
+                                                />
+                                            );
+                                        }
+
+                                        return (
+                                            <>
+                                                {mapNodes}
+                                                {finalNodes}
+                                            </>
+                                        );
                                     })()}
-                                    <DroppableBoundary
-                                        id={`boundary-end-${selectedDate}`}
-                                        time={settings.timelineEnd || '24:00'}
-                                        label="Fim do Dia"
-                                    />
                                     {/* Auto-scroll to Current Time */}
                                     <div id="scroll-target" />
                                     <div className="h-20"></div>
