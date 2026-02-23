@@ -316,13 +316,15 @@ export function DroppableMissionBlock({ block, onDelete, onEdit, pendingBacklogT
     let visualDeltaY = 0;
 
     if (isDragging && transform) {
+        const [h, m] = block.startTime.split(':').map(Number);
+        const originalMins = h * 60 + m;
+
         const deltaY = transform.y;
-        const timeChangeMins = calculateDynamicTimeChange(deltaY);
+        const timeChangeMins = calculateDynamicTimeChange(deltaY, originalMins);
         visualDeltaY = timeChangeMins * 2.5; // Snap visually to the calculated minutes
 
         if (timeChangeMins !== 0) {
-            const [h, m] = block.startTime.split(':').map(Number);
-            const totalMins = h * 60 + m + timeChangeMins;
+            const totalMins = originalMins + timeChangeMins;
             if (totalMins >= 0 && totalMins < 24 * 60) {
                 const newH = Math.floor(totalMins / 60);
                 const newM = totalMins % 60;
@@ -355,7 +357,8 @@ export function DroppableMissionBlock({ block, onDelete, onEdit, pendingBacklogT
                 <span className={cn(
                     "text-[10px] font-mono absolute left-2 top-0 mt-3 w-8 text-right pointer-events-none transition-all",
                     isTimeChanged ? "text-amber-400 font-black scale-110 drop-shadow-[0_0_8px_rgba(251,191,36,0.8)]" : "text-zinc-600 font-medium"
-                )}>
+                )}
+                    style={isTimeChanged ? { transform: `translate3d(0, ${visualDeltaY}px, 0)` } : undefined}>
                     {displayTime}
                 </span>
 

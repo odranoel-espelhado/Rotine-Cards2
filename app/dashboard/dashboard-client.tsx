@@ -293,13 +293,15 @@ export default function DashboardClient({
 
         // Handle block time drag (dynamic scaling by distance)
         if (active.data.current?.type === 'mission-block-drag') {
+            const block = active.data.current.block as MissionBlock;
+            const [h, m] = block.startTime.split(':').map(Number);
+            const originalMins = h * 60 + m;
+
             const deltaY = event.delta.y;
-            const timeChangeMins = calculateDynamicTimeChange(deltaY);
+            const timeChangeMins = calculateDynamicTimeChange(deltaY, originalMins);
 
             if (timeChangeMins !== 0) {
-                const block = active.data.current.block as MissionBlock;
-                const [h, m] = block.startTime.split(':').map(Number);
-                const totalMins = h * 60 + m + timeChangeMins;
+                const totalMins = originalMins + timeChangeMins;
 
                 // Ensure it stays within the same day
                 if (totalMins >= 0 && totalMins < 24 * 60) {
