@@ -497,6 +497,8 @@ export async function assignTasksToBlock(blockId: string, tasksToAssign: any[]) 
             originalLinkedBlockType: t.linkedBlockType,
             originalColor: t.color,
             deadline: t.deadline,
+            remindMe: t.remindMe,
+            suggestible: t.suggestible,
             subTasks: t.subTasks || [],
             // Virtual Task Metadata
             isVirtual: t.isVirtual,

@@ -1,4 +1,4 @@
-import { pgTable, text, timestamp, integer, uuid, jsonb } from 'drizzle-orm/pg-core';
+import { pgTable, text, timestamp, integer, uuid, jsonb, boolean } from 'drizzle-orm/pg-core';
 
 // 1. TABELA DE UTILIZADORES (Sincronizada via Clerk)
 // O ID aqui é TEXT para aceitar o formato "user_..." do Clerk
@@ -56,6 +56,8 @@ export const backlogTasks = pgTable('backlog_tasks', {
     description: text('description'), // Descrição detalhada (opcional)
     dummy: text('dummy'), // Temporary field to force migration
     deadline: text('deadline'), // Prazo (dd/mm/yyyy or YYYY-MM-DD)
+    remindMe: integer('remind_me'), // Minutos antes para notificar
+    suggestible: boolean('suggestible').default(true), // Se aparece nas sugestões
     createdAt: timestamp('created_at').defaultNow().notNull(),
 });
 

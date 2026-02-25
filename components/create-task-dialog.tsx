@@ -77,6 +77,8 @@ export function CreateTaskDialog({ availableBlockTypes = [], taskToEdit, open: c
         deadline: z.string().optional(),
         description: z.string().optional(),
         subTasks: z.array(subtaskSchema).default([]),
+        remindMe: z.number().nullable().optional(),
+        suggestible: z.boolean().default(true),
     });
 
     const form = useForm<z.infer<typeof detailedSchema>>({
@@ -89,6 +91,8 @@ export function CreateTaskDialog({ availableBlockTypes = [], taskToEdit, open: c
             deadline: taskToEdit?.deadline || "",
             description: taskToEdit?.description || "",
             subTasks: (taskToEdit?.subTasks as any[]) || [],
+            remindMe: taskToEdit?.remindMe ?? null,
+            suggestible: taskToEdit?.suggestible ?? true,
         },
     });
 
@@ -118,6 +122,8 @@ export function CreateTaskDialog({ availableBlockTypes = [], taskToEdit, open: c
                 deadline: taskToEdit?.deadline || "",
                 description: taskToEdit?.description || "",
                 subTasks: (taskToEdit?.subTasks as any[]) || [],
+                remindMe: taskToEdit?.remindMe ?? null,
+                suggestible: taskToEdit?.suggestible ?? true,
             });
             setShowDescription(!!taskToEdit?.description);
 
@@ -155,6 +161,8 @@ export function CreateTaskDialog({ availableBlockTypes = [], taskToEdit, open: c
                 subTasks: values.subTasks,
                 description: values.description,
                 deadline: values.deadline,
+                remindMe: values.remindMe,
+                suggestible: values.suggestible,
             });
         }
 
@@ -407,7 +415,58 @@ export function CreateTaskDialog({ availableBlockTypes = [], taskToEdit, open: c
                         </div>
 
 
+                        {/* Novas Configurações: Lembre-me & Sugerir */}
+                        <div className="flex gap-4 items-center bg-white/5 p-3 rounded-xl border border-white/10 mt-2">
+                            {/* Lembre-me */}
+                            <div className="flex flex-col gap-2 flex-1">
+                                <FormLabel className="text-[10px] font-black text-zinc-500 uppercase ml-1">Lembre-me</FormLabel>
+                                <div className="flex items-center gap-2">
+                                    <div
+                                        className={cn("w-3.5 h-3.5 rounded-full border flex items-center justify-center cursor-pointer transition-colors", form.watch('remindMe') !== null ? "border-emerald-500" : "border-white/20")}
+                                        onClick={() => form.setValue('remindMe', form.watch('remindMe') !== null ? null : 10)}
+                                    >
+                                        {form.watch('remindMe') !== null && <div className="w-2 h-2 rounded-full bg-emerald-500" />}
+                                    </div>
+                                    <span className="text-[10px] text-zinc-300">Sim,</span>
+                                    <Input
+                                        type="number"
+                                        value={form.watch('remindMe') || ''}
+                                        onChange={(e) => {
+                                            const val = parseInt(e.target.value);
+                                            form.setValue('remindMe', isNaN(val) ? null : val);
+                                        }}
+                                        disabled={form.watch('remindMe') === null}
+                                        className="w-14 h-6 text-xs bg-white/5 border-white/10 px-1 text-center font-mono disabled:opacity-50"
+                                    />
+                                    <span className="text-[10px] text-zinc-300">min.</span>
+                                </div>
+                            </div>
 
+                            {/* Sugerir */}
+                            <div className="flex flex-col gap-2 flex-1">
+                                <FormLabel className="text-[10px] font-black text-zinc-500 uppercase ml-1">Sugerir</FormLabel>
+                                <FormField
+                                    control={form.control}
+                                    name="suggestible"
+                                    render={({ field }) => (
+                                        <div className="flex gap-3 items-center h-6">
+                                            <label className="flex items-center gap-1.5 cursor-pointer pr-1" onClick={() => field.onChange(true)}>
+                                                <div className={cn("w-3.5 h-3.5 rounded-full border flex items-center justify-center transition-colors", field.value ? "border-emerald-500" : "border-white/20")}>
+                                                    {field.value && <div className="w-2 h-2 rounded-full bg-emerald-500" />}
+                                                </div>
+                                                <span className="text-[10px] text-zinc-300 uppercase font-bold">Sim</span>
+                                            </label>
+                                            <label className="flex items-center gap-1.5 cursor-pointer pl-1" onClick={() => field.onChange(false)}>
+                                                <div className={cn("w-3.5 h-3.5 rounded-full border flex items-center justify-center transition-colors", !field.value ? "border-red-500" : "border-white/20")}>
+                                                    {!field.value && <div className="w-2 h-2 rounded-full bg-red-500" />}
+                                                </div>
+                                                <span className="text-[10px] text-zinc-300 uppercase font-bold">Não</span>
+                                            </label>
+                                        </div>
+                                    )}
+                                />
+                            </div>
+                        </div>
 
                         <div className="pt-2 flex flex-col gap-2">
                             <Button type="button" onClick={form.handleSubmit((v) => onSubmit(v, !isEditing))} className="w-full h-12 bg-[#10b981] hover:bg-[#10b981]/90 text-black font-black tracking-widest text-sm rounded-xl uppercase">

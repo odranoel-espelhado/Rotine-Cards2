@@ -18,6 +18,7 @@ function getBestSuggestion(tasks: BacklogTask[], maxDuration: number, mode: 'blo
 
     tasks.forEach(t => {
         if (t.status !== 'pending') return;
+        if (t.suggestible === false) return;
 
         // Block type constraint
         if (mode === 'block' && t.linkedBlockType && t.linkedBlockType !== blockType && t.linkedBlockType !== 'Geral') return;

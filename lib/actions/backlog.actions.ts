@@ -39,7 +39,9 @@ export async function createBacklogTask(data: Partial<Omit<NewBacklogTask, 'id' 
             color: data.color,
             subTasks: data.subTasks || [],
             description: data.description,
-            deadline: data.deadline, // Add deadline
+            deadline: data.deadline,
+            remindMe: data.remindMe,
+            suggestible: data.suggestible ?? true,
             status: "pending",
             createdAt: new Date(),
         });
