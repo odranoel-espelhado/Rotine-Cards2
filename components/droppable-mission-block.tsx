@@ -473,7 +473,7 @@ export function DroppableMissionBlock({ block, onDelete, onEdit, pendingBacklogT
 
                                 <div className={cn(
                                     "flex gap-2 text-[9px] sm:text-[10px] font-bold uppercase tracking-widest transition-colors duration-300 order-2 sm:order-1",
-                                    optimisticCompleted ? "text-[#3a3a3a]" : "text-white/60"
+                                    optimisticCompleted ? "text-[var(--block-color)] opacity-70" : "text-white/60"
                                 )}>
                                     <span>{block.totalDuration} MIN</span>
                                 </div>
