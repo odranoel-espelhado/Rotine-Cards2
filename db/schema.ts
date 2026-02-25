@@ -35,6 +35,8 @@ export const missionBlocks = pgTable('mission_blocks', {
     status: text('status').default('pending'), // 'pending' | 'completed'
     icon: text('icon').default('zap'),
     exceptions: jsonb('exceptions').default([]), // List of YYYY-MM-DD strings to skip
+    masterBlockId: text('master_block_id'), // Referência ao bloco recorrente original caso seja uma exceção
+    completedDates: jsonb('completed_dates').default([]), // List of YYYY-MM-DD strings for recurring block completions
     createdAt: timestamp('created_at').defaultNow().notNull(),
 });
 

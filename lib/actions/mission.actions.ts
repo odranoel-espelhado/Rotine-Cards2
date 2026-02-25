@@ -61,12 +61,18 @@ export async function getMissionBlocks(date: string) {
             }
 
             if (matches) {
+                const isCompleted = (rBlock.completedDates as string[] || []).includes(date);
+                const subTasks = isCompleted
+                    ? (rBlock.subTasks as any[] || []).map(t => ({ ...t, done: true }))
+                    : rBlock.subTasks;
+
                 virtualBlocks.push({
                     ...rBlock,
                     id: `${rBlock.id}-virtual-${date}`,
                     date: date,
                     type: 'recurring',
-                    // Important: Keep original block info but with virtual ID
+                    status: isCompleted ? 'completed' : 'pending',
+                    subTasks: subTasks
                 });
             }
         }
@@ -280,7 +286,7 @@ export async function deleteMissionBlock(id: string, deleteAll: boolean = false)
                             icon: masterBlock.icon,
                             type: 'recurring',
                             recurrencePattern: 'weekly', // Now it is weekly
-                            status: masterBlock.status,
+                            status: (masterBlock.completedDates as string[] || []).includes(date) ? 'completed' : 'pending',
                             subTasks: masterBlock.subTasks,
                             exceptions: [],
                         });
@@ -333,29 +339,16 @@ export async function toggleMissionBlock(id: string, status: 'pending' | 'comple
 
             if (!masterBlock) return { error: "Master block not found" };
 
-            // 1. Add Exception
-            const currentExceptions = (masterBlock.exceptions as string[]) || [];
-            if (!currentExceptions.includes(date)) {
-                await db.update(missionBlocks)
-                    .set({ exceptions: [...currentExceptions, date] })
-                    .where(eq(missionBlocks.id, realId));
+            let completedDates = (masterBlock.completedDates as string[]) || [];
+            if (status === 'completed' && !completedDates.includes(date)) {
+                completedDates = [...completedDates, date];
+            } else if (status === 'pending' && completedDates.includes(date)) {
+                completedDates = completedDates.filter(d => d !== date);
             }
 
-            // 2. Create Unique Block with new status
-            await db.insert(missionBlocks).values({
-                userId: userId,
-                title: masterBlock.title,
-                date: date,
-                startTime: masterBlock.startTime,
-                totalDuration: masterBlock.totalDuration,
-                color: masterBlock.color,
-                icon: masterBlock.icon,
-                type: 'unique',
-                recurrencePattern: masterBlock.recurrencePattern,
-                status: status, // The new status
-                subTasks: (masterBlock.subTasks as any[]).map(t => ({ ...t, done: status === 'completed' })),
-                exceptions: [],
-            });
+            await db.update(missionBlocks)
+                .set({ completedDates })
+                .where(eq(missionBlocks.id, realId));
 
         } else {
             // Update simple block
@@ -411,6 +404,9 @@ export async function updateMissionBlock(id: string, data: Partial<Omit<NewMissi
                 }
 
                 // 2. Create Unique Block (Clone + Update)
+                const isCompleted = (masterBlock.completedDates as string[] || []).includes(date);
+                const defaultStatus = isCompleted ? 'completed' : 'pending';
+
                 await db.insert(missionBlocks).values({
                     userId: userId,
                     title: data.title || masterBlock.title,
@@ -421,7 +417,7 @@ export async function updateMissionBlock(id: string, data: Partial<Omit<NewMissi
                     icon: data.icon || masterBlock.icon,
                     type: 'unique',
                     recurrencePattern: masterBlock.recurrencePattern,
-                    status: (data.status as any) || masterBlock.status,
+                    status: (data.status as any) || defaultStatus,
                     subTasks: data.subTasks || masterBlock.subTasks,
                     exceptions: [],
                 });
@@ -476,7 +472,7 @@ export async function assignTasksToBlock(blockId: string, tasksToAssign: any[]) 
                 icon: masterBlock.icon,
                 type: 'unique',
                 recurrencePattern: masterBlock.recurrencePattern,
-                status: masterBlock.status,
+                status: (masterBlock.completedDates as string[] || []).includes(date) ? 'completed' : 'pending',
                 subTasks: masterBlock.subTasks,
                 exceptions: [],
             }).returning();
@@ -724,7 +720,7 @@ export async function unassignTaskFromBlock(blockId: string, taskIndex: number, 
                 icon: masterBlock.icon,
                 type: 'unique',
                 recurrencePattern: masterBlock.recurrencePattern,
-                status: masterBlock.status,
+                status: (masterBlock.completedDates as string[] || []).includes(date) ? 'completed' : 'pending',
                 subTasks: masterBlock.subTasks,
                 exceptions: [],
             }).returning();
@@ -814,7 +810,7 @@ export async function updateMissionSubTask(blockId: string, taskIndex: number, u
                 icon: masterBlock.icon,
                 type: 'unique',
                 recurrencePattern: masterBlock.recurrencePattern,
-                status: masterBlock.status,
+                status: (masterBlock.completedDates as string[] || []).includes(date) ? 'completed' : 'pending',
                 subTasks: masterBlock.subTasks,
                 exceptions: [],
             }).returning();
@@ -885,7 +881,7 @@ export async function toggleSubTaskCompletion(blockId: string, taskIndex: number
                 icon: masterBlock.icon,
                 type: 'unique',
                 recurrencePattern: masterBlock.recurrencePattern,
-                status: masterBlock.status,
+                status: (masterBlock.completedDates as string[] || []).includes(date) ? 'completed' : 'pending',
                 subTasks: masterBlock.subTasks,
                 exceptions: [],
             }).returning();
@@ -1075,7 +1071,7 @@ export async function toggleNestedSubTaskCompletion(id: string, parentTaskIndex:
                 icon: masterBlock.icon,
                 type: 'unique',
                 recurrencePattern: masterBlock.recurrencePattern,
-                status: masterBlock.status,
+                status: (masterBlock.completedDates as string[] || []).includes(date) ? 'completed' : 'pending',
                 subTasks: masterBlock.subTasks,
                 exceptions: [],
             }).returning();
