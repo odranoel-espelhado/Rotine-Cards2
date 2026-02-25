@@ -153,7 +153,7 @@ export function DroppableMissionBlock({ block, onDelete, onEdit, pendingBacklogT
     }, [block.status]);
 
     const glowColor = block.color || '#3b82f6';
-    const isRecurring = block.type === 'recurring' || block.recurrencePattern === 'weekdays';
+    const isRecurring = block.type === 'recurring' || !!block.recurrencePattern;
 
     const handleToggle = async (e?: React.MouseEvent) => {
         e?.stopPropagation();
@@ -432,7 +432,7 @@ export function DroppableMissionBlock({ block, onDelete, onEdit, pendingBacklogT
                                     {block.title}
                                 </h3>
                                 {isRecurring && (
-                                    <Repeat className={cn("h-3 w-3", optimisticCompleted ? "text-[var(--block-color)] opacity-70" : "text-white/60")} />
+                                    <Repeat className={cn("h-3 w-3", optimisticCompleted ? "text-[#3a3a3a]" : "text-white/60")} />
                                 )}
                             </div>
 
@@ -473,7 +473,7 @@ export function DroppableMissionBlock({ block, onDelete, onEdit, pendingBacklogT
 
                                 <div className={cn(
                                     "flex gap-2 text-[9px] sm:text-[10px] font-bold uppercase tracking-widest transition-colors duration-300 order-2 sm:order-1",
-                                    optimisticCompleted ? "text-[var(--block-color)] opacity-70" : "text-white/60"
+                                    optimisticCompleted ? "text-[#3a3a3a]" : "text-white/60"
                                 )}>
                                     <span>{block.totalDuration} MIN</span>
                                 </div>
