@@ -3,7 +3,7 @@
 import { useDroppable, useDraggable } from "@dnd-kit/core";
 import { MissionBlock, toggleMissionBlock, assignTasksToBlock, updateMissionBlock, unassignTaskFromBlock, deleteMissionBlock, archiveMissionBlock, toggleSubTaskCompletion, toggleNestedSubTaskCompletion } from "@/lib/actions/mission.actions";
 import { BLOCK_ICONS } from "./constants";
-import { Zap, Trash2, Pencil, Check, Repeat, X, Plus, ChevronDown, ChevronUp, AlertTriangle, Archive, GripVertical } from "lucide-react";
+import { Zap, Trash2, Pencil, Check, Repeat, X, Plus, ChevronDown, ChevronUp, AlertTriangle, Archive, GripVertical, ArrowUp, ArrowDown, Pin, PinOff } from "lucide-react";
 import { differenceInCalendarDays, parseISO } from "date-fns";
 // ... (rest of imports)
 
@@ -199,6 +199,85 @@ export function DroppableMissionBlock({ block, onDelete, onEdit, pendingBacklogT
     const totalDuration = block.totalDuration;
     const subTasks = (block.subTasks as any[]) || [];
     const isFromTask = subTasks.some(s => s.isFromTask || s.originalTaskId); // Check if the block originated from a task
+
+    // NEW ALGORITHM: Compute times and gaps
+    const timeToMins = (t: string) => {
+        const [h, m] = t.split(':').map(Number);
+        return h * 60 + m;
+    };
+    const minsToTime = (m: number) => {
+        const h = Math.floor(m / 60);
+        const mins = m % 60;
+        return `${String(h).padStart(2, '0')}:${String(mins).padStart(2, '0')}`;
+    };
+
+    const blockStartMins = timeToMins(block.startTime);
+    const blockEndMins = blockStartMins + totalDuration;
+    let currentFlowMins = blockStartMins;
+
+    const processedSubTasks = subTasks.map((sub, i) => {
+        let computedStart = currentFlowMins;
+        let gapBefore = 0;
+        let gapStartTime = 0;
+
+        if (sub.pinnedTime) {
+            const pinnedMins = timeToMins(sub.pinnedTime);
+            if (pinnedMins > currentFlowMins) {
+                gapBefore = pinnedMins - currentFlowMins;
+                gapStartTime = currentFlowMins;
+            }
+            computedStart = pinnedMins;
+        }
+
+        const subDur = parseInt(sub.duration || '0');
+        const computedEnd = computedStart + subDur;
+        currentFlowMins = computedEnd;
+        const isPastEnd = computedEnd > blockEndMins;
+
+        return {
+            ...sub,
+            originalIndex: i,
+            computedStart,
+            computedEnd,
+            gapBefore,
+            gapStartTime,
+            isPastEnd
+        };
+    });
+
+    const handleMove = async (index: number, direction: -1 | 1) => {
+        const newSubTasks = [...subTasks];
+        if (index + direction < 0 || index + direction >= newSubTasks.length) return;
+        const temp = newSubTasks[index];
+        newSubTasks[index] = newSubTasks[index + direction];
+        newSubTasks[index + direction] = temp;
+        await updateMissionBlock(block.id, { subTasks: newSubTasks });
+    };
+
+    const handlePinToggle = async (index: number, sub: any) => {
+        if (sub.pinnedTime) {
+            const newSubTasks = [...subTasks];
+            const updatedSub = { ...newSubTasks[index] };
+            delete updatedSub.pinnedTime;
+            newSubTasks[index] = updatedSub;
+            await updateMissionBlock(block.id, { subTasks: newSubTasks });
+        } else {
+            const input = window.prompt(`Digite o horário para cravar a tarefa "${sub.title}" no bloco (Formato: HH:MM):`, minsToTime(sub.computedStart || currentFlowMins));
+            if (!input) return;
+            if (!/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/.test(input)) {
+                toast.error("Formato de hora inválido. Use HH:MM.");
+                return;
+            }
+            const inputMins = timeToMins(input);
+            if (inputMins < blockStartMins || inputMins > blockEndMins) {
+                toast.error(`O horário deve estar dentro do limite do bloco (${block.startTime} às ${minsToTime(blockEndMins)}).`);
+                return;
+            }
+            const newSubTasks = [...subTasks];
+            newSubTasks[index] = { ...sub, pinnedTime: input };
+            await updateMissionBlock(block.id, { subTasks: newSubTasks });
+        }
+    };
 
     // Calculate non-subtask time (remainder)
     const subTaskTotalDuration = subTasks.reduce((acc, curr) => acc + (parseInt(curr.duration) || 0), 0);
@@ -486,143 +565,165 @@ export function DroppableMissionBlock({ block, onDelete, onEdit, pendingBacklogT
                                         <p className="text-xs text-white/40 italic py-2">Nenhuma tarefa.</p>
                                     ) : (
                                         <div className="flex flex-col">
-                                            {subTasks.map((sub: any, i: number) => (
-                                                <div key={i} className="flex items-start gap-3 group/item relative">
-                                                    {/* Duration Column */}
-                                                    <div className="w-[30px] text-right pt-[2px]">
-                                                        <span className="text-[10px] font-mono text-white/40 group-hover/item:text-white/60 transition-colors block leading-none">
-                                                            {sub.duration}m
-                                                        </span>
-                                                    </div>
+                                            {processedSubTasks.map((sub: any) => {
+                                                const i = sub.originalIndex;
+                                                return (
+                                                    <div key={i} className="flex flex-col w-full">
+                                                        {/* Gap Indicator */}
+                                                        {sub.gapBefore > 0 && (
+                                                            <div className="flex items-center gap-3 py-1 opacity-50 relative group">
+                                                                <div className="w-[30px] text-right pt-[1px]">
+                                                                    <span className="text-[9px] font-mono text-white/30 truncate">{sub.gapBefore}m</span>
+                                                                </div>
+                                                                <div className="flex flex-col items-center">
+                                                                    <div className="w-[1px] bg-transparent border-l border-dashed border-white/20 h-4 ml-[0.5px]" />
+                                                                </div>
+                                                                <div className="text-[9px] text-white/30 flex-1 font-mono italic pl-2">
+                                                                    Vazio: {minsToTime(sub.gapStartTime)} - {minsToTime(sub.gapStartTime + sub.gapBefore)}
+                                                                </div>
+                                                            </div>
+                                                        )}
 
-                                                    {/* Visual Bar Column */}
-                                                    <div className="flex flex-col items-center pt-[2px]">
-                                                        {/* The Bar */}
-                                                        <div
-                                                            className={cn("w-1 rounded-full transition-all duration-300",
-                                                                optimisticCompleted ? "bg-white/20" : "bg-white/50",
-                                                                sub.done ? "bg-emerald-500/50" : ""
+                                                        <div className={cn("flex items-start gap-3 group/item relative", sub.isPastEnd && "opacity-60")}>
+                                                            {sub.isPastEnd && (
+                                                                <div className="absolute left-[-2px] bottom-0 w-[2px] h-full bg-red-500/50 rounded-full" title="Ultrapassa o horário final do bloco" />
                                                             )}
-                                                            style={{
-                                                                height: `${Math.max(12, parseInt(sub.duration) * 1.5)}px`
-                                                            }}
-                                                        />
-                                                    </div>
-
-                                                    {/* Content Column */}
-                                                    <div className="flex-1 min-w-0 pb-2 pt-[2px]">
-                                                        <div className="flex items-start gap-2">
-                                                            {/* Checkbox for Subtask */}
-                                                            <div
-                                                                onClick={(e) => {
-                                                                    e.stopPropagation();
-                                                                    const promise = toggleSubTaskCompletion(block.id, i, !!sub.done);
-                                                                    // Optimistic update could be added locally but let's rely on revalidation for now or simple toast
-                                                                    toast.promise(promise, {
-                                                                        loading: 'Atualizando...',
-                                                                        success: 'Atualizado!',
-                                                                        error: 'Erro'
-                                                                    });
-                                                                }}
-                                                                className={cn(
-                                                                    "mt-0.5 w-3 h-3 rounded-[3px] border border-white/30 cursor-pointer flex items-center justify-center transition-colors hover:border-white/60 shrink-0",
-                                                                    sub.done ? "bg-emerald-500 border-emerald-500" : "bg-transparent"
-                                                                )}
-                                                            >
-                                                                {sub.done && <Check className="w-2.5 h-2.5 text-black" strokeWidth={4} />}
+                                                            {/* Duration Column */}
+                                                            <div className="w-[30px] text-right pt-[2px]">
+                                                                <span className="text-[10px] font-mono text-white/40 group-hover/item:text-white/60 transition-colors block leading-none" title={sub.pinnedTime ? `Cravado: ${sub.pinnedTime}` : `Automático: ${minsToTime(sub.computedStart)}`}>
+                                                                    {sub.duration}m
+                                                                </span>
                                                             </div>
 
-                                                            <div className="flex-1 flex flex-col min-w-0">
-                                                                <div className="flex justify-between items-start gap-2">
-                                                                    <span className={cn(
-                                                                        "text-sm font-medium leading-none truncate transition-colors",
-                                                                        "cursor-pointer hover:underline hover:text-blue-400",
-                                                                        optimisticCompleted ? "line-through opacity-50 text-white/50" : "text-white/90",
-                                                                        sub.done ? "line-through text-white/40" : ""
+                                                            {/* Visual Bar Column */}
+                                                            <div className="flex flex-col items-center pt-[2px]">
+                                                                {/* The Bar */}
+                                                                <div
+                                                                    className={cn("w-1 rounded-full transition-all duration-300",
+                                                                        optimisticCompleted ? "bg-white/20" : "bg-white/50",
+                                                                        sub.done ? "bg-emerald-500/50" : ""
                                                                     )}
+                                                                    style={{
+                                                                        height: `${Math.max(12, parseInt(sub.duration) * 1.5)}px`
+                                                                    }}
+                                                                />
+                                                            </div>
+
+                                                            {/* Content Column */}
+                                                            <div className="flex-1 min-w-0 pb-2 pt-[2px]">
+                                                                <div className="flex items-start gap-2">
+                                                                    {/* Checkbox for Subtask */}
+                                                                    <div
                                                                         onClick={(e) => {
                                                                             e.stopPropagation();
-                                                                            setExecutionData({
-                                                                                id: block.id,
-                                                                                type: 'mission-subtask',
-                                                                                subTaskIndex: i,
-                                                                                title: sub.title,
-                                                                                linkedBlockType: sub.originalLinkedBlockType || (block as any).linkedBlockType || block.title,
-                                                                                description: sub.description || (block as any).description || "",
-                                                                                subTasks: sub.subTasks || [],
-                                                                                priority: sub.originalPriority || (block as any).priority || 'media',
-                                                                                deadline: sub.deadline || (block as any).deadline
+                                                                            const promise = toggleSubTaskCompletion(block.id, i, !!sub.done);
+                                                                            // Optimistic update could be added locally but let's rely on revalidation for now or simple toast
+                                                                            toast.promise(promise, {
+                                                                                loading: 'Atualizando...',
+                                                                                success: 'Atualizado!',
+                                                                                error: 'Erro'
                                                                             });
-                                                                            setExecutionDialogOpen(true);
                                                                         }}
-                                                                        title="Executar Tarefa"
+                                                                        className={cn(
+                                                                            "mt-0.5 w-3 h-3 rounded-[3px] border border-white/30 cursor-pointer flex items-center justify-center transition-colors hover:border-white/60 shrink-0",
+                                                                            sub.done ? "bg-emerald-500 border-emerald-500" : "bg-transparent"
+                                                                        )}
                                                                     >
-                                                                        {sub.title}
-                                                                    </span>
+                                                                        {sub.done && <Check className="w-2.5 h-2.5 text-black" strokeWidth={4} />}
+                                                                    </div>
 
-                                                                    {/* Actions */}
-                                                                    <div className="flex shrink-0">
-                                                                        {sub.isFixed ? (
-                                                                            <div className="mr-1" title="Tarefa fixa do bloco">
-                                                                                <Repeat className="w-3 h-3 text-white/30" />
-                                                                            </div>
-                                                                        ) : (
-                                                                            <button
+                                                                    <div className="flex-1 flex flex-col min-w-0">
+                                                                        <div className="flex justify-between items-start gap-2">
+                                                                            <span className={cn(
+                                                                                "text-sm font-medium leading-none truncate transition-colors",
+                                                                                "cursor-pointer hover:underline hover:text-blue-400",
+                                                                                optimisticCompleted ? "line-through opacity-50 text-white/50" : "text-white/90",
+                                                                                sub.done ? "line-through text-white/40" : ""
+                                                                            )}
                                                                                 onClick={(e) => {
                                                                                     e.stopPropagation();
-                                                                                    const promise = unassignTaskFromBlock(block.id, i, sub);
-                                                                                    toast.promise(promise, {
-                                                                                        loading: 'Arquivando...',
-                                                                                        success: 'Tarefa arquivada!',
-                                                                                        error: 'Erro ao arquivar'
+                                                                                    setExecutionData({
+                                                                                        id: block.id,
+                                                                                        type: 'mission-subtask',
+                                                                                        subTaskIndex: i,
+                                                                                        title: sub.title,
+                                                                                        linkedBlockType: sub.originalLinkedBlockType || (block as any).linkedBlockType || block.title,
+                                                                                        description: sub.description || (block as any).description || "",
+                                                                                        subTasks: sub.subTasks || [],
+                                                                                        priority: sub.originalPriority || (block as any).priority || 'media',
+                                                                                        deadline: sub.deadline || (block as any).deadline
                                                                                     });
+                                                                                    setExecutionDialogOpen(true);
                                                                                 }}
-                                                                                className="opacity-100 lg:opacity-0 lg:group-hover/item:opacity-100 p-0.5 hover:bg-white/10 rounded transition-all -mt-1"
-                                                                                title="Arquivar tarefa"
+                                                                                title="Executar Tarefa"
                                                                             >
-                                                                                <Archive className="w-3 h-3 text-white/50 hover:text-white" />
-                                                                            </button>
+                                                                                {sub.title}
+                                                                            </span>
+
+                                                                            {/* Actions */}
+                                                                            <div className="flex shrink-0">
+                                                                                {sub.isFixed ? (
+                                                                                    <div className="mr-1" title="Tarefa fixa do bloco">
+                                                                                        <Repeat className="w-3 h-3 text-white/30" />
+                                                                                    </div>
+                                                                                ) : (
+                                                                                    <button
+                                                                                        onClick={(e) => {
+                                                                                            e.stopPropagation();
+                                                                                            const promise = unassignTaskFromBlock(block.id, i, sub);
+                                                                                            toast.promise(promise, {
+                                                                                                loading: 'Arquivando...',
+                                                                                                success: 'Tarefa arquivada!',
+                                                                                                error: 'Erro ao arquivar'
+                                                                                            });
+                                                                                        }}
+                                                                                        className="opacity-100 lg:opacity-0 lg:group-hover/item:opacity-100 p-0.5 hover:bg-white/10 rounded transition-all -mt-1"
+                                                                                        title="Arquivar tarefa"
+                                                                                    >
+                                                                                        <Archive className="w-3 h-3 text-white/50 hover:text-white" />
+                                                                                    </button>
+                                                                                )}
+                                                                            </div>
+                                                                        </div>
+                                                                        {/* Nested Sub-Tasks */}
+                                                                        {(!sub.isVirtual || !sub.originalTaskId) && sub.subTasks && sub.subTasks.length > 0 && (
+                                                                            <div className="mt-1 flex flex-col gap-1.5 animate-in slide-in-from-top-1 pl-1">
+                                                                                {sub.subTasks.map((nested: any, j: number) => (
+                                                                                    <div
+                                                                                        key={j}
+                                                                                        className="flex gap-2 items-start group/nested cursor-pointer"
+                                                                                        onClick={(e) => {
+                                                                                            e.stopPropagation();
+                                                                                            toggleNestedSubTaskCompletion(block.id, i, j, !!nested.done);
+                                                                                        }}
+                                                                                    >
+                                                                                        <div className={cn(
+                                                                                            "w-3.5 h-3.5 mt-0.5 rounded-[3px] border transition-colors flex items-center justify-center shrink-0",
+                                                                                            nested.done
+                                                                                                ? "bg-emerald-500/50 border-emerald-500/50 group-hover/nested:bg-emerald-500 group-hover/nested:border-emerald-500"
+                                                                                                : "border-white/20 bg-transparent group-hover/nested:border-white/40"
+                                                                                        )}>
+                                                                                            {nested.done && <Check className="w-2.5 h-2.5 text-white" strokeWidth={3} />}
+                                                                                        </div>
+                                                                                        <span className={cn(
+                                                                                            "text-[11px] leading-tight transition-colors",
+                                                                                            nested.done ? "line-through text-white/30" : "text-white/60 group-hover/nested:text-white/80"
+                                                                                        )}>
+                                                                                            {nested.title}
+                                                                                        </span>
+                                                                                    </div>
+                                                                                ))}
+                                                                            </div>
                                                                         )}
                                                                     </div>
                                                                 </div>
-                                                                {/* Nested Sub-Tasks */}
-                                                                {(!sub.isVirtual || !sub.originalTaskId) && sub.subTasks && sub.subTasks.length > 0 && (
-                                                                    <div className="mt-1 flex flex-col gap-1.5 animate-in slide-in-from-top-1 pl-1">
-                                                                        {sub.subTasks.map((nested: any, j: number) => (
-                                                                            <div
-                                                                                key={j}
-                                                                                className="flex gap-2 items-start group/nested cursor-pointer"
-                                                                                onClick={(e) => {
-                                                                                    e.stopPropagation();
-                                                                                    toggleNestedSubTaskCompletion(block.id, i, j, !!nested.done);
-                                                                                }}
-                                                                            >
-                                                                                <div className={cn(
-                                                                                    "w-3.5 h-3.5 mt-0.5 rounded-[3px] border transition-colors flex items-center justify-center shrink-0",
-                                                                                    nested.done
-                                                                                        ? "bg-emerald-500/50 border-emerald-500/50 group-hover/nested:bg-emerald-500 group-hover/nested:border-emerald-500"
-                                                                                        : "border-white/20 bg-transparent group-hover/nested:border-white/40"
-                                                                                )}>
-                                                                                    {nested.done && <Check className="w-2.5 h-2.5 text-white" strokeWidth={3} />}
-                                                                                </div>
-                                                                                <span className={cn(
-                                                                                    "text-[11px] leading-tight transition-colors",
-                                                                                    nested.done ? "line-through text-white/30" : "text-white/60 group-hover/nested:text-white/80"
-                                                                                )}>
-                                                                                    {nested.title}
-                                                                                </span>
-                                                                            </div>
-                                                                        ))}
-                                                                    </div>
-                                                                )}
                                                             </div>
                                                         </div>
                                                     </div>
-                                                </div>
-                                            ))}
+                                                );
+                                            })}
                                         </div>
                                     )}
-
                                     {/* Conflict Warning */}
                                     {hasConflict && (
                                         <div className="mt-2 p-2 rounded-lg bg-red-500/10 border border-red-500/20 flex flex-col gap-2 animate-pulse">
