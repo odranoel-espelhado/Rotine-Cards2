@@ -251,13 +251,31 @@ export function DroppableMissionBlock({ block, onDelete, onEdit, pendingBacklogT
         }
     };
 
+    const findNextAvailableSlotReverse = (dur: number): number => {
+        let searchPointer = blockEndMins;
+
+        // Reverse check through blocks (we must find overlap starting from end)
+        while (true) {
+            const overlap = pinnedSegments.slice().reverse().find(seg =>
+                ((searchPointer - dur) < seg.end && searchPointer > seg.start)
+            );
+
+            if (overlap) {
+                // If overlap, jump searchPointer to the start of the overlapping segment
+                searchPointer = overlap.start;
+            } else {
+                return searchPointer - dur; // Return the start time of the found reversed slot
+            }
+        }
+    };
+
     // Second pass: placed unpinned tasks
     subTasks.forEach((sub, i) => {
         if (!computedTaskTimes[i]) {
             const dur = parseInt(sub.duration || '0');
             // Ensure segments are sorted by start time
             pinnedSegments.sort((a, b) => a.start - b.start);
-            const start = findNextAvailableSlot(dur);
+            const start = sub.orderDir === 'down' ? findNextAvailableSlotReverse(dur) : findNextAvailableSlot(dur);
             computedTaskTimes[i] = { start, end: start + dur, isPinned: false };
             pinnedSegments.push({ start, end: start + dur }); // Treat placed unpinned task as a segment to avoid future collisions
         }
@@ -691,7 +709,7 @@ export function DroppableMissionBlock({ block, onDelete, onEdit, pendingBacklogT
                                                                     <div className="flex-1 flex flex-col min-w-0">
                                                                         <div className="flex justify-between items-start gap-2">
                                                                             <span className={cn(
-                                                                                "text-sm font-medium leading-none truncate transition-colors",
+                                                                                "text-sm font-medium leading-none truncate transition-colors flex items-center gap-1.5",
                                                                                 "cursor-pointer hover:underline hover:text-blue-400",
                                                                                 optimisticCompleted ? "line-through opacity-50 text-white/50" : "text-white/90",
                                                                                 sub.done ? "line-through text-white/40" : ""
@@ -713,7 +731,8 @@ export function DroppableMissionBlock({ block, onDelete, onEdit, pendingBacklogT
                                                                                 }}
                                                                                 title="Executar Tarefa"
                                                                             >
-                                                                                {sub.title}
+                                                                                {sub.isFixed && <span title="Tarefa Recorrente Padrão" className="flex items-center"><Repeat className="w-3 h-3 text-white/30 shrink-0" /></span>}
+                                                                                <span className="truncate">{sub.title}</span>
                                                                             </span>
 
                                                                             {/* Actions */}
@@ -728,9 +747,21 @@ export function DroppableMissionBlock({ block, onDelete, onEdit, pendingBacklogT
                                                                                     {sub.pinnedTime ? <PinOff className="w-3 h-3 text-amber-500 hover:text-amber-400" /> : <Pin className="w-3 h-3 text-white/50 hover:text-white" />}
                                                                                 </button>
                                                                                 {sub.isFixed ? (
-                                                                                    <div className="p-0.5 ml-1 inline-flex items-center" title="Tarefa fixa original do Bloco">
-                                                                                        <Repeat className="w-3 h-3 text-white/30" />
-                                                                                    </div>
+                                                                                    <button
+                                                                                        onClick={(e) => {
+                                                                                            e.stopPropagation();
+                                                                                            const promise = unassignTaskFromBlock(block.id, i, sub);
+                                                                                            toast.promise(promise, {
+                                                                                                loading: 'Excluindo Tarefa Recorrente...',
+                                                                                                success: 'Tarefa excluída!',
+                                                                                                error: 'Erro ao excluir'
+                                                                                            });
+                                                                                        }}
+                                                                                        className="p-0.5 hover:bg-white/10 rounded ml-1"
+                                                                                        title="Excluir Tarefa Padrão"
+                                                                                    >
+                                                                                        <Trash2 className="w-3 h-3 text-red-400 hover:text-red-300" />
+                                                                                    </button>
                                                                                 ) : (
                                                                                     <button
                                                                                         onClick={(e) => {

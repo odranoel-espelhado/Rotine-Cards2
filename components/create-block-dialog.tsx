@@ -23,7 +23,7 @@ import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { createMissionBlock, getUniqueBlockTypes } from "@/lib/actions/mission.actions";
 import { useState, useEffect } from "react";
-import { Plus, Trash2, Clock, Calendar, Zap, Target, Heart, Book, Briefcase, Dumbbell, Coffee, User, Star, Repeat } from "lucide-react";
+import { Plus, Trash2, Clock, Calendar, Zap, Target, Heart, Book, Briefcase, Dumbbell, Coffee, User, Star, Repeat, ArrowUp, ArrowDown } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -49,6 +49,7 @@ const subtaskSchema = z.object({
     originalPriority: z.string().optional(),
     description: z.string().optional(),
     done: z.boolean().optional(),
+    orderDir: z.enum(['up', 'down']).optional(),
 });
 
 const formSchema = z.object({
@@ -509,6 +510,22 @@ export function CreateBlockDialog({
                                                 name={`subTasks.${index}.duration`}
                                                 render={({ field }) => (
                                                     <Input {...field} type="number" placeholder="Min" className="w-16 bg-white/5 border-white/5 h-10 rounded-lg text-xs font-mono text-center" />
+                                                )}
+                                            />
+                                            <FormField
+                                                control={form.control}
+                                                name={`subTasks.${index}.orderDir`}
+                                                render={({ field }) => (
+                                                    <Button
+                                                        type="button"
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        onClick={() => field.onChange(field.value === 'down' ? 'up' : 'down')}
+                                                        className="h-10 w-8 text-zinc-600 hover:text-white hover:bg-white/10"
+                                                        title="Posição ao gerar bloco (Cima = Início, Baixo = Fim)"
+                                                    >
+                                                        {(!field.value || field.value === 'up') ? <ArrowUp className="w-4 h-4" /> : <ArrowDown className="w-4 h-4" />}
+                                                    </Button>
                                                 )}
                                             />
                                             <Button
