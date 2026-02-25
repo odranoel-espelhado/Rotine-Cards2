@@ -12,21 +12,21 @@ export function calculateDynamicTimeChange(deltaY: number, originalMins: number 
   let rawMins = 0;
   let step = 1;
 
-  if (absY < 40) {
+  if (absY < 20) {
     // Zona de precisão mais curta (1 em 1 minuto)
-    rawMins = absY / 2.5;
+    rawMins = absY * 0.5;
     step = 1;
-  } else if (absY < 120) {
+  } else if (absY < 80) {
     // Marcha 2 (incrementos de 5 minutos)
-    rawMins = 16 + ((absY - 40) * 0.4);
+    rawMins = 10 + ((absY - 20) * 0.5);
     step = 5;
-  } else if (absY < 250) {
-    // Marcha 3 (incrementos de 10 minutos)
-    rawMins = 48 + ((absY - 120) * 0.8);
+  } else if (absY < 350) {
+    // Marcha 3 (incrementos de 10 minutos) - Campo aumentado
+    rawMins = 40 + ((absY - 80) * 0.8);
     step = 10;
   } else {
-    // Velocidade altíssima (incrementos de 30 minutos)
-    rawMins = 152 + ((absY - 250) * 1.5);
+    // Velocidade altíssima (incrementos de 30 minutos) - Campo diminuído
+    rawMins = 256 + ((absY - 350) * 1.5);
     step = 30;
   }
 

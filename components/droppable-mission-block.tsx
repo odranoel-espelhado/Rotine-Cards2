@@ -321,7 +321,7 @@ export function DroppableMissionBlock({ block, onDelete, onEdit, pendingBacklogT
 
         const deltaY = transform.y;
         const timeChangeMins = calculateDynamicTimeChange(deltaY, originalMins);
-        visualDeltaY = timeChangeMins * 2.5; // Snap visually to the calculated minutes
+        visualDeltaY = deltaY; // Snap visually EXACTLY to the mouse cursor!
 
         if (timeChangeMins !== 0) {
             const totalMins = originalMins + timeChangeMins;
