@@ -432,7 +432,7 @@ export function DroppableMissionBlock({ block, onDelete, onEdit, pendingBacklogT
                                     {block.title}
                                 </h3>
                                 {isRecurring && (
-                                    <Repeat className={cn("h-3 w-3", optimisticCompleted ? "text-[#3a3a3a]" : "text-white/60")} />
+                                    <Repeat className={cn("h-3 w-3", optimisticCompleted ? "text-[var(--block-color)] opacity-70" : "text-white/60")} />
                                 )}
                             </div>
 
