@@ -215,35 +215,88 @@ export function DroppableMissionBlock({ block, onDelete, onEdit, pendingBacklogT
     const blockEndMins = blockStartMins + totalDuration;
     let currentFlowMins = blockStartMins;
 
-    const processedSubTasks = subTasks.map((sub, i) => {
-        let computedStart = currentFlowMins;
-        let gapBefore = 0;
-        let gapStartTime = 0;
+    const pinnedSegments: { start: number; end: number }[] = [];
+    const computedTaskTimes: { start: number, end: number, isPinned: boolean }[] = [];
 
+    // First pass: extract pinned slots
+    subTasks.forEach((sub, i) => {
         if (sub.pinnedTime) {
-            const pinnedMins = timeToMins(sub.pinnedTime);
-            if (pinnedMins > currentFlowMins) {
-                gapBefore = pinnedMins - currentFlowMins;
-                gapStartTime = currentFlowMins;
-            }
-            computedStart = pinnedMins;
+            const start = timeToMins(sub.pinnedTime);
+            const dur = parseInt(sub.duration || '0');
+            pinnedSegments.push({ start, end: start + dur });
+            computedTaskTimes[i] = { start, end: start + dur, isPinned: true };
         }
+    });
 
-        const subDur = parseInt(sub.duration || '0');
-        const computedEnd = computedStart + subDur;
-        currentFlowMins = computedEnd;
-        const isPastEnd = computedEnd > blockEndMins;
+    // Sort pinned segments by start time
+    pinnedSegments.sort((a, b) => a.start - b.start);
 
+    // Function to find next available slot for a duration
+    let searchPointer = blockStartMins;
+    const findNextAvailableSlot = (dur: number): number => {
+        while (true) {
+            // Check if `searchPointer` to `searchPointer + dur` overlaps with any pinned segment
+            const overlap = pinnedSegments.find(seg =>
+                (searchPointer < seg.end && (searchPointer + dur) > seg.start)
+            );
+
+            if (overlap) {
+                // If overlap, jump searchPointer to the end of the overlapping segment
+                searchPointer = overlap.end;
+            } else {
+                // Found a slot!
+                const slotStart = searchPointer;
+                searchPointer = searchPointer + dur; // Next search starts after this task
+                return slotStart;
+            }
+        }
+    };
+
+    // Second pass: placed unpinned tasks
+    subTasks.forEach((sub, i) => {
+        if (!computedTaskTimes[i]) {
+            const dur = parseInt(sub.duration || '0');
+            const start = findNextAvailableSlot(dur);
+            computedTaskTimes[i] = { start, end: start + dur, isPinned: false };
+        }
+    });
+
+    // Build processedSubTasks and SORT chronologically
+    let processedSubTasks = subTasks.map((sub, i) => {
+        const c = computedTaskTimes[i];
         return {
             ...sub,
             originalIndex: i,
-            computedStart,
-            computedEnd,
-            gapBefore,
-            gapStartTime,
-            isPastEnd
+            computedStart: c.start,
+            computedEnd: c.end,
+            isPastEnd: c.end > blockEndMins
         };
     });
+
+    processedSubTasks.sort((a, b) => a.computedStart - b.computedStart);
+
+    // Compute gaps after sorting chronologically
+    let lastEnd = blockStartMins;
+    processedSubTasks = processedSubTasks.map(sub => {
+        let gapBefore = 0;
+        let gapStartTime = 0;
+
+        if (sub.computedStart > lastEnd) {
+            gapBefore = sub.computedStart - lastEnd;
+            gapStartTime = lastEnd;
+        }
+
+        lastEnd = Math.max(lastEnd, sub.computedEnd);
+
+        return {
+            ...sub,
+            gapBefore,
+            gapStartTime
+        };
+    });
+
+    // update currentFlowMins to the max end time for conflict calculation
+    currentFlowMins = lastEnd;
 
     const handleMove = async (index: number, direction: -1 | 1) => {
         const newSubTasks = [...subTasks];
