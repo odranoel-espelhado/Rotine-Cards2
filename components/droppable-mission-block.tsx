@@ -321,9 +321,14 @@ export function DroppableMissionBlock({ block, onDelete, onEdit, pendingBacklogT
     const handleMove = async (index: number, direction: -1 | 1) => {
         const newSubTasks = [...subTasks];
         if (index + direction < 0 || index + direction >= newSubTasks.length) return;
-        const temp = newSubTasks[index];
-        newSubTasks[index] = newSubTasks[index + direction];
+        const temp = { ...newSubTasks[index] };
+        newSubTasks[index] = { ...newSubTasks[index + direction] };
         newSubTasks[index + direction] = temp;
+
+        // Remove 'orderDir' from both items specifically when user explicitly defines their visual order placement
+        delete newSubTasks[index].orderDir;
+        delete newSubTasks[index + direction].orderDir;
+
         await updateMissionBlock(block.id, { subTasks: newSubTasks });
     };
 
@@ -731,8 +736,8 @@ export function DroppableMissionBlock({ block, onDelete, onEdit, pendingBacklogT
                                                                                 }}
                                                                                 title="Executar Tarefa"
                                                                             >
-                                                                                {sub.isFixed && <span title="Tarefa Recorrente Padrão" className="flex items-center"><Repeat className="w-3 h-3 text-white/30 shrink-0" /></span>}
                                                                                 <span className="truncate">{sub.title}</span>
+                                                                                {sub.isFixed && <span title="Tarefa Recorrente Padrão" className="flex items-center"><Repeat className="w-3 h-3 text-white/30 shrink-0" /></span>}
                                                                             </span>
 
                                                                             {/* Actions */}
