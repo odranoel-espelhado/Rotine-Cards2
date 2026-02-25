@@ -661,9 +661,18 @@ export function DroppableMissionBlock({ block, onDelete, onEdit, pendingBacklogT
                                                                             </span>
 
                                                                             {/* Actions */}
-                                                                            <div className="flex shrink-0">
+                                                                            <div className="flex gap-1 shrink-0 opacity-100 lg:opacity-0 lg:group-hover/item:opacity-100 transition-all -mt-1">
+                                                                                <button onClick={(e) => { e.stopPropagation(); handleMove(i, -1); }} disabled={i === 0} className="p-0.5 hover:bg-white/10 rounded disabled:opacity-30 disabled:cursor-not-allowed hidden lg:block" title="Subir (Ordem)">
+                                                                                    <ArrowUp className="w-3 h-3 text-white/50" />
+                                                                                </button>
+                                                                                <button onClick={(e) => { e.stopPropagation(); handleMove(i, 1); }} disabled={i === processedSubTasks.length - 1} className="p-0.5 hover:bg-white/10 rounded disabled:opacity-30 disabled:cursor-not-allowed hidden lg:block" title="Descer (Ordem)">
+                                                                                    <ArrowDown className="w-3 h-3 text-white/50" />
+                                                                                </button>
+                                                                                <button onClick={(e) => { e.stopPropagation(); handlePinToggle(i, sub); }} className="p-0.5 hover:bg-white/10 rounded" title={sub.pinnedTime ? "Desafixar horário" : "Cravar (Fixar horário)"}>
+                                                                                    {sub.pinnedTime ? <PinOff className="w-3 h-3 text-amber-500 hover:text-amber-400" /> : <Pin className="w-3 h-3 text-white/50 hover:text-white" />}
+                                                                                </button>
                                                                                 {sub.isFixed ? (
-                                                                                    <div className="mr-1" title="Tarefa fixa do bloco">
+                                                                                    <div className="p-0.5 ml-1 inline-flex items-center" title="Tarefa fixa original do Bloco">
                                                                                         <Repeat className="w-3 h-3 text-white/30" />
                                                                                     </div>
                                                                                 ) : (
@@ -677,8 +686,8 @@ export function DroppableMissionBlock({ block, onDelete, onEdit, pendingBacklogT
                                                                                                 error: 'Erro ao arquivar'
                                                                                             });
                                                                                         }}
-                                                                                        className="opacity-100 lg:opacity-0 lg:group-hover/item:opacity-100 p-0.5 hover:bg-white/10 rounded transition-all -mt-1"
-                                                                                        title="Arquivar tarefa"
+                                                                                        className="p-0.5 hover:bg-white/10 rounded ml-1"
+                                                                                        title="Remover Tarefa"
                                                                                     >
                                                                                         <Archive className="w-3 h-3 text-white/50 hover:text-white" />
                                                                                     </button>
