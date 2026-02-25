@@ -43,6 +43,12 @@ const BLOCK_ICONS = [
 const subtaskSchema = z.object({
     title: z.string().min(1, "Nome necessário"),
     duration: z.coerce.number().min(1, "Mínimo 1 min"),
+    isFixed: z.boolean().optional(),
+    isFromTask: z.boolean().optional(),
+    originalTaskId: z.string().optional(),
+    originalPriority: z.string().optional(),
+    description: z.string().optional(),
+    done: z.boolean().optional(),
 });
 
 const formSchema = z.object({
@@ -96,7 +102,16 @@ export function CreateBlockDialog({
             icon: blockToEdit?.icon || "zap",
             startTime: blockToEdit?.startTime || defaultStartTime || "08:00",
             totalDuration: blockToEdit?.totalDuration || defaultDuration || 30,
-            subTasks: (blockToEdit?.subTasks as any[])?.map((s: any) => ({ title: s.title, duration: parseInt(s.duration) })) || [],
+            subTasks: (blockToEdit?.subTasks as any[])?.map((s: any) => ({
+                title: s.title,
+                duration: parseInt(s.duration),
+                isFixed: s.isFixed,
+                isFromTask: s.isFromTask,
+                originalTaskId: s.originalTaskId,
+                originalPriority: s.originalPriority,
+                description: s.description,
+                done: s.done
+            })) || [],
             isRecurring: blockToEdit?.type === 'recurring',
             replicateWeekdays: blockToEdit?.recurrencePattern === 'weekdays',
         },
@@ -111,7 +126,16 @@ export function CreateBlockDialog({
                 icon: blockToEdit?.icon || "zap",
                 startTime: blockToEdit?.startTime || defaultStartTime || "08:00",
                 totalDuration: blockToEdit?.totalDuration || defaultDuration || 30,
-                subTasks: (blockToEdit?.subTasks as any[])?.map((s: any) => ({ title: s.title, duration: parseInt(s.duration) })) || [],
+                subTasks: (blockToEdit?.subTasks as any[])?.map((s: any) => ({
+                    title: s.title,
+                    duration: parseInt(s.duration),
+                    isFixed: s.isFixed,
+                    isFromTask: s.isFromTask,
+                    originalTaskId: s.originalTaskId,
+                    originalPriority: s.originalPriority,
+                    description: s.description,
+                    done: s.done
+                })) || [],
                 isRecurring: blockToEdit?.type === 'recurring',
                 replicateWeekdays: blockToEdit?.recurrencePattern === 'weekdays',
             });
@@ -141,7 +165,11 @@ export function CreateBlockDialog({
             color: values.color,
             icon: values.icon,
             date: currentDate,
-            subTasks: values.subTasks.map(s => ({ ...s, done: false, isFixed: true })),
+            subTasks: values.subTasks.map(s => ({
+                ...s,
+                done: s.done || false,
+                isFixed: s.isFromTask ? false : (s.isFixed !== undefined ? s.isFixed : true)
+            })),
             type: values.isRecurring ? 'recurring' as const : 'unique' as const,
             recurrencePattern: values.replicateWeekdays ? 'weekdays' as const : undefined,
         };
@@ -184,7 +212,11 @@ export function CreateBlockDialog({
             color: values.color,
             icon: values.icon,
             date: currentDate,
-            subTasks: values.subTasks.map(s => ({ ...s, done: false, isFixed: true })),
+            subTasks: values.subTasks.map(s => ({
+                ...s,
+                done: s.done || false,
+                isFixed: s.isFromTask ? false : (s.isFixed !== undefined ? s.isFixed : true)
+            })),
             type: values.isRecurring ? 'recurring' as const : 'unique' as const,
             recurrencePattern: values.replicateWeekdays ? 'weekdays' as const : undefined,
         };
