@@ -232,10 +232,11 @@ export function DroppableMissionBlock({ block, onDelete, onEdit, pendingBacklogT
     pinnedSegments.sort((a, b) => a.start - b.start);
 
     // Function to find next available slot for a duration
-    let searchPointer = blockStartMins;
     const findNextAvailableSlot = (dur: number): number => {
+        let searchPointer = blockStartMins;
+
         while (true) {
-            // Check if `searchPointer` to `searchPointer + dur` overlaps with any pinned segment
+            // Check if `searchPointer` to `searchPointer + dur` overlaps with any occupied segment
             const overlap = pinnedSegments.find(seg =>
                 (searchPointer < seg.end && (searchPointer + dur) > seg.start)
             );
@@ -245,9 +246,7 @@ export function DroppableMissionBlock({ block, onDelete, onEdit, pendingBacklogT
                 searchPointer = overlap.end;
             } else {
                 // Found a slot!
-                const slotStart = searchPointer;
-                searchPointer = searchPointer + dur; // Next search starts after this task
-                return slotStart;
+                return searchPointer;
             }
         }
     };
@@ -256,8 +255,11 @@ export function DroppableMissionBlock({ block, onDelete, onEdit, pendingBacklogT
     subTasks.forEach((sub, i) => {
         if (!computedTaskTimes[i]) {
             const dur = parseInt(sub.duration || '0');
+            // Ensure segments are sorted by start time
+            pinnedSegments.sort((a, b) => a.start - b.start);
             const start = findNextAvailableSlot(dur);
             computedTaskTimes[i] = { start, end: start + dur, isPinned: false };
+            pinnedSegments.push({ start, end: start + dur }); // Treat placed unpinned task as a segment to avoid future collisions
         }
     });
 
