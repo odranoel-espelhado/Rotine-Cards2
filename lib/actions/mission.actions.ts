@@ -751,8 +751,8 @@ export async function unassignTaskFromBlock(blockId: string, taskIndex: number, 
             .where(eq(missionBlocks.id, targetBlockId));
 
         // Create backlog task from removed task
-        // "Archives back to task list"
-        if (!taskData.isVirtual) {
+        // "Archives back to task list" only if not virtual and not a fixed/default task
+        if (!taskData.isVirtual && !taskData.isFixed) {
             await db.insert(backlogTasks).values({
                 userId,
                 title: taskData.title,
