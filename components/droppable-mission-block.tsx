@@ -283,17 +283,18 @@ export function DroppableMissionBlock({ block, onDelete, onEdit, pendingBacklogT
     const subTaskTotalDuration = subTasks.reduce((acc, curr) => acc + (parseInt(curr.duration) || 0), 0);
     const remainder = Math.max(0, totalDuration - subTaskTotalDuration);
 
+    // Conflict Check using actual flow time
+    const neededTotalDuration = currentFlowMins - blockStartMins;
+    const hasConflict = currentFlowMins > blockEndMins;
+
     const handleAutoResize = async () => {
         try {
-            await updateMissionBlock(block.id, { totalDuration: subTaskTotalDuration });
+            await updateMissionBlock(block.id, { totalDuration: neededTotalDuration });
             toast.success("Tempo do bloco ajustado!");
         } catch (error) {
             toast.error("Erro ao ajustar tempo.");
         }
     };
-
-    // Conflict Check
-    const hasConflict = subTaskTotalDuration > totalDuration;
 
     // Calculate subtask vertical segments
     // We want the line to take up some vertical space.
@@ -661,11 +662,11 @@ export function DroppableMissionBlock({ block, onDelete, onEdit, pendingBacklogT
                                                                             </span>
 
                                                                             {/* Actions */}
-                                                                            <div className="flex gap-1 shrink-0 opacity-100 lg:opacity-0 lg:group-hover/item:opacity-100 transition-all -mt-1">
-                                                                                <button onClick={(e) => { e.stopPropagation(); handleMove(i, -1); }} disabled={i === 0} className="p-0.5 hover:bg-white/10 rounded disabled:opacity-30 disabled:cursor-not-allowed hidden lg:block" title="Subir (Ordem)">
+                                                                            <div className="flex gap-1 shrink-0 opacity-100 lg:opacity-50 lg:group-hover/item:opacity-100 transition-all -mt-1">
+                                                                                <button onClick={(e) => { e.stopPropagation(); handleMove(i, -1); }} disabled={i === 0} className="p-0.5 hover:bg-white/10 rounded disabled:opacity-30 disabled:cursor-not-allowed" title="Subir (Ordem)">
                                                                                     <ArrowUp className="w-3 h-3 text-white/50" />
                                                                                 </button>
-                                                                                <button onClick={(e) => { e.stopPropagation(); handleMove(i, 1); }} disabled={i === processedSubTasks.length - 1} className="p-0.5 hover:bg-white/10 rounded disabled:opacity-30 disabled:cursor-not-allowed hidden lg:block" title="Descer (Ordem)">
+                                                                                <button onClick={(e) => { e.stopPropagation(); handleMove(i, 1); }} disabled={i === processedSubTasks.length - 1} className="p-0.5 hover:bg-white/10 rounded disabled:opacity-30 disabled:cursor-not-allowed" title="Descer (Ordem)">
                                                                                     <ArrowDown className="w-3 h-3 text-white/50" />
                                                                                 </button>
                                                                                 <button onClick={(e) => { e.stopPropagation(); handlePinToggle(i, sub); }} className="p-0.5 hover:bg-white/10 rounded" title={sub.pinnedTime ? "Desafixar horário" : "Cravar (Fixar horário)"}>
@@ -741,7 +742,7 @@ export function DroppableMissionBlock({ block, onDelete, onEdit, pendingBacklogT
                                                 <span>Conflito de Tempo</span>
                                             </div>
                                             <p className="text-[10px] text-red-300/80">
-                                                Tarefas ({subTaskTotalDuration}m) excedem o bloco ({totalDuration}m).
+                                                O fluxo de tarefas exigirá ({neededTotalDuration}m) mas o bloco só possui ({totalDuration}m).
                                             </p>
                                             <Button
                                                 size="sm"
@@ -749,7 +750,7 @@ export function DroppableMissionBlock({ block, onDelete, onEdit, pendingBacklogT
                                                 className="h-6 text-[10px] uppercase font-bold w-full"
                                                 onClick={(e) => { e.stopPropagation(); handleAutoResize(); }}
                                             >
-                                                Aumentar para {subTaskTotalDuration} min
+                                                Aumentar para {neededTotalDuration} min
                                             </Button>
                                         </div>
                                     )}
