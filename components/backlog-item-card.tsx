@@ -93,9 +93,8 @@ export const BacklogItemCard = forwardRef<HTMLDivElement, BacklogItemCardProps>(
 
                     <div className="relative p-3 z-10 flex flex-col gap-2">
                         <div className="flex items-start justify-between gap-3">
-                            {/* Title with Priority Dot */}
+                            {/* Title */}
                             <div className="flex-1 min-w-0 flex items-center gap-2">
-                                <div className={cn("w-2 h-2 rounded-full shrink-0", priorityColor)} title={`Prioridade ${task.priority}`} />
                                 <span
                                     onClick={(e) => {
                                         e.stopPropagation();
@@ -110,42 +109,39 @@ export const BacklogItemCard = forwardRef<HTMLDivElement, BacklogItemCardProps>(
 
                             {/* Right Side: Icons & Actions */}
                             <div className="flex items-center gap-2 shrink-0">
+                                <div className={cn("w-3 h-3 rounded-full shrink-0 shadow-sm border border-white/20", priorityColor)} title={`Prioridade ${task.priority}`} />
                                 {DangerIcon}
                             </div>
                         </div>
 
-                        {/* Actions (Always accessible on Mobile, Hover on Desktop) - visible if NOT dragging */}
-                        {!isDragging && (
-                            <div className={cn(
-                                "items-center gap-1 transition-opacity absolute right-2 top-2 bg-black/50 backdrop-blur-sm rounded-lg p-1 border border-white/10 shadow-xl",
-                                "flex opacity-100 md:opacity-0 md:group-hover:opacity-100 z-20"
-                            )}>
-                                {onEdit && (
-                                    <Button
-                                        size="icon"
-                                        variant="ghost"
-                                        onClick={(e) => { e.stopPropagation(); onEdit(task); }}
-                                        className="h-8 w-8 text-white/70 hover:text-white hover:bg-white/10"
-                                    >
-                                        <Pencil className="h-4 w-4" />
-                                    </Button>
-                                )}
-                                {onDelete && (
-                                    <Button
-                                        size="icon"
-                                        variant="ghost"
-                                        onClick={(e) => { e.stopPropagation(); onDelete(task.id); }}
-                                        className="h-8 w-8 text-white/70 hover:text-red-400 hover:bg-red-500/20"
-                                    >
-                                        <Trash2 className="h-4 w-4" />
-                                    </Button>
-                                )}
-                            </div>
-                        )}
-
                         {/* Subtasks Preview or Expanded View */}
                         {expanded && (
                             <div className="pt-2 border-t border-white/10 mt-1 space-y-2 animate-in slide-in-from-top-2 duration-200">
+                                {/* Actions Area */}
+                                {!isDragging && (
+                                    <div className="flex items-center justify-end gap-2 mb-2">
+                                        {onEdit && (
+                                            <Button
+                                                size="sm"
+                                                variant="ghost"
+                                                onClick={(e) => { e.stopPropagation(); onEdit(task); }}
+                                                className="h-7 px-3 text-xs text-white/70 hover:text-white hover:bg-white/10 border border-white/10 rounded-lg"
+                                            >
+                                                <Pencil className="h-3 w-3 mr-1" /> Editar
+                                            </Button>
+                                        )}
+                                        {onDelete && (
+                                            <Button
+                                                size="sm"
+                                                variant="ghost"
+                                                onClick={(e) => { e.stopPropagation(); onDelete(task.id); }}
+                                                className="h-7 px-3 text-xs text-white/70 hover:text-red-400 hover:bg-red-500/20 border border-transparent hover:border-red-500/30 rounded-lg"
+                                            >
+                                                <Trash2 className="h-3 w-3 mr-1" /> Excluir
+                                            </Button>
+                                        )}
+                                    </div>
+                                )}
 
                                 {/* Description */}
                                 {task.description && (
