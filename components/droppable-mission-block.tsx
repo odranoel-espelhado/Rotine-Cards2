@@ -199,7 +199,7 @@ export function DroppableMissionBlock({ block, onDelete, onEdit, pendingBacklogT
 
     const totalDuration = block.totalDuration;
     const subTasks = (block.subTasks as any[]) || [];
-    const isFromTask = subTasks.some(s => s.isFromTask || s.originalTaskId); // Check if the block originated from a task
+    const isFromTask = !isRecurring && subTasks.some(s => s.isFromTask || s.originalTaskId); // Check if the block originated from a task
 
     // NEW ALGORITHM: Compute times and gaps
     const timeToMins = (t: string) => {
@@ -655,8 +655,11 @@ export function DroppableMissionBlock({ block, onDelete, onEdit, pendingBacklogT
                                                                 <div className="w-[30px] text-right pt-[1px]">
                                                                     <span className="text-[9px] font-mono text-white/30 truncate">{sub.gapBefore}m</span>
                                                                 </div>
-                                                                <div className="flex flex-col items-center">
-                                                                    <div className="w-[1px] bg-transparent border-l border-dashed border-white/20 h-4 ml-[0.5px]" />
+                                                                <div className="flex flex-col items-center h-full justify-center">
+                                                                    <div
+                                                                        className="w-[1px] bg-transparent border-l border-dashed border-white/20 ml-[0.5px]"
+                                                                        style={{ height: `${Math.max(16, sub.gapBefore * 1.5)}px` }}
+                                                                    />
                                                                 </div>
                                                                 <div className="text-[9px] text-white/30 flex-1 font-mono italic pl-2">
                                                                     Vazio: {minsToTime(sub.gapStartTime)} - {minsToTime(sub.gapStartTime + sub.gapBefore)}
