@@ -153,7 +153,8 @@ export function DroppableMissionBlock({ block, onDelete, onEdit, pendingBacklogT
         setOptimisticCompleted(block.status === 'completed');
     }, [block.status]);
 
-    const glowColor = block.color || '#3b82f6';
+    const isGeral = block.linkedBlockType === 'Geral' || block.title === 'Geral';
+    const glowColor = isGeral ? '#27272a' : (block.color || '#3b82f6');
     const isRecurring = block.type === 'recurring' || !!block.recurrencePattern;
 
     const handleToggle = async (e?: React.MouseEvent) => {
@@ -551,11 +552,11 @@ export function DroppableMissionBlock({ block, onDelete, onEdit, pendingBacklogT
                                 className={cn(
                                     "h-8 w-8 shrink-0 rounded-[8px] border-2 flex items-center justify-center cursor-pointer transition-all duration-300 z-20",
                                     optimisticCompleted
-                                        ? (block.linkedBlockType === 'Geral' || block.title === 'Geral' ? "bg-[#050506] border-zinc-500 shadow-[0_0_15px_rgba(212,212,216,0.3)]" : "bg-[#050506] border-zinc-800")
+                                        ? (isGeral ? "bg-[#050506] border-zinc-500 shadow-[0_0_15px_rgba(212,212,216,0.3)]" : "bg-[#050506] border-zinc-800")
                                         : "bg-transparent border-white/30 hover:bg-white/10"
                                 )}
                             >
-                                {optimisticCompleted && <Check className={cn("h-5 w-5", (block.linkedBlockType === 'Geral' || block.title === 'Geral') ? "text-zinc-300 drop-shadow-[0_0_8px_rgba(212,212,216,0.8)]" : "text-white")} strokeWidth={3} />}
+                                {optimisticCompleted && <Check className={cn("h-5 w-5", isGeral ? "text-zinc-300 drop-shadow-[0_0_8px_rgba(212,212,216,0.8)]" : "text-white")} strokeWidth={3} />}
                             </div>
 
                             {/* Vertical Timeline Removed */}
@@ -565,7 +566,7 @@ export function DroppableMissionBlock({ block, onDelete, onEdit, pendingBacklogT
                         <div className="flex-1 min-w-0 flex flex-col h-full">
 
                             <div className="flex items-center gap-2 mb-1">
-                                <Icon className={cn("w-5 h-5 transition-all duration-300", optimisticCompleted ? (block.linkedBlockType === 'Geral' || block.title === 'Geral' ? "text-zinc-400 drop-shadow-[0_0_10px_rgba(212,212,216,0.8)]" : "text-[var(--block-color)]") : "text-white")} />
+                                <Icon className={cn("w-5 h-5 transition-all duration-300", optimisticCompleted ? (isGeral ? "text-zinc-400 drop-shadow-[0_0_10px_rgba(212,212,216,0.8)]" : "text-[var(--block-color)]") : "text-white")} />
                                 <h3
                                     onClick={isFromTask ? (e) => {
                                         e.stopPropagation();
@@ -584,7 +585,7 @@ export function DroppableMissionBlock({ block, onDelete, onEdit, pendingBacklogT
                                     className={cn(
                                         "text-lg font-black uppercase tracking-wider truncate transition-colors duration-300 inline-block w-fit max-w-full",
                                         isFromTask ? "cursor-pointer hover:underline hover:text-blue-400" : "",
-                                        optimisticCompleted ? (block.linkedBlockType === 'Geral' || block.title === 'Geral' ? "text-zinc-400 drop-shadow-[0_0_10px_rgba(212,212,216,0.8)] line-through" : "text-[var(--block-color)] line-through") : "text-white"
+                                        optimisticCompleted ? (isGeral ? "text-zinc-400 drop-shadow-[0_0_10px_rgba(212,212,216,0.8)] line-through" : "text-[var(--block-color)] line-through") : "text-white"
                                     )}
                                     title={isFromTask ? "Executar Bloco" : undefined}
                                 >
@@ -667,10 +668,21 @@ export function DroppableMissionBlock({ block, onDelete, onEdit, pendingBacklogT
                                                             </div>
                                                         )}
 
-                                                        <div className={cn("flex items-start gap-3 group/item relative", sub.isPastEnd && "opacity-60")}>
+                                                        <div className={cn("flex items-start gap-1 md:gap-3 group/item relative", sub.isPastEnd && "opacity-60")}>
                                                             {sub.isPastEnd && (
                                                                 <div className="absolute left-[-2px] bottom-0 w-[2px] h-full bg-red-500/50 rounded-full" title="Ultrapassa o horário final do bloco" />
                                                             )}
+
+                                                            {/* MD-HIDDEN ARROWS (MOBILE LEFT COLUMN) */}
+                                                            <div className="flex md:hidden flex-col gap-1 items-center shrink-0 pt-0.5">
+                                                                <button onClick={(e) => { e.stopPropagation(); handleMove(i, -1); }} disabled={i === 0} className="p-0.5 hover:bg-white/10 rounded disabled:opacity-30 disabled:cursor-not-allowed">
+                                                                    <ArrowUp className="w-2.5 h-2.5 text-white/50" />
+                                                                </button>
+                                                                <button onClick={(e) => { e.stopPropagation(); handleMove(i, 1); }} disabled={i === processedSubTasks.length - 1} className="p-0.5 hover:bg-white/10 rounded disabled:opacity-30 disabled:cursor-not-allowed">
+                                                                    <ArrowDown className="w-2.5 h-2.5 text-white/50" />
+                                                                </button>
+                                                            </div>
+
                                                             {/* Duration Column */}
                                                             <div className="w-[30px] text-right pt-[2px]">
                                                                 <span className="text-[10px] font-mono text-white/40 group-hover/item:text-white/60 transition-colors block leading-none" title={sub.pinnedTime ? `Cravado: ${sub.pinnedTime}` : `Automático: ${minsToTime(sub.computedStart)}`}>
@@ -744,8 +756,8 @@ export function DroppableMissionBlock({ block, onDelete, onEdit, pendingBacklogT
                                                                                 {sub.isFixed && <span title="Tarefa Recorrente Padrão" className="flex items-center"><Repeat className="w-3 h-3 text-white/30 shrink-0" /></span>}
                                                                             </span>
 
-                                                                            {/* Actions */}
-                                                                            <div className="flex gap-1 shrink-0 opacity-100 lg:opacity-50 lg:group-hover/item:opacity-100 transition-all -mt-1">
+                                                                            {/* Actions - DESKTOP ONLY (Arrows + Pin + Trash) */}
+                                                                            <div className="hidden md:flex gap-1 shrink-0 opacity-100 lg:opacity-50 lg:group-hover/item:opacity-100 transition-all -mt-1">
                                                                                 <button onClick={(e) => { e.stopPropagation(); handleMove(i, -1); }} disabled={i === 0} className="p-0.5 hover:bg-white/10 rounded disabled:opacity-30 disabled:cursor-not-allowed" title="Subir (Ordem)">
                                                                                     <ArrowUp className="w-3 h-3 text-white/50" />
                                                                                 </button>
@@ -789,6 +801,36 @@ export function DroppableMissionBlock({ block, onDelete, onEdit, pendingBacklogT
                                                                                     </button>
                                                                                 )}
                                                                             </div>
+                                                                        </div>
+
+                                                                        {/* MOBILE ONLY ACTIONS (Below Title, starting from right) */}
+                                                                        <div className="flex md:hidden justify-end gap-3 mt-1 mr-1">
+                                                                            <button onClick={(e) => { e.stopPropagation(); handlePinToggle(i, sub); }} className="p-1 bg-white/5 hover:bg-white/10 rounded border border-white/5 shadow-sm flex items-center gap-1.5" title={sub.pinnedTime ? "Desafixar horário" : "Cravar (Fixar horário)"}>
+                                                                                {sub.pinnedTime ? <PinOff className="w-3 h-3 text-amber-500" /> : <Pin className="w-3 h-3 text-white/50" />}
+                                                                            </button>
+                                                                            {sub.isFixed ? (
+                                                                                <button
+                                                                                    onClick={(e) => {
+                                                                                        e.stopPropagation();
+                                                                                        const promise = unassignTaskFromBlock(block.id, i, sub);
+                                                                                        toast.promise(promise, { loading: 'Excluindo...', success: 'Excluída!', error: 'Erro' });
+                                                                                    }}
+                                                                                    className="p-1 bg-white/5 hover:bg-red-500/20 rounded border border-white/5 shadow-sm"
+                                                                                >
+                                                                                    <Trash2 className="w-3 h-3 text-red-500/70" />
+                                                                                </button>
+                                                                            ) : (
+                                                                                <button
+                                                                                    onClick={(e) => {
+                                                                                        e.stopPropagation();
+                                                                                        const promise = unassignTaskFromBlock(block.id, i, sub);
+                                                                                        toast.promise(promise, { loading: 'Arquivando...', success: 'Arquivada!', error: 'Erro' });
+                                                                                    }}
+                                                                                    className="p-1 bg-white/5 hover:bg-white/10 rounded border border-white/5 shadow-sm"
+                                                                                >
+                                                                                    <Archive className="w-3 h-3 text-white/50" />
+                                                                                </button>
+                                                                            )}
                                                                         </div>
                                                                         {/* Nested Sub-Tasks */}
                                                                         {(!sub.isVirtual || !sub.originalTaskId) && sub.subTasks && sub.subTasks.length > 0 && (
