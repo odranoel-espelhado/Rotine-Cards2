@@ -552,11 +552,11 @@ export function DroppableMissionBlock({ block, onDelete, onEdit, pendingBacklogT
                                 className={cn(
                                     "h-8 w-8 shrink-0 rounded-[8px] border-2 flex items-center justify-center cursor-pointer transition-all duration-300 z-20",
                                     optimisticCompleted
-                                        ? (isGeral ? "bg-[#050506] border-zinc-500 shadow-[0_0_15px_rgba(212,212,216,0.3)]" : "bg-[#050506] border-zinc-800")
+                                        ? (isGeral ? "bg-zinc-100 border-white shadow-[0_0_15px_rgba(255,255,255,0.8)]" : "bg-[#050506] border-zinc-800")
                                         : "bg-transparent border-white/30 hover:bg-white/10"
                                 )}
                             >
-                                {optimisticCompleted && <Check className={cn("h-5 w-5", isGeral ? "text-zinc-300 drop-shadow-[0_0_8px_rgba(212,212,216,0.8)]" : "text-white")} strokeWidth={3} />}
+                                {optimisticCompleted && <Check className={cn("h-5 w-5", isGeral ? "text-zinc-900 drop-shadow-[0_0_8px_rgba(0,0,0,0.8)]" : "text-white")} strokeWidth={4} />}
                             </div>
 
                             {/* Vertical Timeline Removed */}
@@ -566,7 +566,7 @@ export function DroppableMissionBlock({ block, onDelete, onEdit, pendingBacklogT
                         <div className="flex-1 min-w-0 flex flex-col h-full">
 
                             <div className="flex items-center gap-2 mb-1">
-                                <Icon className={cn("w-5 h-5 transition-all duration-300", optimisticCompleted ? (isGeral ? "text-zinc-400 drop-shadow-[0_0_10px_rgba(212,212,216,0.8)]" : "text-[var(--block-color)]") : "text-white")} />
+                                <Icon className={cn("w-5 h-5 transition-all duration-300", optimisticCompleted ? (isGeral ? "text-zinc-100 drop-shadow-[0_0_15px_rgba(255,255,255,0.8)]" : "text-[var(--block-color)]") : "text-white")} />
                                 <h3
                                     onClick={isFromTask ? (e) => {
                                         e.stopPropagation();
@@ -585,7 +585,7 @@ export function DroppableMissionBlock({ block, onDelete, onEdit, pendingBacklogT
                                     className={cn(
                                         "text-lg font-black uppercase tracking-wider truncate transition-colors duration-300 inline-block w-fit max-w-full",
                                         isFromTask ? "cursor-pointer hover:underline hover:text-blue-400" : "",
-                                        optimisticCompleted ? (isGeral ? "text-zinc-400 drop-shadow-[0_0_10px_rgba(212,212,216,0.8)] line-through" : "text-[var(--block-color)] line-through") : "text-white"
+                                        optimisticCompleted ? (isGeral ? "text-zinc-100 drop-shadow-[0_0_15px_rgba(255,255,255,0.8)] line-through" : "text-[var(--block-color)] line-through") : "text-white"
                                     )}
                                     title={isFromTask ? "Executar Bloco" : undefined}
                                 >
