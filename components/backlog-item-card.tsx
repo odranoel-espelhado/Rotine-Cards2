@@ -61,7 +61,7 @@ export const BacklogItemCard = forwardRef<HTMLDivElement, BacklogItemCardProps>(
         // Icon Logic: 5 days -> Yellow (Amber), 3 days -> Red
         let DangerIcon = null;
         if (daysLeft !== null && daysLeft <= 5) {
-            const isRed = daysLeft <= 3;
+            const isRed = daysLeft <= 2;
             DangerIcon = (
                 <div className={cn("flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider", isRed ? "bg-red-500/20 text-red-500 border border-red-500/50" : "bg-amber-500/20 text-amber-500 border border-amber-500/50")}>
                     <AlertTriangle className="w-3 h-3" strokeWidth={3} />
@@ -93,14 +93,15 @@ export const BacklogItemCard = forwardRef<HTMLDivElement, BacklogItemCardProps>(
 
                     <div className="relative p-3 z-10 flex flex-col gap-2">
                         <div className="flex items-start justify-between gap-3">
-                            {/* Title */}
-                            <div className="flex-1 min-w-0 flex flex-col gap-1">
+                            {/* Title with Priority Dot */}
+                            <div className="flex-1 min-w-0 flex items-center gap-2">
+                                <div className={cn("w-2 h-2 rounded-full shrink-0", priorityColor)} title={`Prioridade ${task.priority}`} />
                                 <span
                                     onClick={(e) => {
                                         e.stopPropagation();
                                         setExecutionDialogOpen(true);
                                     }}
-                                    className="text-sm font-bold text-white leading-tight shadow-black drop-shadow-md break-words inline-block w-fit max-w-[85%] cursor-pointer hover:underline hover:text-blue-400 transition-colors"
+                                    className="text-sm font-bold text-white leading-tight shadow-black drop-shadow-md break-words inline-block w-fit cursor-pointer hover:underline hover:text-blue-400 transition-colors"
                                     title="Executar / Ver Tarefa"
                                 >
                                     {task.title}
@@ -113,23 +114,20 @@ export const BacklogItemCard = forwardRef<HTMLDivElement, BacklogItemCardProps>(
                             </div>
                         </div>
 
-                        {/* Actions (Hover / Expanded on Mobile) - visible if NOT dragging */}
+                        {/* Actions (Always accessible on Mobile, Hover on Desktop) - visible if NOT dragging */}
                         {!isDragging && (
                             <div className={cn(
-                                "items-center gap-1 transition-opacity absolute right-2 top-2 bg-black/50 backdrop-blur-sm rounded-lg p-0.5 border border-white/10 shadow-xl pl-2",
-                                expanded ? "flex opacity-100" : "hidden lg:flex lg:opacity-0 lg:group-hover:opacity-100"
+                                "items-center gap-1 transition-opacity absolute right-2 top-2 bg-black/50 backdrop-blur-sm rounded-lg p-1 border border-white/10 shadow-xl",
+                                "flex opacity-100 md:opacity-0 md:group-hover:opacity-100 z-20"
                             )}>
-                                {/* Priority Dot */}
-                                <div className={cn("w-2 h-2 rounded-full mr-1", priorityColor)} title={`Prioridade ${task.priority}`} />
-
                                 {onEdit && (
                                     <Button
                                         size="icon"
                                         variant="ghost"
                                         onClick={(e) => { e.stopPropagation(); onEdit(task); }}
-                                        className="h-6 w-6 text-white/70 hover:text-white hover:bg-white/10"
+                                        className="h-8 w-8 text-white/70 hover:text-white hover:bg-white/10"
                                     >
-                                        <Pencil className="h-3 w-3" />
+                                        <Pencil className="h-4 w-4" />
                                     </Button>
                                 )}
                                 {onDelete && (
@@ -137,9 +135,9 @@ export const BacklogItemCard = forwardRef<HTMLDivElement, BacklogItemCardProps>(
                                         size="icon"
                                         variant="ghost"
                                         onClick={(e) => { e.stopPropagation(); onDelete(task.id); }}
-                                        className="h-6 w-6 text-white/70 hover:text-red-400 hover:bg-black/20"
+                                        className="h-8 w-8 text-white/70 hover:text-red-400 hover:bg-red-500/20"
                                     >
-                                        <Trash2 className="h-3 w-3" />
+                                        <Trash2 className="h-4 w-4" />
                                     </Button>
                                 )}
                             </div>
