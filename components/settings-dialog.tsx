@@ -10,7 +10,8 @@ import { useState, useEffect } from "react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Save } from "lucide-react";
+import { Save, Bell } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 export function SettingsDialog({ initialSettings }: { initialSettings?: any }) {
     const [open, setOpen] = useState(false);
@@ -35,7 +36,33 @@ export function SettingsDialog({ initialSettings }: { initialSettings?: any }) {
                 ...initialSettings
             });
         }
+        if (open && typeof window !== "undefined" && "Notification" in window) {
+            setNotificationPermission(Notification.permission);
+        }
     }, [open, initialSettings]);
+
+    const [notificationPermission, setNotificationPermission] = useState<NotificationPermission | 'unsupported'>('default');
+
+    const handleRequestNotification = async () => {
+        if (!("Notification" in window)) {
+            toast.error("Seu navegador não suporta notificações.");
+            setNotificationPermission('unsupported');
+            return;
+        }
+        try {
+            const permission = await Notification.requestPermission();
+            setNotificationPermission(permission);
+            if (permission === 'granted') {
+                toast.success("Notificações ativadas com sucesso!");
+                // Let's fire a test notification to be cool
+                new Notification("Rotine Cards", { body: "Notificações estão funcionando perfeitamente! 🚀", icon: "/favicon.ico" });
+            } else if (permission === 'denied') {
+                toast.error("Permissão de notificações recusada.");
+            }
+        } catch (e) {
+            toast.error("Falha ao pedir permissão.");
+        }
+    };
 
     const handleSave = async () => {
         setIsSaving(true);
@@ -123,6 +150,31 @@ export function SettingsDialog({ initialSettings }: { initialSettings?: any }) {
                                 />
                             </div>
                         )}
+                    </div>
+
+                    {/* Notificações */}
+                    <div className="space-y-3">
+                        <h3 className="text-sm font-bold text-white/50 uppercase">Notificações</h3>
+                        <div className="flex items-center justify-between p-3 rounded-lg bg-zinc-900 border border-zinc-800">
+                            <div className="space-y-0.5">
+                                <Label className="text-sm font-bold text-white flex items-center gap-1.5">
+                                    <Bell className="w-3.5 h-3.5" /> Alertas do Navegador
+                                </Label>
+                                <p className="text-[10px] text-zinc-400">Receba os avisos de tarefas no Desktop/Celular.</p>
+                            </div>
+                            <Button
+                                size="sm"
+                                variant={notificationPermission === 'granted' ? "outline" : "default"}
+                                className={cn(
+                                    "h-7 text-xs transition-colors",
+                                    notificationPermission === 'granted' ? "border-emerald-500/50 text-emerald-400 hover:bg-emerald-500/10 hover:text-emerald-300" : "bg-blue-600 hover:bg-blue-700"
+                                )}
+                                onClick={handleRequestNotification}
+                                disabled={notificationPermission === 'granted' || notificationPermission === 'unsupported'}
+                            >
+                                {notificationPermission === 'granted' ? "Permitido ✓" : notificationPermission === 'denied' ? "Bloqueado ⚠️" : "Permitir"}
+                            </Button>
+                        </div>
                     </div>
 
                     <Button

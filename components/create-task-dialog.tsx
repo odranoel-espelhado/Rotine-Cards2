@@ -150,6 +150,8 @@ export function CreateTaskDialog({ availableBlockTypes = [], taskToEdit, open: c
                 subTasks: values.subTasks,
                 description: values.description,
                 deadline: values.deadline,
+                remindMe: values.remindMe,
+                suggestible: values.suggestible,
             })
         } else {
             res = await createBacklogTask({
