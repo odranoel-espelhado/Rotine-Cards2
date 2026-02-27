@@ -629,6 +629,8 @@ export default function DashboardClient({
                                                         pendingBacklogTasks={initialBacklog}
                                                         height={Math.max(80, block.totalDuration * PIXELS_PER_MINUTE)}
                                                         currentTimeOffset={blockTimeOffset}
+                                                        isToday={isToday}
+                                                        currentMinutes={currentMinutes}
                                                     />
                                                 </div>
                                             );

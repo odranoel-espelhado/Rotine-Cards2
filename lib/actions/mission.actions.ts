@@ -634,6 +634,7 @@ export async function convertTaskToBlock(taskId: string, date: string, startTime
                     isFixed: true,
                     isFromTask: true,
                     isVirtual: true,
+                    remindMe: task.remindMe,
                     originalTaskId: realTaskId,
                     originalSubTaskIndex: subTaskIndex
                 }];
@@ -643,8 +644,11 @@ export async function convertTaskToBlock(taskId: string, date: string, startTime
                 subTasksForBlock = (task.subTasks as any[]).map(s => ({
                     ...s,
                     isFixed: true,
-                    isFromTask: true
+                    isFromTask: true,
+                    remindMe: task.remindMe
                 }));
+            } else {
+                subTasksForBlock[0].remindMe = task.remindMe;
             }
         }
 

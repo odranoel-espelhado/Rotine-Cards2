@@ -119,6 +119,7 @@ export async function moveTaskToBlock(taskId: string, blockId: string) {
             originalColor: task.color,
             deadline: task.deadline,
             description: task.description,
+            remindMe: task.remindMe,
             subTasks: task.subTasks || []
         };
 

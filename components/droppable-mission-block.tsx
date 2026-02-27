@@ -126,9 +126,11 @@ interface MissionBlockProps {
     pendingBacklogTasks?: BacklogTask[];
     height?: number; // Visual height
     currentTimeOffset?: number; // Minutes into the block (if current)
+    isToday?: boolean;
+    currentMinutes?: number;
 }
 
-export function DroppableMissionBlock({ block, onDelete, onEdit, pendingBacklogTasks = [], height, currentTimeOffset }: MissionBlockProps) {
+export function DroppableMissionBlock({ block, onDelete, onEdit, pendingBacklogTasks = [], height, currentTimeOffset, isToday, currentMinutes }: MissionBlockProps) {
     const { isOver, setNodeRef: setDroppableRef } = useDroppable({
         id: block.id,
         data: { type: 'mission-block', block }
@@ -319,6 +321,31 @@ export function DroppableMissionBlock({ block, onDelete, onEdit, pendingBacklogT
 
     // update currentFlowMins to the max end time for conflict calculation
     currentFlowMins = lastEnd;
+
+    // Notification Logic
+    useEffect(() => {
+        if (!isToday || currentMinutes === undefined) return;
+
+        processedSubTasks.forEach((sub: any, i: number) => {
+            if (sub.done || !sub.remindMe) return;
+
+            const notifyTime = sub.computedStart - sub.remindMe;
+
+            // Only fire if we precisely bounded to notifyTime (+ up to 1 mins window for safety)
+            if (currentMinutes >= notifyTime && currentMinutes <= notifyTime + 1) {
+                const key = `notified-${block.id}-${sub.originalTaskId || sub.title}-${notifyTime}-${new Date().toDateString()}`;
+                if (!localStorage.getItem(key)) {
+                    if (typeof window !== "undefined" && "Notification" in window && Notification.permission === 'granted') {
+                        new Notification("Rotine Cards: Lembrete", {
+                            body: `A tarefa "${sub.title}" começará em ${sub.remindMe} minutos.`,
+                            icon: "/favicon.ico"
+                        });
+                    }
+                    localStorage.setItem(key, "1");
+                }
+            }
+        });
+    }, [currentMinutes, isToday, processedSubTasks, block.id]);
 
     const handleMove = async (index: number, direction: -1 | 1) => {
         const newSubTasks = [...subTasks];
