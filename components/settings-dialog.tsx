@@ -54,8 +54,19 @@ export function SettingsDialog({ initialSettings }: { initialSettings?: any }) {
             setNotificationPermission(permission);
             if (permission === 'granted') {
                 toast.success("Notificações ativadas com sucesso!");
-                // Let's fire a test notification to be cool
-                new Notification("Rotine Cards", { body: "Notificações estão funcionando perfeitamente! 🚀", icon: "/favicon.ico" });
+                try {
+                    new Notification("Rotine Cards", { body: "Notificações estão funcionando perfeitamente! 🚀", icon: "/favicon.ico" });
+                } catch (e) {
+                    console.error("Direct notification failed. Attempting SW:", e);
+                    if ('serviceWorker' in navigator) {
+                        navigator.serviceWorker.ready.then(reg => {
+                            reg.showNotification("Rotine Cards", {
+                                body: "Notificações via Service Worker ativadas! 🚀",
+                                icon: "/favicon.ico"
+                            });
+                        }).catch(err => console.error(err));
+                    }
+                }
             } else if (permission === 'denied') {
                 toast.error("Permissão de notificações recusada.");
             }

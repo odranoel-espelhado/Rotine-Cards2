@@ -336,10 +336,22 @@ export function DroppableMissionBlock({ block, onDelete, onEdit, pendingBacklogT
                 const key = `notified-${block.id}-${sub.originalTaskId || sub.title}-${notifyTime}-${new Date().toDateString()}`;
                 if (!localStorage.getItem(key)) {
                     if (typeof window !== "undefined" && "Notification" in window && Notification.permission === 'granted') {
-                        new Notification("Rotine Cards: Lembrete", {
-                            body: `A tarefa "${sub.title}" começará em ${sub.remindMe} minutos.`,
-                            icon: "/favicon.ico"
-                        });
+                        try {
+                            new Notification("Rotine Cards: Lembrete", {
+                                body: `A tarefa "${sub.title}" começará em ${sub.remindMe} minutos.`,
+                                icon: "/favicon.ico"
+                            });
+                        } catch (e) {
+                            console.error("Notificação direta falhou (Mobile Chrome limitation), tentando fallback:", e);
+                            if ('serviceWorker' in navigator) {
+                                navigator.serviceWorker.ready.then(reg => {
+                                    reg.showNotification("Rotine Cards: Lembrete", {
+                                        body: `A tarefa "${sub.title}" começará em ${sub.remindMe} minutos.`,
+                                        icon: "/favicon.ico"
+                                    });
+                                }).catch(err => console.error("Fallback do SW também falhou:", err));
+                            }
+                        }
                     }
                     localStorage.setItem(key, "1");
                 }
