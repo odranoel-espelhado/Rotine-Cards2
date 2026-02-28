@@ -27,6 +27,7 @@ import { CardHistory, CardLog } from "@/components/card-history";
 import { SettingsDialog } from "@/components/settings-dialog";
 import { TaskPickerDialog } from "@/components/task-picker-dialog";
 import { DroppableBoundary } from "@/components/droppable-boundary";
+import { RemindersComponent } from "@/components/reminders-component";
 
 // Helper for Suggestions
 function getBestSuggestion(tasks: BacklogTask[], maxDuration: number, mode: 'block' | 'gap', blockType?: string): BacklogTask | undefined {
@@ -722,6 +723,7 @@ export default function DashboardClient({
 
                             {/* Backlog Section */}
                             <div className="flex-1 bg-[#050506] border border-white/5 rounded-3xl overflow-hidden flex flex-col h-[500px]">
+                                <RemindersComponent currentDate={selectedDate} />
                                 <BacklogComponent
                                     initialTasks={initialBacklog}
                                     availableBlockTypes={allBlockTypes}
