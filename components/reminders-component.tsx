@@ -38,8 +38,9 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 const reminderSchema = z.object({
     title: z.string().min(1, "O título é obrigatório."),
     color: z.string().min(1, "A cor é obrigatória."),
+    targetDate: z.string().min(1, "A data é obrigatória."),
     description: z.string().optional(),
-    repeatPattern: z.enum(['none', 'daily', 'weekly', 'monthly']).default('none'),
+    repeatPattern: z.enum(['none', 'daily', 'weekly', 'monthly', 'yearly', 'workdays', 'monthly_on', 'custom']).default('none'),
 });
 
 const DEFAULT_COLORS = [
@@ -79,6 +80,7 @@ export function RemindersComponent({ currentDate }: { currentDate: string }) {
             title: "",
             color: "#3b82f6",
             description: "",
+            targetDate: currentDate,
             repeatPattern: "none",
         },
     });
@@ -87,7 +89,6 @@ export function RemindersComponent({ currentDate }: { currentDate: string }) {
         const res = await createReminderAction({
             ...values,
             description: values.description || "",
-            targetDate: currentDate,
         });
 
         if (res.success) {
@@ -200,28 +201,50 @@ export function RemindersComponent({ currentDate }: { currentDate: string }) {
 
                                         <FormField
                                             control={form.control}
-                                            name="repeatPattern"
+                                            name="targetDate"
                                             render={({ field }) => (
                                                 <FormItem className="flex-1">
-                                                    <FormLabel className="text-[10px] font-black text-zinc-500 uppercase ml-1">Repetir (Frontend)</FormLabel>
-                                                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                                        <FormControl>
-                                                            <SelectTrigger className="bg-white/5 border-white/10 h-10 rounded-xl text-xs w-full">
-                                                                <SelectValue placeholder="Selecione..." />
-                                                            </SelectTrigger>
-                                                        </FormControl>
-                                                        <SelectContent className="bg-[#050506] border-white/10 text-white">
-                                                            <SelectItem value="none">Não repetir</SelectItem>
-                                                            <SelectItem value="daily">Diariamente</SelectItem>
-                                                            <SelectItem value="weekly">Semanalmente</SelectItem>
-                                                            <SelectItem value="monthly">Mensalmente</SelectItem>
-                                                        </SelectContent>
-                                                    </Select>
+                                                    <FormLabel className="text-[10px] font-black text-zinc-500 uppercase ml-1">Data</FormLabel>
+                                                    <FormControl>
+                                                        <Input
+                                                            type="date"
+                                                            {...field}
+                                                            className="bg-white/5 border-white/10 h-10 rounded-xl text-xs uppercase"
+                                                        />
+                                                    </FormControl>
                                                     <FormMessage />
                                                 </FormItem>
                                             )}
                                         />
                                     </div>
+
+                                    <FormField
+                                        control={form.control}
+                                        name="repeatPattern"
+                                        render={({ field }) => (
+                                            <FormItem>
+                                                <FormLabel className="text-[10px] font-black text-zinc-500 uppercase ml-1">Repetir</FormLabel>
+                                                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                                    <FormControl>
+                                                        <SelectTrigger className="bg-white/5 border-white/10 h-10 rounded-xl text-xs w-full">
+                                                            <SelectValue placeholder="Selecione..." />
+                                                        </SelectTrigger>
+                                                    </FormControl>
+                                                    <SelectContent className="bg-[#050506] border-white/10 text-white">
+                                                        <SelectItem value="none">Sem repetição</SelectItem>
+                                                        <SelectItem value="daily">Todo dia</SelectItem>
+                                                        <SelectItem value="weekly">Toda semana</SelectItem>
+                                                        <SelectItem value="monthly">Todo mês</SelectItem>
+                                                        <SelectItem value="yearly">Todo ano</SelectItem>
+                                                        <SelectItem value="workdays" disabled>Dias úteis selecionados (em breve)</SelectItem>
+                                                        <SelectItem value="monthly_on" disabled>Mensal no(a) (em breve)</SelectItem>
+                                                        <SelectItem value="custom" disabled>Personalizado (em breve)</SelectItem>
+                                                    </SelectContent>
+                                                </Select>
+                                                <FormMessage />
+                                            </FormItem>
+                                        )}
+                                    />
 
                                     <div className="pt-4 flex flex-col gap-2">
                                         <Button type="submit" className="w-full h-11 bg-[#10b981] hover:bg-[#10b981]/90 text-black font-black tracking-widest text-sm rounded-xl uppercase">

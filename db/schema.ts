@@ -76,3 +76,17 @@ export const tacticalCards = pgTable('tactical_cards', {
     penalty: text('penalty'),
     createdAt: timestamp('created_at').defaultNow().notNull(),
 });
+
+// 5. TABELA DE LEMBRETES (Reminders)
+export const reminders = pgTable('reminders', {
+    id: uuid('id').defaultRandom().primaryKey(),
+    userId: text('user_id')
+        .notNull()
+        .references(() => users.id, { onDelete: 'cascade' }),
+    title: text('title').notNull(),
+    description: text('description'),
+    color: text('color').default('#3b82f6').notNull(),
+    targetDate: text('target_date').notNull(), // yyyy-mm-dd
+    repeatPattern: text('repeat_pattern').default('none').notNull(),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+});
