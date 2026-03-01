@@ -70,7 +70,7 @@ export async function GET(request: Request) {
         });
 
         if (tasksNow.length === 0) {
-            return NextResponse.json({ message: "Nenhuma tarefa agendada para este exato minuto." });
+            return NextResponse.json({ message: "Nenhuma tarefa agendada para este exato minuto.", debugServerTime: timeStr, debugDate: dateStr });
         }
 
         let sentCount = 0;
