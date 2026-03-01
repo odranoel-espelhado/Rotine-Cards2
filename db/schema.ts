@@ -90,3 +90,15 @@ export const reminders = pgTable('reminders', {
     repeatPattern: text('repeat_pattern').default('none').notNull(),
     createdAt: timestamp('created_at').defaultNow().notNull(),
 });
+
+// 6. TABELA DE INSCRIÇÕES PUSH (Web Push Notifications)
+export const pushSubscriptions = pgTable('push_subscriptions', {
+    id: uuid('id').defaultRandom().primaryKey(),
+    userId: text('user_id')
+        .notNull()
+        .references(() => users.id, { onDelete: 'cascade' }),
+    endpoint: text('endpoint').notNull(),
+    p256dh: text('p256dh').notNull(),
+    auth: text('auth').notNull(),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+});

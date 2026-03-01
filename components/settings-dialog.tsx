@@ -12,6 +12,22 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Save, Bell } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { savePushSubscription } from "@/lib/actions/push.actions";
+
+function urlBase64ToUint8Array(base64String: string) {
+    const padding = '='.repeat((4 - base64String.length % 4) % 4);
+    const base64 = (base64String + padding)
+        .replace(/\-/g, '+')
+        .replace(/_/g, '/');
+
+    const rawData = window.atob(base64);
+    const outputArray = new Uint8Array(rawData.length);
+
+    for (let i = 0; i < rawData.length; ++i) {
+        outputArray[i] = rawData.charCodeAt(i);
+    }
+    return outputArray;
+}
 
 export function SettingsDialog({ initialSettings }: { initialSettings?: any }) {
     const [open, setOpen] = useState(false);
@@ -53,19 +69,44 @@ export function SettingsDialog({ initialSettings }: { initialSettings?: any }) {
             const permission = await Notification.requestPermission();
             setNotificationPermission(permission);
             if (permission === 'granted') {
-                toast.success("Notificações ativadas com sucesso!");
-                try {
-                    new Notification("Rotine Cards", { body: "Notificações estão funcionando perfeitamente! 🚀", icon: "/favicon.ico" });
-                } catch (e) {
-                    console.error("Direct notification failed. Attempting SW:", e);
-                    if ('serviceWorker' in navigator) {
-                        navigator.serviceWorker.ready.then(reg => {
-                            reg.showNotification("Rotine Cards", {
-                                body: "Notificações via Service Worker ativadas! 🚀",
-                                icon: "/favicon.ico"
-                            });
-                        }).catch(err => console.error(err));
+                toast.success("Permissão garantida com sucesso!");
+
+                // --- Registro do Serviço Web Push (Background) ---
+                if ('serviceWorker' in navigator) {
+                    try {
+                        // Registra ou pega o service worker existente
+                        const registration = await navigator.serviceWorker.register('/sw.js', {
+                            scope: '/',
+                            updateViaCache: 'none',
+                        });
+
+                        const publicVapidKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+                        if (!publicVapidKey) {
+                            console.error("NEXT_PUBLIC_VAPID_PUBLIC_KEY não encontrado.");
+                            toast.error("Vapid Key não configurada no cliente.");
+                            return;
+                        }
+
+                        // Solicita ao navegador um endpoint/chaves de Push (abre conexão criptografada com os servidores do Browser)
+                        const subscription = await registration.pushManager.subscribe({
+                            userVisibleOnly: true, // Obrigatório mostrar algo visual (notificação) ao usuário quando um push chega
+                            applicationServerKey: urlBase64ToUint8Array(publicVapidKey)
+                        });
+
+                        // Chama a Server Action pra registrar o endpoint no Drizzle/Supabase
+                        const res = await savePushSubscription(JSON.stringify(subscription));
+                        if (res.success) {
+                            toast.success("Notificações Push em Background ativadas!");
+                        } else {
+                            toast.error("Falha ao salvar a inscrição Push no servidor.");
+                            console.error(res.error);
+                        }
+                    } catch (err) {
+                        console.error("Service Worker ou Push Manager Error:", err);
+                        toast.error("Erro interno ao configurar notificações Push.");
                     }
+                } else {
+                    toast.error("Seu navegador não suporta Service Workers para Background Push.");
                 }
             } else if (permission === 'denied') {
                 toast.error("Permissão de notificações recusada.");
