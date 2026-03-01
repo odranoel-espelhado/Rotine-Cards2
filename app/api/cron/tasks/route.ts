@@ -43,7 +43,7 @@ export async function GET(request: Request) {
         // 2. Filtra as Tarefas que devem começar EXATAMENTE neste minuto
         const tasksNow = allBlocks.filter((block) => {
             // Verifica a hora e o status da tarefa real
-            if (block.startTime !== timeStr) return false;
+            // if (block.startTime !== timeStr) return false; // TEMP DEBUG REMOVED
 
             const isCompleted = (block.completedDates as string[] || []).includes(dateStr) || block.status === 'completed';
             if (isCompleted) return false;
