@@ -30,9 +30,10 @@ export async function GET(request: Request) {
 
         const dateStr = brTime.toISOString().split('T')[0]; // "YYYY-MM-DD"
 
-        const currentHours = brTime.getHours().toString().padStart(2, '0');
-        const currentMinutes = brTime.getMinutes().toString().padStart(2, '0');
-        const timeStr = `${currentHours}:${currentMinutes}`; // "HH:MM"
+        const currentHours = brTime.getHours();
+        const currentMinutes = brTime.getMinutes();
+        const currentTimeInMins = currentHours * 60 + currentMinutes;
+        const timeStr = `${currentHours.toString().padStart(2, '0')}:${currentMinutes.toString().padStart(2, '0')}`;
 
         const dayOfWeek = brTime.getDay(); // 0 = Domingo, 6 = Sábado
         const isWeekday = dayOfWeek !== 0 && dayOfWeek !== 6;
@@ -40,11 +41,8 @@ export async function GET(request: Request) {
         // 1. Pega todas as Tarefas e Blocos
         const allBlocks = await db.select().from(missionBlocks);
 
-        // 2. Filtra as Tarefas que devem começar EXATAMENTE neste minuto
-        const tasksNow = allBlocks.filter((block) => {
-            // Verifica a hora e o status da tarefa real
-            // if (block.startTime !== timeStr) return false; // TEMP DEBUG REMOVED
-
+        // 2. Filtra as Tarefas que são válidas para HOJE
+        const blocksToday = allBlocks.filter((block) => {
             const isCompleted = (block.completedDates as string[] || []).includes(dateStr) || block.status === 'completed';
             if (isCompleted) return false;
 
@@ -65,42 +63,116 @@ export async function GET(request: Request) {
                     const originalDate = new Date(block.date);
                     if (originalDate.getDay() === dayOfWeek && dateStr >= block.date) return true;
                 }
-                // (Caso adicione diariamente, mensalmente futuramente nas Tarefas)
             }
 
             return false;
         });
 
-        if (tasksNow.length === 0) {
-            return NextResponse.json({ message: "Nenhuma tarefa agendada para este exato minuto.", debugServerTime: timeStr, debugDate: dateStr });
+        if (blocksToday.length === 0) {
+            return NextResponse.json({ message: "Nenhuma tarefa agendada para hoje.", debugServerTime: timeStr, debugDate: dateStr });
         }
 
         let sentCount = 0;
 
-        // 3. Dispara a Notificão de Push para os donos das tarefas
-        for (const task of tasksNow) {
-            const userSubscriptions = await db.select().from(pushSubscriptions).where(eq(pushSubscriptions.userId, task.userId));
+        const timeToMins = (t: string) => {
+            const [h, m] = t.split(':').map(Number);
+            return h * 60 + m;
+        };
 
-            const payload = JSON.stringify({
-                title: "É hora de focar!",
-                body: `Sua tarefa "${task.title}" começou agora.`
+        // 3. Verifica as sub-tarefas de cada bloco para ver quem tem o alarme "remindMe" combinando
+        for (const block of blocksToday) {
+            const subTasks = (block.subTasks as any[]) || [];
+            if (subTasks.length === 0) continue;
+
+            const blockStartMins = timeToMins(block.startTime);
+            const blockEndMins = blockStartMins + block.totalDuration;
+
+            const pinnedSegments: { start: number; end: number }[] = [];
+            const computedTaskTimes: { start: number, end: number, isPinned: boolean }[] = [];
+
+            // Primeira passada: agrupa tarefas cravadas pelo usuário (pinadas)
+            subTasks.forEach((sub, i) => {
+                if (sub.pinnedTime) {
+                    const start = timeToMins(sub.pinnedTime);
+                    const dur = parseInt(sub.duration || '0');
+                    pinnedSegments.push({ start, end: start + dur });
+                    computedTaskTimes[i] = { start, end: start + dur, isPinned: true };
+                }
             });
 
-            for (const sub of userSubscriptions) {
-                try {
-                    await webpush.sendNotification({
-                        endpoint: sub.endpoint,
-                        keys: {
-                            auth: sub.auth,
-                            p256dh: sub.p256dh
+            const findNextAvailableSlot = (dur: number): number => {
+                let searchPointer = blockStartMins;
+                while (true) {
+                    const overlap = pinnedSegments.find(seg =>
+                        (searchPointer < seg.end && (searchPointer + dur) > seg.start)
+                    );
+                    if (overlap) searchPointer = overlap.end;
+                    else return searchPointer;
+                }
+            };
+
+            const findNextAvailableSlotReverse = (dur: number): number => {
+                let searchPointer = blockEndMins;
+                while (true) {
+                    const overlap = pinnedSegments.slice().reverse().find(seg =>
+                        ((searchPointer - dur) < seg.end && searchPointer > seg.start)
+                    );
+                    if (overlap) searchPointer = overlap.start;
+                    else return searchPointer - dur;
+                }
+            };
+
+            // Segunda passada: Preenche automaticamente igual na interface drag and drop
+            subTasks.forEach((sub, i) => {
+                if (!computedTaskTimes[i]) {
+                    const dur = parseInt(sub.duration || '0');
+                    pinnedSegments.sort((a, b) => a.start - b.start);
+                    const start = sub.orderDir === 'down' ? findNextAvailableSlotReverse(dur) : findNextAvailableSlot(dur);
+                    computedTaskTimes[i] = { start, end: start + dur, isPinned: false };
+                    pinnedSegments.push({ start, end: start + dur });
+                }
+            });
+
+            // 4. Se encontrou alguma tarefa com 'remindMe' pro momento exato, puxa a inscrição do usuário e notifica
+            // Precisa checar se userSubscriptions ta vazia pra n fazer db a toa
+            let userSubscriptions: typeof pushSubscriptions.$inferSelect[] | null = null;
+
+            for (let i = 0; i < subTasks.length; i++) {
+                const sub = subTasks[i];
+                if (sub.done || !sub.remindMe) continue;
+
+                const computedStart = computedTaskTimes[i].start;
+                const notifyTime = computedStart - sub.remindMe;
+
+                // O gatilho perfeito temporal:
+                if (currentTimeInMins === notifyTime) {
+                    if (!userSubscriptions) {
+                        userSubscriptions = await db.select().from(pushSubscriptions).where(eq(pushSubscriptions.userId, block.userId));
+                    }
+
+                    if (!userSubscriptions || userSubscriptions.length === 0) continue;
+
+                    const payload = JSON.stringify({
+                        title: "Lembrete de Tarefa!",
+                        body: `Sua tarefa "${sub.title}" começará em ${sub.remindMe} minutos.`
+                    });
+
+                    for (const subsc of userSubscriptions) {
+                        try {
+                            await webpush.sendNotification({
+                                endpoint: subsc.endpoint,
+                                keys: {
+                                    auth: subsc.auth,
+                                    p256dh: subsc.p256dh
+                                }
+                            }, payload);
+                            sentCount++;
+                        } catch (error: any) {
+                            console.error("Erro ao enviar push:", subsc.endpoint, error);
+                            if (error.statusCode === 410 || error.statusCode === 404) {
+                                await db.delete(pushSubscriptions).where(eq(pushSubscriptions.id, subsc.id));
+                            }
                         }
-                    }, payload);
-                    sentCount++;
-                } catch (error: any) {
-                    console.error("Erro ao enviar push:", sub.endpoint, error);
-                    // 410 = Inscrição revogada pelo usuário (removemos do banco para limpar as falhas)
-                    if (error.statusCode === 410 || error.statusCode === 404) {
-                        await db.delete(pushSubscriptions).where(eq(pushSubscriptions.id, sub.id));
                     }
                 }
             }
