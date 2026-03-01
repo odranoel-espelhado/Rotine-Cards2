@@ -4,6 +4,8 @@ import { missionBlocks, pushSubscriptions } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
 import webpush from "web-push";
 
+export const dynamic = 'force-dynamic'; // Prevents Vercel from caching the response time
+
 // Configura o Web Push com as chaves do .env.local
 webpush.setVapidDetails(
     "mailto:notificacoes@rotinecards.com", // Modifique no futuro para um email de suporte seu
