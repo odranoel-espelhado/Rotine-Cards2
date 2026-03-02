@@ -559,11 +559,17 @@ export async function getUniqueBlockTypes() {
 
         for (const block of blocks) {
             // Check if this block was explicitly created (not converted from a task)
-            // Explicit blocks are recurring, have NO subtasks, or have at least one fixed subtask.
             const subTasksArr = Array.isArray(block.subTasks) ? block.subTasks : [];
-            const isExplicit = block.type === 'recurring' ||
-                subTasksArr.length === 0 ||
-                subTasksArr.some((s: any) => s.isFixed === true);
+            let isExplicit = true;
+
+            if (block.type !== 'recurring' && subTasksArr.length > 0) {
+                const fixedSubtasks = subTasksArr.filter((s: any) => s.isFixed === true);
+                // If a block has fixed subtasks and ALL of them originated from a task, 
+                // it means this block is a converted task-block, so it shouldn't pollute suggestions.
+                if (fixedSubtasks.length > 0 && fixedSubtasks.every((s: any) => s.isFromTask === true)) {
+                    isExplicit = false;
+                }
+            }
 
             if (!isExplicit) continue;
 
