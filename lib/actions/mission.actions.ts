@@ -204,6 +204,8 @@ export async function archiveMissionBlock(id: string) {
 
         const currentSubtasks = (block.subTasks as any[]) || [];
         const isFromTask = currentSubtasks.some(s => s.isFromTask || s.originalTaskId);
+        const remindMeToRestore = currentSubtasks.find(s => s.remindMe !== undefined)?.remindMe;
+        const suggestibleToRestore = currentSubtasks.find(s => s.suggestible !== undefined)?.suggestible ?? true;
 
         // Create backlog task from the entire block
         await db.insert(backlogTasks).values({
@@ -216,6 +218,8 @@ export async function archiveMissionBlock(id: string) {
             description: block.description,
             priority: block.priority || 'media',
             deadline: block.deadline,
+            remindMe: remindMeToRestore,
+            suggestible: suggestibleToRestore,
             subTasks: block.subTasks || [],
             linkedBlockType: isFromTask ? block.linkedBlockType : (block.linkedBlockType || (block.title !== 'Geral' ? block.title : undefined)),
         });
@@ -635,6 +639,7 @@ export async function convertTaskToBlock(taskId: string, date: string, startTime
                     isFromTask: true,
                     isVirtual: true,
                     remindMe: task.remindMe,
+                    suggestible: task.suggestible,
                     originalTaskId: realTaskId,
                     originalSubTaskIndex: subTaskIndex
                 }];
@@ -645,10 +650,12 @@ export async function convertTaskToBlock(taskId: string, date: string, startTime
                     ...s,
                     isFixed: true,
                     isFromTask: true,
-                    remindMe: task.remindMe
+                    remindMe: task.remindMe,
+                    suggestible: task.suggestible
                 }));
             } else {
                 subTasksForBlock[0].remindMe = task.remindMe;
+                subTasksForBlock[0].suggestible = task.suggestible;
             }
         }
 
@@ -769,6 +776,8 @@ export async function unassignTaskFromBlock(blockId: string, taskIndex: number, 
                 color: taskData.originalColor || '#27272a',
                 deadline: taskData.deadline,
                 description: taskData.description,
+                remindMe: taskData.remindMe,
+                suggestible: taskData.suggestible !== undefined ? taskData.suggestible : true,
                 subTasks: taskData.subTasks || []
             });
         }
@@ -988,6 +997,9 @@ export async function checkAndArchivePastTasks(clientDate?: string, clientTime?:
 
             // Se o bloco foi gerado por uma tarefa e não foi concluído, arquiva o bloco inteiro
             if (isFromTask && block.status !== 'completed') {
+                const remindMeToRestore = currentSubtasks.find(s => s.remindMe !== undefined)?.remindMe;
+                const suggestibleToRestore = currentSubtasks.find(s => s.suggestible !== undefined)?.suggestible ?? true;
+
                 await db.insert(backlogTasks).values({
                     userId,
                     title: block.title,
@@ -998,6 +1010,8 @@ export async function checkAndArchivePastTasks(clientDate?: string, clientTime?:
                     description: block.description,
                     priority: block.priority || 'media',
                     deadline: block.deadline,
+                    remindMe: remindMeToRestore,
+                    suggestible: suggestibleToRestore,
                     subTasks: block.subTasks || [],
                     linkedBlockType: block.linkedBlockType,
                 });
@@ -1021,6 +1035,8 @@ export async function checkAndArchivePastTasks(clientDate?: string, clientTime?:
                         linkedBlockType: task.originalLinkedBlockType,
                         color: task.originalColor || '#27272a',
                         deadline: task.deadline,
+                        remindMe: task.remindMe,
+                        suggestible: task.suggestible !== undefined ? task.suggestible : true,
                         subTasks: task.subTasks || []
                     });
                 }
