@@ -155,8 +155,8 @@ export function DroppableMissionBlock({ block, onDelete, onEdit, pendingBacklogT
         setOptimisticCompleted(block.status === 'completed');
     }, [block.status]);
 
-    const isGeral = !block.linkedBlockType || block.linkedBlockType === 'none' || block.linkedBlockType === 'Geral' || block.title === 'Geral' || block.color === '#27272a';
-    const glowColor = isGeral ? '#27272a' : (block.color || '#3b82f6');
+    const isGeral = block.color === '#27272a' || block.linkedBlockType === 'none' || block.linkedBlockType === 'Geral' || block.title === 'Geral';
+    const glowColor = block.color || (isGeral ? '#27272a' : '#3b82f6');
     const isRecurring = block.type === 'recurring' || !!block.recurrencePattern;
 
     const handleToggle = async (e?: React.MouseEvent) => {
@@ -494,7 +494,7 @@ export function DroppableMissionBlock({ block, onDelete, onEdit, pendingBacklogT
     } as React.CSSProperties;
 
     // Custom Border Logic
-    const isPlatinumGlow = isFromTask && isGeral;
+    const isPlatinumGlow = isFromTask && glowColor === '#27272a';
     const activeGlowColor = isPlatinumGlow ? '#d4d4d8' : glowColor; // zinc-300 for a platinum/silver effect
 
     const borderStyle = optimisticCompleted ? {
