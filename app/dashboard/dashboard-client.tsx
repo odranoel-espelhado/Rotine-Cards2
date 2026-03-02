@@ -267,22 +267,8 @@ export default function DashboardClient({
         if (over && active.data.current?.type === 'backlog-task' && over.data.current?.type === 'gap') {
             const taskId = active.id as string;
             const startTime = over.data.current.startTime as string; // HH:mm
-            const gapDate = over.id.toString().split('gap-')[1].split('-')[0] + '-' + over.id.toString().split('gap-')[1].split('-')[1] + '-' + over.id.toString().split('gap-')[1].split('-')[2]; // Extract date? Or use selectedDate if easier. 
-            // Better: gap id structure `gap-${date}-${startTime}`
-            // id: gap-2023-10-10-09:00
 
-            const uniqueGapId = over.id as string;
-            // Gap ID format: `gap-${selectedDate}-${startTime}`
-            // selectedDate is yyyy-MM-dd.
-            // ID: gap-yyyy-MM-dd-HH:mm
-
-            // Extract from ID is safer if date changes
-            const parts = uniqueGapId.replace('gap-', '').split('-');
-            // yyyy-MM-dd-HH:mm. 0=yyyy, 1=MM, 2=dd, 3=HH:mm (but : might be ok)
-            // Wait, split('-') might break HH:mm if it uses :.
-            // Let's use simpler ID constructing in loop.
-
-            // Or just use selectedDate since gaps are only shown for selectedDate
+            // Use selectedDate since gaps and boundaries are only shown for selectedDate
             const date = selectedDate;
 
             toast.promise(convertTaskToBlock(taskId, date, startTime), {
