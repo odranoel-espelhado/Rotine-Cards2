@@ -104,15 +104,6 @@ export function CreateTaskDialog({ availableBlockTypes = [], taskToEdit, open: c
     const watchedSubtasks = form.watch("subTasks");
 
     useEffect(() => {
-        if (watchedSubtasks && watchedSubtasks.length > 0) {
-            const sum = watchedSubtasks.reduce((acc, sub) => acc + (Number(sub.duration) || 0), 0);
-            if (sum > 0 && form.getValues("estimatedDuration") !== sum) {
-                form.setValue("estimatedDuration", sum, { shouldValidate: true });
-            }
-        }
-    }, [watchedSubtasks, form]);
-
-    useEffect(() => {
         if (open) {
             form.reset({
                 title: taskToEdit?.title || "",
@@ -399,14 +390,45 @@ export function CreateTaskDialog({ availableBlockTypes = [], taskToEdit, open: c
                                             control={form.control}
                                             name={`subTasks.${index}.duration`}
                                             render={({ field }) => (
-                                                <Input {...field} type="number" placeholder="m" className="w-12 bg-white/5 border-white/5 h-8 rounded-lg text-xs font-mono text-center" />
+                                                <Input
+                                                    {...field}
+                                                    type="number"
+                                                    placeholder="m"
+                                                    className="w-12 bg-white/5 border-white/5 h-8 rounded-lg text-xs font-mono text-center"
+                                                    onChange={(e) => {
+                                                        field.onChange(e);
+                                                        // Update total duration immediately
+                                                        setTimeout(() => {
+                                                            const currentTasks = form.getValues("subTasks");
+                                                            if (currentTasks && currentTasks.length > 0) {
+                                                                const sum = currentTasks.reduce((acc, sub) => acc + (Number(sub.duration) || 0), 0);
+                                                                if (sum > 0) {
+                                                                    form.setValue("estimatedDuration", sum, { shouldValidate: true });
+                                                                }
+                                                            }
+                                                        }, 0);
+                                                    }}
+                                                />
                                             )}
                                         />
                                         <Button
                                             type="button"
                                             variant="ghost"
                                             size="icon"
-                                            onClick={() => remove(index)}
+                                            onClick={() => {
+                                                remove(index);
+                                                // Update total duration immediately after removal
+                                                setTimeout(() => {
+                                                    const currentTasks = form.getValues("subTasks");
+                                                    if (currentTasks && currentTasks.length > 0) {
+                                                        const sum = currentTasks.reduce((acc, sub) => acc + (Number(sub.duration) || 0), 0);
+                                                        form.setValue("estimatedDuration", sum > 0 ? sum : 30, { shouldValidate: true });
+                                                    } else {
+                                                        // Revert to a default duration if no subtasks remain
+                                                        form.setValue("estimatedDuration", 30, { shouldValidate: true });
+                                                    }
+                                                }, 0);
+                                            }}
                                             className="h-8 w-6 text-zinc-600 hover:text-red-500"
                                         >
                                             <Trash2 className="w-3 h-3" />
