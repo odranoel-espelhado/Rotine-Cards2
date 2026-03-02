@@ -155,7 +155,7 @@ export function DroppableMissionBlock({ block, onDelete, onEdit, pendingBacklogT
         setOptimisticCompleted(block.status === 'completed');
     }, [block.status]);
 
-    const isGeral = block.linkedBlockType === 'Geral' || block.title === 'Geral';
+    const isGeral = !block.linkedBlockType || block.linkedBlockType === 'none' || block.linkedBlockType === 'Geral' || block.title === 'Geral' || block.color === '#27272a';
     const glowColor = isGeral ? '#27272a' : (block.color || '#3b82f6');
     const isRecurring = block.type === 'recurring' || !!block.recurrencePattern;
 
