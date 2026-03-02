@@ -1,0 +1,4 @@
+[submodule "Rotine Cards/web"]
+	path = Rotine Cards/web
+	url = https://github.com/odranoel-espelhado/Rotine-Cards2.git
+	branch = master
