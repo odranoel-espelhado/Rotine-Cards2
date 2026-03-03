@@ -258,27 +258,27 @@ export function RemindersComponent({ currentDate }: { currentDate: string }) {
                                     {/* Toggle Avançado */}
                                     <div
                                         onClick={() => setShowAdvanced(!showAdvanced)}
-                                        className="h-10 w-full flex items-center gap-2 cursor-pointer text-zinc-500 hover:text-white transition-colors bg-white/5 border border-white/10 rounded-xl px-4 select-none"
+                                        className="flex items-center gap-1 cursor-pointer text-[10px] font-black text-zinc-500 uppercase ml-1 hover:text-zinc-300 transition-colors select-none w-fit"
                                     >
-                                        {showAdvanced ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
-                                        <span className="text-xs font-black uppercase">Avançado</span>
+                                        <span>Avançado</span>
+                                        {showAdvanced ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
                                     </div>
 
                                     {showAdvanced && (
-                                        <div className="flex gap-4 p-4 mt-2 bg-white/5 border border-white/10 rounded-xl">
+                                        <div className="flex gap-4 pt-1 pb-2">
                                             <FormField
                                                 control={form.control}
                                                 name="occurrencesLimit"
                                                 render={({ field }) => (
                                                     <FormItem className="flex-1">
-                                                        <FormLabel className="text-[10px] font-black text-zinc-500 uppercase ml-1 block whitespace-nowrap">Lim. Ocorrência</FormLabel>
+                                                        <FormLabel className="text-[10px] font-black text-zinc-500 uppercase ml-1 block whitespace-nowrap">Ocorrências</FormLabel>
                                                         <FormControl>
                                                             <Input
                                                                 type="number"
                                                                 {...field}
                                                                 value={field.value || ''}
                                                                 onChange={e => field.onChange(e.target.value ? parseInt(e.target.value) : undefined)}
-                                                                className="bg-black/50 border-white/10 h-10 rounded-xl text-sm text-center"
+                                                                className="bg-white/5 border-white/10 h-10 rounded-xl text-sm text-center"
                                                                 placeholder="Nº"
                                                                 min="1"
                                                             />
@@ -299,7 +299,7 @@ export function RemindersComponent({ currentDate }: { currentDate: string }) {
                                                                 {...field}
                                                                 value={field.value || ''}
                                                                 onChange={e => field.onChange(e.target.value ? parseInt(e.target.value) : undefined)}
-                                                                className="bg-black/50 border-white/10 h-10 rounded-xl text-sm text-center"
+                                                                className="bg-white/5 border-white/10 h-10 rounded-xl text-sm text-center"
                                                                 placeholder="Nº"
                                                                 min="1"
                                                             />
