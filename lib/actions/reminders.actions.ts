@@ -13,6 +13,9 @@ export type ReminderType = {
     color: string;
     targetDate: string; // YYYY-MM-DD
     repeatPattern?: string; // e.g. "none", "daily", "weekly", "monthly", "yearly"
+    occurrencesLimit?: number | null;
+    usedOccurrences?: number | null;
+    charges?: number | null;
 };
 
 export async function getRemindersAction(date: string) {
@@ -23,16 +26,24 @@ export async function getRemindersAction(date: string) {
         const allReminders = await db.select().from(reminders).where(eq(reminders.userId, userId));
 
         // Frontend filtering strategy similar to recurring blocks
-        return allReminders.filter(r =>
-            r.targetDate === date ||
-            r.repeatPattern === 'daily' ||
-            (r.repeatPattern === 'weekly' && new Date(r.targetDate).getDay() === new Date(date).getDay() && date >= r.targetDate) ||
-            (r.repeatPattern === 'monthly' && new Date(r.targetDate).getDate() === new Date(date).getDate() && date >= r.targetDate) ||
-            (r.repeatPattern === 'yearly' && new Date(r.targetDate).getDate() === new Date(date).getDate() && new Date(r.targetDate).getMonth() === new Date(date).getMonth() && date >= r.targetDate)
-        ).map(r => ({
+        return allReminders.filter(r => {
+            // Check occurrence limit
+            if (r.occurrencesLimit && r.usedOccurrences && r.usedOccurrences >= r.occurrencesLimit) {
+                return false;
+            }
+
+            return r.targetDate === date ||
+                r.repeatPattern === 'daily' ||
+                (r.repeatPattern === 'weekly' && new Date(r.targetDate).getDay() === new Date(date).getDay() && date >= r.targetDate) ||
+                (r.repeatPattern === 'monthly' && new Date(r.targetDate).getDate() === new Date(date).getDate() && date >= r.targetDate) ||
+                (r.repeatPattern === 'yearly' && new Date(r.targetDate).getDate() === new Date(date).getDate() && new Date(r.targetDate).getMonth() === new Date(date).getMonth() && date >= r.targetDate);
+        }).map(r => ({
             ...r,
             description: r.description || "",
-            repeatPattern: r.repeatPattern || "none"
+            repeatPattern: r.repeatPattern || "none",
+            occurrencesLimit: r.occurrencesLimit,
+            usedOccurrences: r.usedOccurrences,
+            charges: r.charges,
         }));
     } catch (e) {
         console.error("Error fetching reminders", e);
@@ -49,7 +60,10 @@ export async function getAllRemindersAction() {
         return all.map(r => ({
             ...r,
             description: r.description || "",
-            repeatPattern: r.repeatPattern || "none"
+            repeatPattern: r.repeatPattern || "none",
+            occurrencesLimit: r.occurrencesLimit,
+            usedOccurrences: r.usedOccurrences,
+            charges: r.charges,
         }));
     } catch (e) {
         console.error("Error fetching all reminders", e);
@@ -69,6 +83,8 @@ export async function createReminderAction(data: Omit<ReminderType, "id">) {
             color: data.color,
             targetDate: data.targetDate,
             repeatPattern: data.repeatPattern || "none",
+            occurrencesLimit: data.occurrencesLimit,
+            charges: data.charges,
         }).returning();
 
         revalidatePath("/dashboard");
@@ -76,7 +92,7 @@ export async function createReminderAction(data: Omit<ReminderType, "id">) {
             success: true, data: {
                 ...newReminder,
                 description: newReminder.description || "",
-                repeatPattern: newReminder.repeatPattern || "none"
+                repeatPattern: newReminder.repeatPattern || "none",
             }
         };
     } catch (error: any) {
@@ -96,5 +112,33 @@ export async function deleteReminderAction(id: string) {
     } catch (error) {
         console.error("Error deleting reminder", error);
         return { success: false, error: "Erro ao apagar lembrete" };
+    }
+}
+export async function decreaseReminderChargeAction(id: string) {
+    const { userId } = await auth();
+    if (!userId) return { success: false, error: "Unauthorized" };
+
+    try {
+        const [rem] = await db.select().from(reminders).where(and(eq(reminders.id, id), eq(reminders.userId, userId)));
+        if (!rem) return { success: false, error: "Not found" };
+
+        let newCharges = rem.charges;
+        if (newCharges !== null && newCharges > 0) {
+            newCharges -= 1;
+
+            if (newCharges === 0) {
+                // When 0, delete it completely if that's the goal, or just let the user delete it? 
+                // Exemplo: "Tomar agua 5x" => diminui 1. Expira -> could just delete or update.
+                await db.delete(reminders).where(and(eq(reminders.id, id), eq(reminders.userId, userId)));
+            } else {
+                await db.update(reminders).set({ charges: newCharges }).where(and(eq(reminders.id, id), eq(reminders.userId, userId)));
+            }
+            revalidatePath("/dashboard");
+        }
+
+        return { success: true };
+    } catch (error) {
+        console.error("Error decreasing charge", error);
+        return { success: false, error: "Erro ao atualizar" };
     }
 }

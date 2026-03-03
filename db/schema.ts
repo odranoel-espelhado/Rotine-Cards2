@@ -88,6 +88,9 @@ export const reminders = pgTable('reminders', {
     color: text('color').default('#3b82f6').notNull(),
     targetDate: text('target_date').notNull(), // yyyy-mm-dd
     repeatPattern: text('repeat_pattern').default('none').notNull(),
+    occurrencesLimit: integer('occurrences_limit'),
+    usedOccurrences: integer('used_occurrences').default(0),
+    charges: integer('charges'),
     createdAt: timestamp('created_at').defaultNow().notNull(),
 });
 

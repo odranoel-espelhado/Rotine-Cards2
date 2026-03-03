@@ -32,7 +32,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { ReminderType, createReminderAction, deleteReminderAction, getRemindersAction, getAllRemindersAction } from "@/lib/actions/reminders.actions";
+import { ReminderType, createReminderAction, deleteReminderAction, getRemindersAction, getAllRemindersAction, decreaseReminderChargeAction } from "@/lib/actions/reminders.actions";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
 const reminderSchema = z.object({
@@ -41,6 +41,8 @@ const reminderSchema = z.object({
     targetDate: z.string().min(1, "A data é obrigatória."),
     description: z.string().optional(),
     repeatPattern: z.enum(['none', 'daily', 'weekly', 'monthly', 'yearly', 'workdays', 'monthly_on', 'custom']).default('none'),
+    occurrencesLimit: z.number().optional(),
+    charges: z.number().optional(),
 });
 
 const DEFAULT_COLORS = [
@@ -58,6 +60,7 @@ export function RemindersComponent({ currentDate }: { currentDate: string }) {
     const [allReminders, setAllReminders] = useState<ReminderType[]>([]);
     const [isCreateOpen, setIsCreateOpen] = useState(false);
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+    const [showAdvanced, setShowAdvanced] = useState(false);
 
     const loadReminders = async () => {
         const todayReminders = await getRemindersAction(currentDate);
@@ -109,6 +112,12 @@ export function RemindersComponent({ currentDate }: { currentDate: string }) {
             loadReminders();
             loadAllReminders();
         }
+    };
+
+    const handleDecreaseCharge = async (id: string) => {
+        await decreaseReminderChargeAction(id);
+        loadReminders();
+        loadAllReminders();
     };
 
     return (
@@ -246,6 +255,62 @@ export function RemindersComponent({ currentDate }: { currentDate: string }) {
                                         )}
                                     />
 
+                                    {/* Toggle Avançado */}
+                                    <div
+                                        onClick={() => setShowAdvanced(!showAdvanced)}
+                                        className="h-10 w-full flex items-center gap-2 cursor-pointer text-zinc-500 hover:text-white transition-colors bg-white/5 border border-white/10 rounded-xl px-4 select-none"
+                                    >
+                                        {showAdvanced ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+                                        <span className="text-xs font-black uppercase">Avançado</span>
+                                    </div>
+
+                                    {showAdvanced && (
+                                        <div className="flex gap-4 p-4 mt-2 bg-white/5 border border-white/10 rounded-xl">
+                                            <FormField
+                                                control={form.control}
+                                                name="occurrencesLimit"
+                                                render={({ field }) => (
+                                                    <FormItem className="flex-1">
+                                                        <FormLabel className="text-[10px] font-black text-zinc-500 uppercase ml-1 block whitespace-nowrap">Lim. Ocorrência</FormLabel>
+                                                        <FormControl>
+                                                            <Input
+                                                                type="number"
+                                                                {...field}
+                                                                value={field.value || ''}
+                                                                onChange={e => field.onChange(e.target.value ? parseInt(e.target.value) : undefined)}
+                                                                className="bg-black/50 border-white/10 h-10 rounded-xl text-sm text-center"
+                                                                placeholder="Nº"
+                                                                min="1"
+                                                            />
+                                                        </FormControl>
+                                                        <FormMessage />
+                                                    </FormItem>
+                                                )}
+                                            />
+                                            <FormField
+                                                control={form.control}
+                                                name="charges"
+                                                render={({ field }) => (
+                                                    <FormItem className="flex-1">
+                                                        <FormLabel className="text-[10px] font-black text-zinc-500 uppercase ml-1 block whitespace-nowrap">Cargas</FormLabel>
+                                                        <FormControl>
+                                                            <Input
+                                                                type="number"
+                                                                {...field}
+                                                                value={field.value || ''}
+                                                                onChange={e => field.onChange(e.target.value ? parseInt(e.target.value) : undefined)}
+                                                                className="bg-black/50 border-white/10 h-10 rounded-xl text-sm text-center"
+                                                                placeholder="Nº"
+                                                                min="1"
+                                                            />
+                                                        </FormControl>
+                                                        <FormMessage />
+                                                    </FormItem>
+                                                )}
+                                            />
+                                        </div>
+                                    )}
+
                                     <div className="pt-4 flex flex-col gap-2">
                                         <Button type="submit" className="w-full h-11 bg-[#10b981] hover:bg-[#10b981]/90 text-black font-black tracking-widest text-sm rounded-xl uppercase">
                                             Salvar Lembrete
@@ -329,6 +394,15 @@ export function RemindersComponent({ currentDate }: { currentDate: string }) {
                                     <p className="text-[10px] text-white/60 line-clamp-2 leading-relaxed ml-3.5">
                                         {rem.description}
                                     </p>
+                                )}
+                                {rem.charges !== undefined && rem.charges !== null && rem.charges > 0 && (
+                                    <div
+                                        onClick={(e) => { e.stopPropagation(); handleDecreaseCharge(rem.id); }}
+                                        className="absolute bottom-2 right-2 bg-white/10 hover:bg-white/20 text-white text-[10px] font-black uppercase px-2 py-0.5 rounded-full cursor-pointer transition-all active:scale-95 border border-white/10 flex items-center shadow-lg hover:text-primary z-10"
+                                        title="Reduzir carga"
+                                    >
+                                        <span>{rem.charges}x</span>
+                                    </div>
                                 )}
                             </div>
                         ))
