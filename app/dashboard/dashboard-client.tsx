@@ -338,9 +338,7 @@ export default function DashboardClient({
         const timer = setTimeout(() => {
             const el = document.getElementById(`day-${selectedDate}`);
             if (el && daySelectorRef.current) {
-                const container = daySelectorRef.current;
-                const scrollPosition = el.offsetLeft - (container.clientWidth / 2) + (el.clientWidth / 2);
-                container.scrollTo({ left: scrollPosition, behavior: 'smooth' });
+                el.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
             }
         }, 300); // Slight delay to ensure DOM is ready
         return () => clearTimeout(timer);
