@@ -218,7 +218,6 @@ export function RemindersComponent({ currentDate }: { currentDate: string }) {
                                                         <Input
                                                             type="date"
                                                             {...field}
-                                                            min={currentDate}
                                                             className="bg-white/5 border-white/10 h-10 rounded-xl text-xs uppercase"
                                                         />
                                                     </FormControl>

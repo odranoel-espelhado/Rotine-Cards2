@@ -33,7 +33,7 @@ export async function getRemindersAction(date: string) {
             }
 
             return r.targetDate === date ||
-                r.repeatPattern === 'daily' ||
+                (r.repeatPattern === 'daily' && date >= r.targetDate) ||
                 (r.repeatPattern === 'weekly' && new Date(r.targetDate).getDay() === new Date(date).getDay() && date >= r.targetDate) ||
                 (r.repeatPattern === 'monthly' && new Date(r.targetDate).getDate() === new Date(date).getDate() && date >= r.targetDate) ||
                 (r.repeatPattern === 'yearly' && new Date(r.targetDate).getDate() === new Date(date).getDate() && new Date(r.targetDate).getMonth() === new Date(date).getMonth() && date >= r.targetDate);
