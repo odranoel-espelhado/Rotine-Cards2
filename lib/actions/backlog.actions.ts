@@ -59,8 +59,20 @@ export async function updateBacklogTask(id: string, data: Partial<Omit<NewBacklo
     if (!userId) return { error: "Unauthorized" };
 
     try {
+        console.log("updateBacklogTask payload:", data);
         await db.update(backlogTasks)
-            .set(data)
+            .set({
+                title: data.title,
+                priority: data.priority,
+                estimatedDuration: data.estimatedDuration,
+                linkedBlockType: data.linkedBlockType,
+                color: data.color,
+                subTasks: data.subTasks,
+                description: data.description,
+                deadline: data.deadline,
+                remindMe: data.remindMe,
+                suggestible: data.suggestible,
+            })
             .where(and(eq(backlogTasks.id, id), eq(backlogTasks.userId, userId)));
 
         revalidatePath("/dashboard");

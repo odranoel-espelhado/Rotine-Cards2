@@ -126,13 +126,7 @@ export async function decreaseReminderChargeAction(id: string) {
         if (newCharges !== null && newCharges > 0) {
             newCharges -= 1;
 
-            if (newCharges === 0) {
-                // When 0, delete it completely if that's the goal, or just let the user delete it? 
-                // Exemplo: "Tomar agua 5x" => diminui 1. Expira -> could just delete or update.
-                await db.delete(reminders).where(and(eq(reminders.id, id), eq(reminders.userId, userId)));
-            } else {
-                await db.update(reminders).set({ charges: newCharges }).where(and(eq(reminders.id, id), eq(reminders.userId, userId)));
-            }
+            await db.update(reminders).set({ charges: newCharges }).where(and(eq(reminders.id, id), eq(reminders.userId, userId)));
             revalidatePath("/dashboard");
         }
 

@@ -35,6 +35,8 @@ function getBestSuggestion(tasks: BacklogTask[], maxDuration: number, mode: 'blo
 
     tasks.forEach(t => {
         if (t.status !== 'pending') return;
+        if (t.suggestible === false) return; // Respect the toggle
+
         const duration = t.estimatedDuration || 30;
 
         // 1. Try Main Task

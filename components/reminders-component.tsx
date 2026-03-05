@@ -218,6 +218,7 @@ export function RemindersComponent({ currentDate }: { currentDate: string }) {
                                                         <Input
                                                             type="date"
                                                             {...field}
+                                                            min={currentDate}
                                                             className="bg-white/5 border-white/10 h-10 rounded-xl text-xs uppercase"
                                                         />
                                                     </FormControl>
@@ -380,8 +381,11 @@ export function RemindersComponent({ currentDate }: { currentDate: string }) {
                         reminders.map(rem => (
                             <div
                                 key={rem.id}
-                                style={{ backgroundColor: rem.color + '20', borderColor: rem.color + '40' }}
-                                className="shrink-0 w-[200px] min-h-[4.5rem] p-3 rounded-2xl border flex flex-col justify-center relative overflow-hidden group"
+                                style={{ backgroundColor: rem.color + '20', borderColor: rem.charges === 0 ? '#10b981' : rem.color + '40' }}
+                                className={cn(
+                                    "shrink-0 w-[200px] min-h-[4.5rem] p-3 rounded-2xl border flex flex-col justify-center relative overflow-hidden group",
+                                    rem.charges === 0 ? "shadow-[0_0_15px_rgba(16,185,129,0.4)]" : ""
+                                )}
                             >
                                 <div className="absolute top-0 right-0 p-2 opacity-0 group-hover:opacity-100 transition-opacity">
                                     <Trash2 className="w-3 h-3 text-white/50 hover:text-red-400 cursor-pointer" onClick={() => handleDelete(rem.id)} />

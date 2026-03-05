@@ -474,18 +474,18 @@ export function CreateTaskDialog({ availableBlockTypes = [], taskToEdit, open: c
                                     name="suggestible"
                                     render={({ field }) => (
                                         <div className="flex gap-3 items-center h-6">
-                                            <label className="flex items-center gap-1.5 cursor-pointer pr-1" onClick={() => field.onChange(true)}>
+                                            <div className="flex items-center gap-1.5 cursor-pointer pr-1" onClick={() => field.onChange(true)}>
                                                 <div className={cn("w-3.5 h-3.5 rounded-full border flex items-center justify-center transition-colors", field.value ? "border-emerald-500" : "border-white/20")}>
                                                     {field.value && <div className="w-2 h-2 rounded-full bg-emerald-500" />}
                                                 </div>
                                                 <span className="text-[10px] text-zinc-300 uppercase font-bold">Sim</span>
-                                            </label>
-                                            <label className="flex items-center gap-1.5 cursor-pointer pl-1" onClick={() => field.onChange(false)}>
+                                            </div>
+                                            <div className="flex items-center gap-1.5 cursor-pointer pl-1" onClick={() => field.onChange(false)}>
                                                 <div className={cn("w-3.5 h-3.5 rounded-full border flex items-center justify-center transition-colors", !field.value ? "border-red-500" : "border-white/20")}>
                                                     {!field.value && <div className="w-2 h-2 rounded-full bg-red-500" />}
                                                 </div>
                                                 <span className="text-[10px] text-zinc-300 uppercase font-bold">Não</span>
-                                            </label>
+                                            </div>
                                         </div>
                                     )}
                                 />
