@@ -325,6 +325,103 @@ export function RemindersComponent({ currentDate }: { currentDate: string }) {
                                             )}
                                         />
                                     )}
+
+                                    {form.watch("repeatPattern") === "monthly_on" && (
+                                        <div className="space-y-4 mt-2 bg-white/5 border border-white/10 rounded-xl p-3">
+                                            {/* Tabs Dias da Semana vs 1-31 dias */}
+                                            <div className="flex bg-black/40 rounded-lg p-1">
+                                                <button
+                                                    type="button"
+                                                    className={cn("flex-1 text-[10px] font-bold uppercase py-1.5 rounded-md transition-colors", monthlyTab === 'weekdays' ? "bg-white/10 text-white" : "text-zinc-500 hover:text-zinc-300")}
+                                                    onClick={() => setMonthlyTab('weekdays')}
+                                                >
+                                                    Dias da Semana
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    className={cn("flex-1 text-[10px] font-bold uppercase py-1.5 rounded-md transition-colors", monthlyTab === 'days' ? "bg-white/10 text-white" : "text-zinc-500 hover:text-zinc-300")}
+                                                    onClick={() => setMonthlyTab('days')}
+                                                >
+                                                    1-31 dias
+                                                </button>
+                                            </div>
+
+                                            {monthlyTab === 'weekdays' && (
+                                                <FormField
+                                                    control={form.control}
+                                                    name="monthlyNth"
+                                                    render={({ field }) => (
+                                                        <FormItem>
+                                                            <div className="flex items-center gap-2">
+                                                                <span className="text-xs text-zinc-400">A cada</span>
+                                                                <div className="flex-1">
+                                                                    <Select
+                                                                        value={field.value?.nth?.toString() || "1"}
+                                                                        onValueChange={(val) => field.onChange({ ...field.value, weekday: field.value?.weekday || 1, nth: parseInt(val) })}
+                                                                    >
+                                                                        <SelectTrigger className="bg-black/40 border-white/10 h-8 rounded-lg text-xs">
+                                                                            <SelectValue />
+                                                                        </SelectTrigger>
+                                                                        <SelectContent className="bg-[#050506] border-white/10 text-white">
+                                                                            {NTH_OPTIONS.map(opt => (
+                                                                                <SelectItem key={opt.value} value={opt.value.toString()}>{opt.label}</SelectItem>
+                                                                            ))}
+                                                                        </SelectContent>
+                                                                    </Select>
+                                                                </div>
+                                                                <div className="flex-[1.5]">
+                                                                    <Select
+                                                                        value={field.value?.weekday?.toString() || "1"}
+                                                                        onValueChange={(val) => field.onChange({ ...field.value, nth: field.value?.nth || 1, weekday: parseInt(val) })}
+                                                                    >
+                                                                        <SelectTrigger className="bg-black/40 border-white/10 h-8 rounded-lg text-xs">
+                                                                            <SelectValue />
+                                                                        </SelectTrigger>
+                                                                        <SelectContent className="bg-[#050506] border-white/10 text-white">
+                                                                            {DAYS_OF_WEEK.map(day => (
+                                                                                <SelectItem key={day.value} value={day.value.toString()}>{day.label.toLowerCase()}</SelectItem>
+                                                                            ))}
+                                                                        </SelectContent>
+                                                                    </Select>
+                                                                </div>
+                                                            </div>
+                                                            <FormMessage />
+                                                        </FormItem>
+                                                    )}
+                                                />
+                                            )}
+
+                                            {monthlyTab === 'days' && (
+                                                <FormField
+                                                    control={form.control}
+                                                    name="monthlyDays"
+                                                    render={({ field }) => (
+                                                        <FormItem>
+                                                            <div className="grid grid-cols-7 gap-1 mt-2">
+                                                                {Array.from({ length: 31 }, (_, i) => i + 1).map(day => {
+                                                                    const isSelected = field.value?.includes(day);
+                                                                    return (
+                                                                        <div
+                                                                            key={day}
+                                                                            onClick={() => {
+                                                                                const current = field.value || [];
+                                                                                const next = isSelected ? current.filter(d => d !== day) : [...current, day];
+                                                                                field.onChange(next);
+                                                                            }}
+                                                                            className={cn("aspect-square flex items-center justify-center text-[10px] sm:text-xs font-medium cursor-pointer rounded-md transition-colors", isSelected ? "bg-[#3b82f6] text-white font-bold" : "text-zinc-400 hover:bg-white/10 hover:text-zinc-200")}
+                                                                        >
+                                                                            {day}
+                                                                        </div>
+                                                                    );
+                                                                })}
+                                                            </div>
+                                                            <FormMessage />
+                                                        </FormItem>
+                                                    )}
+                                                />
+                                            )}
+                                        </div>
+                                    )}
                                     {/* Toggle Avançado */}
                                     <div
                                         onClick={() => setShowAdvanced(!showAdvanced)}
