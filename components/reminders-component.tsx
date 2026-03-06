@@ -43,6 +43,7 @@ const reminderSchema = z.object({
     repeatPattern: z.enum(['none', 'daily', 'weekly', 'monthly', 'yearly', 'workdays', 'monthly_on', 'custom']).default('none'),
     occurrencesLimit: z.number().optional(),
     charges: z.number().optional(),
+    weekdays: z.array(z.number()).optional(),
 });
 
 const DEFAULT_COLORS = [
@@ -52,6 +53,16 @@ const DEFAULT_COLORS = [
     { label: 'Amarelo', value: '#eab308' },
     { label: 'Roxo', value: '#a855f7' },
     { label: 'Cinza', value: '#52525b' },
+];
+
+const DAYS_OF_WEEK = [
+    { label: 'Segunda-feira', value: 1 },
+    { label: 'Terça-feira', value: 2 },
+    { label: 'Quarta-feira', value: 3 },
+    { label: 'Quinta-feira', value: 4 },
+    { label: 'Sexta-feira', value: 5 },
+    { label: 'Sábado', value: 6 },
+    { label: 'Domingo', value: 0 },
 ];
 
 export function RemindersComponent({ currentDate }: { currentDate: string }) {
@@ -85,6 +96,7 @@ export function RemindersComponent({ currentDate }: { currentDate: string }) {
             description: "",
             targetDate: currentDate,
             repeatPattern: "none",
+            weekdays: [],
         },
     });
 
@@ -245,7 +257,7 @@ export function RemindersComponent({ currentDate }: { currentDate: string }) {
                                                         <SelectItem value="weekly">Toda semana</SelectItem>
                                                         <SelectItem value="monthly">Todo mês</SelectItem>
                                                         <SelectItem value="yearly">Todo ano</SelectItem>
-                                                        <SelectItem value="workdays" disabled>Dias úteis selecionados (em breve)</SelectItem>
+                                                        <SelectItem value="workdays">Dias selecionados</SelectItem>
                                                         <SelectItem value="monthly_on" disabled>Mensal no(a) (em breve)</SelectItem>
                                                         <SelectItem value="custom" disabled>Personalizado (em breve)</SelectItem>
                                                     </SelectContent>
@@ -255,6 +267,39 @@ export function RemindersComponent({ currentDate }: { currentDate: string }) {
                                         )}
                                     />
 
+                                    {form.watch("repeatPattern") === "workdays" && (
+                                        <FormField
+                                            control={form.control}
+                                            name="weekdays"
+                                            render={({ field }) => (
+                                                <FormItem>
+                                                    <FormLabel className="text-[10px] font-black text-zinc-500 uppercase ml-1">Dias da Semana</FormLabel>
+                                                    <div className="space-y-1 mt-2 bg-white/5 border border-white/10 rounded-xl p-3">
+                                                        {DAYS_OF_WEEK.map(day => {
+                                                            const isSelected = field.value?.includes(day.value);
+                                                            return (
+                                                                <div
+                                                                    key={day.value}
+                                                                    className="flex items-center justify-between cursor-pointer group py-1"
+                                                                    onClick={() => {
+                                                                        const current = field.value || [];
+                                                                        const next = isSelected ? current.filter(v => v !== day.value) : [...current, day.value];
+                                                                        field.onChange(next);
+                                                                    }}
+                                                                >
+                                                                    <span className={cn("text-xs font-medium transition-colors", isSelected ? "text-white" : "text-zinc-500 group-hover:text-zinc-300")}>{day.label}</span>
+                                                                    <div className={cn("w-4 h-4 rounded-[4px] border flex items-center justify-center transition-colors", isSelected ? "border-emerald-500 bg-emerald-500" : "border-white/20 hover:border-white/40")}>
+                                                                        {isSelected && <svg width="10" height="8" viewBox="0 0 10 8" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M1 4L3.5 6.5L9 1" stroke="#050506" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>}
+                                                                    </div>
+                                                                </div>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                    <FormMessage />
+                                                </FormItem>
+                                            )}
+                                        />
+                                    )}
                                     {/* Toggle Avançado */}
                                     <div
                                         onClick={() => setShowAdvanced(!showAdvanced)}
@@ -412,6 +457,6 @@ export function RemindersComponent({ currentDate }: { currentDate: string }) {
                     )}
                 </div>
             </div>
-        </div>
+        </div >
     );
 }

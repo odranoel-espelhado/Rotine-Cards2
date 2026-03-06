@@ -16,6 +16,7 @@ export type ReminderType = {
     occurrencesLimit?: number | null;
     usedOccurrences?: number | null;
     charges?: number | null;
+    weekdays?: number[] | null;
 };
 
 export async function getRemindersAction(date: string) {
@@ -36,7 +37,8 @@ export async function getRemindersAction(date: string) {
                 (r.repeatPattern === 'daily' && date >= r.targetDate) ||
                 (r.repeatPattern === 'weekly' && new Date(r.targetDate).getDay() === new Date(date).getDay() && date >= r.targetDate) ||
                 (r.repeatPattern === 'monthly' && new Date(r.targetDate).getDate() === new Date(date).getDate() && date >= r.targetDate) ||
-                (r.repeatPattern === 'yearly' && new Date(r.targetDate).getDate() === new Date(date).getDate() && new Date(r.targetDate).getMonth() === new Date(date).getMonth() && date >= r.targetDate);
+                (r.repeatPattern === 'yearly' && new Date(r.targetDate).getDate() === new Date(date).getDate() && new Date(r.targetDate).getMonth() === new Date(date).getMonth() && date >= r.targetDate) ||
+                (r.repeatPattern === 'workdays' && date >= r.targetDate && Array.isArray(r.weekdays) && r.weekdays.includes(new Date(date).getDay()));
         }).map(r => ({
             ...r,
             description: r.description || "",
@@ -44,6 +46,7 @@ export async function getRemindersAction(date: string) {
             occurrencesLimit: r.occurrencesLimit,
             usedOccurrences: r.usedOccurrences,
             charges: r.charges,
+            weekdays: Array.isArray(r.weekdays) ? r.weekdays as number[] : null,
         }));
     } catch (e) {
         console.error("Error fetching reminders", e);
@@ -64,6 +67,7 @@ export async function getAllRemindersAction() {
             occurrencesLimit: r.occurrencesLimit,
             usedOccurrences: r.usedOccurrences,
             charges: r.charges,
+            weekdays: Array.isArray(r.weekdays) ? r.weekdays as number[] : null,
         }));
     } catch (e) {
         console.error("Error fetching all reminders", e);
@@ -85,6 +89,7 @@ export async function createReminderAction(data: Omit<ReminderType, "id">) {
             repeatPattern: data.repeatPattern || "none",
             occurrencesLimit: data.occurrencesLimit,
             charges: data.charges,
+            weekdays: data.weekdays || [],
         }).returning();
 
         revalidatePath("/dashboard");
@@ -93,6 +98,7 @@ export async function createReminderAction(data: Omit<ReminderType, "id">) {
                 ...newReminder,
                 description: newReminder.description || "",
                 repeatPattern: newReminder.repeatPattern || "none",
+                weekdays: Array.isArray(newReminder.weekdays) ? newReminder.weekdays as number[] : null,
             }
         };
     } catch (error: any) {

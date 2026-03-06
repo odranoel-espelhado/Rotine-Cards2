@@ -91,6 +91,7 @@ export const reminders = pgTable('reminders', {
     occurrencesLimit: integer('occurrences_limit'),
     usedOccurrences: integer('used_occurrences').default(0),
     charges: integer('charges'),
+    weekdays: jsonb('weekdays').default([]), // For 'workdays' pattern: array of numbers 0-6
     createdAt: timestamp('created_at').defaultNow().notNull(),
 });
 
