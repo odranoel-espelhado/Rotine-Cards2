@@ -44,6 +44,11 @@ const reminderSchema = z.object({
     occurrencesLimit: z.number().optional(),
     charges: z.number().optional(),
     weekdays: z.array(z.number()).optional(),
+    monthlyDays: z.array(z.number()).optional(),
+    monthlyNth: z.object({
+        nth: z.number(),
+        weekday: z.number()
+    }).nullable().optional(),
 });
 
 const DEFAULT_COLORS = [
@@ -65,6 +70,14 @@ const DAYS_OF_WEEK = [
     { label: 'Domingo', value: 0 },
 ];
 
+const NTH_OPTIONS = [
+    { label: '1º', value: 1 },
+    { label: '2º', value: 2 },
+    { label: '3º', value: 3 },
+    { label: '4º', value: 4 },
+    { label: 'Último', value: -1 },
+];
+
 export function RemindersComponent({ currentDate }: { currentDate: string }) {
     const [isExpanded, setIsExpanded] = useState(true);
     const [reminders, setReminders] = useState<ReminderType[]>([]);
@@ -72,6 +85,7 @@ export function RemindersComponent({ currentDate }: { currentDate: string }) {
     const [isCreateOpen, setIsCreateOpen] = useState(false);
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
     const [showAdvanced, setShowAdvanced] = useState(false);
+    const [monthlyTab, setMonthlyTab] = useState<'weekdays' | 'days'>('weekdays');
 
     const loadReminders = async () => {
         const todayReminders = await getRemindersAction(currentDate);
@@ -97,14 +111,26 @@ export function RemindersComponent({ currentDate }: { currentDate: string }) {
             targetDate: currentDate,
             repeatPattern: "none",
             weekdays: [],
+            monthlyDays: [],
+            monthlyNth: { nth: 1, weekday: 1 },
         },
     });
 
     const onSubmit = async (values: z.infer<typeof reminderSchema> | any) => {
-        const res = await createReminderAction({
+        const payload = {
             ...values,
             description: values.description || "",
-        });
+        };
+
+        if (payload.repeatPattern === "monthly_on") {
+            if (monthlyTab === 'weekdays') {
+                payload.monthlyDays = []; // Just use Nth
+            } else {
+                payload.monthlyNth = null; // Just use days array
+            }
+        }
+
+        const res = await createReminderAction(payload);
 
         if (res.success) {
             toast.success("Lembrete criado com sucesso!");
@@ -258,8 +284,7 @@ export function RemindersComponent({ currentDate }: { currentDate: string }) {
                                                         <SelectItem value="monthly">Todo mês</SelectItem>
                                                         <SelectItem value="yearly">Todo ano</SelectItem>
                                                         <SelectItem value="workdays">Dias selecionados</SelectItem>
-                                                        <SelectItem value="monthly_on" disabled>Mensal no(a) (em breve)</SelectItem>
-                                                        <SelectItem value="custom" disabled>Personalizado (em breve)</SelectItem>
+                                                        <SelectItem value="monthly_on">Mensal no(a)</SelectItem>
                                                     </SelectContent>
                                                 </Select>
                                                 <FormMessage />

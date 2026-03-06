@@ -17,6 +17,8 @@ export type ReminderType = {
     usedOccurrences?: number | null;
     charges?: number | null;
     weekdays?: number[] | null;
+    monthlyDays?: number[] | null;
+    monthlyNth?: { nth: number, weekday: number } | null;
 };
 
 export async function getRemindersAction(date: string) {
@@ -38,7 +40,19 @@ export async function getRemindersAction(date: string) {
                 (r.repeatPattern === 'weekly' && new Date(r.targetDate).getDay() === new Date(date).getDay() && date >= r.targetDate) ||
                 (r.repeatPattern === 'monthly' && new Date(r.targetDate).getDate() === new Date(date).getDate() && date >= r.targetDate) ||
                 (r.repeatPattern === 'yearly' && new Date(r.targetDate).getDate() === new Date(date).getDate() && new Date(r.targetDate).getMonth() === new Date(date).getMonth() && date >= r.targetDate) ||
-                (r.repeatPattern === 'workdays' && date >= r.targetDate && Array.isArray(r.weekdays) && r.weekdays.includes(new Date(date).getDay()));
+                (r.repeatPattern === 'workdays' && date >= r.targetDate && Array.isArray(r.weekdays) && r.weekdays.includes(new Date(date).getDay())) ||
+                (r.repeatPattern === 'monthly_on' && date >= r.targetDate && (
+                    (Array.isArray(r.monthlyDays) && r.monthlyDays.length > 0 && r.monthlyDays.includes(new Date(date).getDate())) ||
+                    (r.monthlyNth && typeof r.monthlyNth === 'object' && !Array.isArray(r.monthlyNth) && (r.monthlyNth as any).weekday === new Date(date).getDay() && (() => {
+                        const mnth = r.monthlyNth as any;
+                        const chkDate = new Date(date);
+                        const chkDay = chkDate.getDate();
+                        const nth = Math.ceil(chkDay / 7);
+                        if (mnth.nth === nth) return true;
+                        if (mnth.nth === -1 && chkDay + 7 > new Date(chkDate.getFullYear(), chkDate.getMonth() + 1, 0).getDate()) return true;
+                        return false;
+                    })())
+                ));
         }).map(r => ({
             ...r,
             description: r.description || "",
@@ -47,6 +61,8 @@ export async function getRemindersAction(date: string) {
             usedOccurrences: r.usedOccurrences,
             charges: r.charges,
             weekdays: Array.isArray(r.weekdays) ? r.weekdays as number[] : null,
+            monthlyDays: Array.isArray(r.monthlyDays) ? r.monthlyDays as number[] : null,
+            monthlyNth: (r.monthlyNth as any) || null,
         }));
     } catch (e) {
         console.error("Error fetching reminders", e);
@@ -68,6 +84,8 @@ export async function getAllRemindersAction() {
             usedOccurrences: r.usedOccurrences,
             charges: r.charges,
             weekdays: Array.isArray(r.weekdays) ? r.weekdays as number[] : null,
+            monthlyDays: Array.isArray(r.monthlyDays) ? r.monthlyDays as number[] : null,
+            monthlyNth: (r.monthlyNth as any) || null,
         }));
     } catch (e) {
         console.error("Error fetching all reminders", e);
@@ -90,6 +108,8 @@ export async function createReminderAction(data: Omit<ReminderType, "id">) {
             occurrencesLimit: data.occurrencesLimit,
             charges: data.charges,
             weekdays: data.weekdays || [],
+            monthlyDays: data.monthlyDays || [],
+            monthlyNth: data.monthlyNth || null,
         }).returning();
 
         revalidatePath("/dashboard");
@@ -99,6 +119,8 @@ export async function createReminderAction(data: Omit<ReminderType, "id">) {
                 description: newReminder.description || "",
                 repeatPattern: newReminder.repeatPattern || "none",
                 weekdays: Array.isArray(newReminder.weekdays) ? newReminder.weekdays as number[] : null,
+                monthlyDays: Array.isArray(newReminder.monthlyDays) ? newReminder.monthlyDays as number[] : null,
+                monthlyNth: (newReminder.monthlyNth as any) || null,
             }
         };
     } catch (error: any) {

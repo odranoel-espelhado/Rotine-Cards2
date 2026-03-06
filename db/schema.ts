@@ -92,6 +92,8 @@ export const reminders = pgTable('reminders', {
     usedOccurrences: integer('used_occurrences').default(0),
     charges: integer('charges'),
     weekdays: jsonb('weekdays').default([]), // For 'workdays' pattern: array of numbers 0-6
+    monthlyDays: jsonb('monthly_days').default([]), // For 'monthly_on' pattern (1-31 days): array of numbers 1-31
+    monthlyNth: jsonb('monthly_nth'), // For 'monthly_on' pattern (nth weekday): { nth: 1|2|3|4|-1, weekday: 0-6 }
     createdAt: timestamp('created_at').defaultNow().notNull(),
 });
 
