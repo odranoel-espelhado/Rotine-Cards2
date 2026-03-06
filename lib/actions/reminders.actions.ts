@@ -21,6 +21,33 @@ export type ReminderType = {
     monthlyNth?: { nth: number, weekday: number } | null;
 };
 
+function matchesRepeatPattern(r: any, checkDateStr: string): boolean {
+    if (r.targetDate === checkDateStr) return true;
+    if (checkDateStr < r.targetDate) return false;
+
+    const targetObj = new Date(r.targetDate + "T12:00:00");
+    const checkObj = new Date(checkDateStr + "T12:00:00");
+
+    if (r.repeatPattern === 'daily') return true;
+    if (r.repeatPattern === 'weekly' && targetObj.getDay() === checkObj.getDay()) return true;
+    if (r.repeatPattern === 'monthly' && targetObj.getDate() === checkObj.getDate()) return true;
+    if (r.repeatPattern === 'yearly' && targetObj.getDate() === checkObj.getDate() && targetObj.getMonth() === checkObj.getMonth()) return true;
+    if (r.repeatPattern === 'workdays' && Array.isArray(r.weekdays) && r.weekdays.includes(checkObj.getDay())) return true;
+    if (r.repeatPattern === 'monthly_on') {
+        if (Array.isArray(r.monthlyDays) && r.monthlyDays.length > 0 && r.monthlyDays.includes(checkObj.getDate())) return true;
+        if (r.monthlyNth && typeof r.monthlyNth === 'object' && !Array.isArray(r.monthlyNth)) {
+            const mnth = r.monthlyNth as any;
+            if (mnth.weekday === checkObj.getDay()) {
+                const chkDay = checkObj.getDate();
+                const nth = Math.ceil(chkDay / 7);
+                if (mnth.nth === nth) return true;
+                if (mnth.nth === -1 && chkDay + 7 > new Date(checkObj.getFullYear(), checkObj.getMonth() + 1, 0).getDate()) return true;
+            }
+        }
+    }
+    return false;
+}
+
 export async function getRemindersAction(date: string) {
     const { userId } = await auth();
     if (!userId) return [];
@@ -30,29 +57,55 @@ export async function getRemindersAction(date: string) {
 
         // Frontend filtering strategy similar to recurring blocks
         return allReminders.filter(r => {
-            // Check occurrence limit
+            // Check manual occurrence limit completion
             if (r.occurrencesLimit && r.usedOccurrences && r.usedOccurrences >= r.occurrencesLimit) {
                 return false;
             }
 
-            return r.targetDate === date ||
-                (r.repeatPattern === 'daily' && date >= r.targetDate) ||
-                (r.repeatPattern === 'weekly' && new Date(r.targetDate).getDay() === new Date(date).getDay() && date >= r.targetDate) ||
-                (r.repeatPattern === 'monthly' && new Date(r.targetDate).getDate() === new Date(date).getDate() && date >= r.targetDate) ||
-                (r.repeatPattern === 'yearly' && new Date(r.targetDate).getDate() === new Date(date).getDate() && new Date(r.targetDate).getMonth() === new Date(date).getMonth() && date >= r.targetDate) ||
-                (r.repeatPattern === 'workdays' && date >= r.targetDate && Array.isArray(r.weekdays) && r.weekdays.includes(new Date(date).getDay())) ||
-                (r.repeatPattern === 'monthly_on' && date >= r.targetDate && (
-                    (Array.isArray(r.monthlyDays) && r.monthlyDays.length > 0 && r.monthlyDays.includes(new Date(date).getDate())) ||
-                    (r.monthlyNth && typeof r.monthlyNth === 'object' && !Array.isArray(r.monthlyNth) && (r.monthlyNth as any).weekday === new Date(date).getDay() && (() => {
-                        const mnth = r.monthlyNth as any;
-                        const chkDate = new Date(date);
-                        const chkDay = chkDate.getDate();
-                        const nth = Math.ceil(chkDay / 7);
-                        if (mnth.nth === nth) return true;
-                        if (mnth.nth === -1 && chkDay + 7 > new Date(chkDate.getFullYear(), chkDate.getMonth() + 1, 0).getDate()) return true;
-                        return false;
-                    })())
-                ));
+            // Check if matches pattern
+            if (!matchesRepeatPattern(r, date)) return false;
+
+            // If it has occurrencesLimit, count how many occurrences happened up to this date
+            if (r.occurrencesLimit && r.occurrencesLimit > 0) {
+                let count = 0;
+                let currentSimDate = new Date(r.targetDate + "T12:00:00");
+                const targetCheckDate = new Date(date + "T12:00:00");
+
+                const addDays = (d: Date, days: number) => {
+                    const nd = new Date(d);
+                    nd.setDate(nd.getDate() + days);
+                    return nd;
+                };
+
+                const formatDate = (d: Date) => {
+                    const yy = d.getFullYear();
+                    const mm = String(d.getMonth() + 1).padStart(2, '0');
+                    const dd = String(d.getDate()).padStart(2, '0');
+                    return `${yy}-${mm}-${dd}`;
+                };
+
+                let currStr = formatDate(currentSimDate);
+                // Hard limit of 1000 days or so to prevent infinite loops, but realistically it'll stop by the targetCheckDate
+                let loopCount = 0;
+                while (currStr <= date && loopCount < 3650) { // Max 10 years
+                    if (matchesRepeatPattern(r, currStr)) {
+                        count++;
+                    }
+                    if (count > r.occurrencesLimit) {
+                        return false; // Exceeded limit
+                    }
+                    if (currStr === date) {
+                        break;
+                    }
+                    currentSimDate = addDays(currentSimDate, 1);
+                    currStr = formatDate(currentSimDate);
+                    loopCount++;
+                }
+
+                return count <= r.occurrencesLimit;
+            }
+
+            return true;
         }).map(r => ({
             ...r,
             description: r.description || "",
