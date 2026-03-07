@@ -516,15 +516,6 @@ export function CreateBlockDialog({
                                                         className="w-16 bg-white/5 border-white/5 h-10 rounded-lg text-xs font-mono text-center"
                                                         onChange={(e) => {
                                                             field.onChange(e);
-                                                            setTimeout(() => {
-                                                                const currentTasks = form.getValues("subTasks");
-                                                                if (currentTasks && currentTasks.length > 0) {
-                                                                    const sum = currentTasks.reduce((acc, sub) => acc + (Number(sub.duration) || 0), 0);
-                                                                    if (sum > 0) {
-                                                                        form.setValue("totalDuration", sum, { shouldValidate: true });
-                                                                    }
-                                                                }
-                                                            }, 0);
                                                         }}
                                                     />
                                                 )}
@@ -551,15 +542,6 @@ export function CreateBlockDialog({
                                                 size="icon"
                                                 onClick={() => {
                                                     remove(index);
-                                                    setTimeout(() => {
-                                                        const currentTasks = form.getValues("subTasks");
-                                                        if (currentTasks && currentTasks.length > 0) {
-                                                            const sum = currentTasks.reduce((acc, sub) => acc + (Number(sub.duration) || 0), 0);
-                                                            form.setValue("totalDuration", sum > 0 ? sum : 30, { shouldValidate: true });
-                                                        } else {
-                                                            form.setValue("totalDuration", 30, { shouldValidate: true });
-                                                        }
-                                                    }, 0);
                                                 }}
                                                 className="h-10 w-8 text-zinc-600 hover:text-red-500 hover:bg-red-500/10"
                                             >
