@@ -21,6 +21,13 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
 import { createMissionBlock, getUniqueBlockTypes } from "@/lib/actions/mission.actions";
 import { useState, useEffect } from "react";
 import { Plus, Trash2, Clock, Calendar, Zap, Target, Heart, Book, Briefcase, Dumbbell, Coffee, User, Star, Repeat, ArrowUp, ArrowDown } from "lucide-react";
@@ -473,34 +480,25 @@ export function CreateBlockDialog({
                                 name="notification"
                                 render={({ field }) => (
                                     <FormItem>
-                                        <FormLabel className="text-[10px] font-black text-zinc-500 uppercase ml-1 block mb-2">Notificação de Início</FormLabel>
-                                        <div className="flex flex-wrap gap-2">
-                                            <div
-                                                onClick={() => field.onChange(null)}
-                                                className={cn(
-                                                    "px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer border transition-colors",
-                                                    field.value === null
-                                                        ? "bg-white/10 border-white/20 text-white shadow-sm"
-                                                        : "bg-black/20 border-white/5 text-zinc-500 hover:text-white"
-                                                )}
-                                            >
-                                                Desativado
-                                            </div>
-                                            {NOTIFICATION_OPTIONS.map((opt) => (
-                                                <div
-                                                    key={opt.value}
-                                                    onClick={() => field.onChange(opt.value)}
-                                                    className={cn(
-                                                        "px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer border transition-colors",
-                                                        field.value === opt.value
-                                                            ? "bg-white/10 border-white/20 text-white shadow-sm"
-                                                            : "bg-black/20 border-white/5 text-zinc-500 hover:text-white"
-                                                    )}
-                                                >
-                                                    {opt.label}
-                                                </div>
-                                            ))}
-                                        </div>
+                                        <FormLabel className="text-[10px] font-black text-zinc-500 uppercase ml-1 block">Notificação de Início</FormLabel>
+                                        <Select
+                                            onValueChange={(val) => field.onChange(val === "none" ? null : Number(val))}
+                                            value={field.value === null ? "none" : field.value.toString()}
+                                        >
+                                            <FormControl>
+                                                <SelectTrigger className="bg-white/5 border-white/10 h-10 rounded-xl text-xs w-full">
+                                                    <SelectValue placeholder="Selecione..." />
+                                                </SelectTrigger>
+                                            </FormControl>
+                                            <SelectContent className="bg-[#050506] border-white/10 text-white">
+                                                <SelectItem value="none">Desativado</SelectItem>
+                                                {NOTIFICATION_OPTIONS.map((opt) => (
+                                                    <SelectItem key={opt.value} value={opt.value.toString()}>
+                                                        {opt.label}
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
                                         <FormMessage />
                                     </FormItem>
                                 )}
