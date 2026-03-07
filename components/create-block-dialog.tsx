@@ -61,7 +61,19 @@ const formSchema = z.object({
     subTasks: z.array(subtaskSchema).default([]),
     isRecurring: z.boolean().default(false),
     replicateWeekdays: z.boolean().default(false),
+    notification: z.number().nullable().default(null)
 });
+
+const NOTIFICATION_OPTIONS = [
+    { label: 'Início', value: 0 },
+    { label: '5min', value: 5 },
+    { label: '15min', value: 15 },
+    { label: '30min', value: 30 },
+    { label: '1h', value: 60 },
+    { label: '2h', value: 120 },
+    { label: '1 dia', value: 1440 },
+    { label: '7 dias', value: 10080 },
+];
 
 import { updateMissionBlock, MissionBlock } from "@/lib/actions/mission.actions";
 
@@ -85,8 +97,8 @@ export function CreateBlockDialog({
     defaultDuration
 }: MissionBlockDialogProps) {
     const [internalOpen, setInternalOpen] = useState(false);
-    const [availableTypes, setAvailableTypes] = useState<{ label: string; icon: string; color: string; value: string }[]>([]);
-    const [filteredSuggestions, setFilteredSuggestions] = useState<{ label: string; icon: string; color: string; value: string }[]>([]);
+    const [availableTypes, setAvailableTypes] = useState<{ label: string; icon: string; color: string; value: string; notification?: number | null }[]>([]);
+    const [filteredSuggestions, setFilteredSuggestions] = useState<{ label: string; icon: string; color: string; value: string; notification?: number | null }[]>([]);
     const [showSuggestions, setShowSuggestions] = useState(false);
 
     const isControlled = controlledOpen !== undefined;
@@ -115,6 +127,7 @@ export function CreateBlockDialog({
             })) || [],
             isRecurring: blockToEdit?.type === 'recurring',
             replicateWeekdays: blockToEdit?.recurrencePattern === 'weekdays',
+            notification: blockToEdit?.notification !== undefined ? blockToEdit.notification : null,
         },
     });
 
@@ -139,6 +152,7 @@ export function CreateBlockDialog({
                 })) || [],
                 isRecurring: blockToEdit?.type === 'recurring',
                 replicateWeekdays: blockToEdit?.recurrencePattern === 'weekdays',
+                notification: blockToEdit?.notification !== undefined ? blockToEdit.notification : null,
             });
 
             // Fetch suggestions
@@ -173,6 +187,7 @@ export function CreateBlockDialog({
             })),
             type: values.isRecurring ? 'recurring' as const : 'unique' as const,
             recurrencePattern: values.replicateWeekdays ? 'weekdays' as const : undefined,
+            notification: values.notification,
         };
 
         if (isEditing && blockToEdit) {
@@ -220,6 +235,7 @@ export function CreateBlockDialog({
             })),
             type: values.isRecurring ? 'recurring' as const : 'unique' as const,
             recurrencePattern: values.replicateWeekdays ? 'weekdays' as const : undefined,
+            notification: values.notification,
         };
 
         let res;
@@ -256,6 +272,9 @@ export function CreateBlockDialog({
         form.setValue("title", suggestion.label);
         form.setValue("icon", suggestion.icon);
         form.setValue("color", suggestion.color);
+        if (suggestion.notification !== undefined) {
+            form.setValue("notification", suggestion.notification);
+        }
         setShowSuggestions(false);
     };
 
@@ -441,6 +460,45 @@ export function CreateBlockDialog({
                                                         field.value === c.hex ? "border-white scale-110 shadow-lg" : "border-transparent opacity-60 hover:opacity-100 hover:scale-105"
                                                     )}
                                                 />
+                                            ))}
+                                        </div>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+
+                            {/* Notificação Toggle */}
+                            <FormField
+                                control={form.control}
+                                name="notification"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel className="text-[10px] font-black text-zinc-500 uppercase ml-1 block mb-2">Notificação de Início</FormLabel>
+                                        <div className="flex flex-wrap gap-2">
+                                            <div
+                                                onClick={() => field.onChange(null)}
+                                                className={cn(
+                                                    "px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer border transition-colors",
+                                                    field.value === null
+                                                        ? "bg-white/10 border-white/20 text-white shadow-sm"
+                                                        : "bg-black/20 border-white/5 text-zinc-500 hover:text-white"
+                                                )}
+                                            >
+                                                Desativado
+                                            </div>
+                                            {NOTIFICATION_OPTIONS.map((opt) => (
+                                                <div
+                                                    key={opt.value}
+                                                    onClick={() => field.onChange(opt.value)}
+                                                    className={cn(
+                                                        "px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer border transition-colors",
+                                                        field.value === opt.value
+                                                            ? "bg-white/10 border-white/20 text-white shadow-sm"
+                                                            : "bg-black/20 border-white/5 text-zinc-500 hover:text-white"
+                                                    )}
+                                                >
+                                                    {opt.label}
+                                                </div>
                                             ))}
                                         </div>
                                         <FormMessage />

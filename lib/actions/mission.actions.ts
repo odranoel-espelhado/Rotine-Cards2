@@ -548,6 +548,7 @@ export async function getUniqueBlockTypes() {
             color: missionBlocks.color,
             subTasks: missionBlocks.subTasks,
             type: missionBlocks.type,
+            notification: missionBlocks.notification,
             createdAt: missionBlocks.createdAt
         })
             .from(missionBlocks)
@@ -555,7 +556,7 @@ export async function getUniqueBlockTypes() {
             .orderBy(desc(missionBlocks.createdAt));
 
         const seen = new Set();
-        const uniqueBlocks: { label: string; icon: string; color: string; value: string }[] = [];
+        const uniqueBlocks: { label: string; icon: string; color: string; value: string; notification?: number | null }[] = [];
 
         for (const block of blocks) {
             // Check if this block was explicitly created (not converted from a task)
@@ -580,7 +581,8 @@ export async function getUniqueBlockTypes() {
                     label: block.title,
                     value: block.title,
                     icon: block.icon || 'zap',
-                    color: block.color || '#3b82f6'
+                    color: block.color || '#3b82f6',
+                    notification: (block as any).notification || null
                 });
             }
         }
