@@ -484,7 +484,20 @@ export function CreateBlockDialog({
                                     const notes = field.value || [];
                                     return (
                                         <FormItem>
-                                            <FormLabel className="text-[10px] font-black text-zinc-500 uppercase ml-1 block">Notificações de Início</FormLabel>
+                                            <div className="flex justify-between items-center">
+                                                <FormLabel className="text-[10px] font-black text-zinc-500 uppercase ml-1 block">Notificações de Início</FormLabel>
+                                                {notes.length < 3 && (
+                                                    <Button
+                                                        type="button"
+                                                        onClick={() => field.onChange([...notes, 15])}
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        className="h-6 text-[10px] text-emerald-500 hover:text-emerald-400 hover:bg-emerald-500/10 font-bold uppercase"
+                                                    >
+                                                        + Adicionar
+                                                    </Button>
+                                                )}
+                                            </div>
                                             <div className="space-y-2">
                                                 {notes.length === 0 && (
                                                     <div className="flex gap-2 items-center">
@@ -539,19 +552,6 @@ export function CreateBlockDialog({
                                                                 ))}
                                                             </SelectContent>
                                                         </Select>
-                                                        {index === notes.length - 1 && notes.length < 3 && (
-                                                            <Button
-                                                                type="button"
-                                                                variant="ghost"
-                                                                size="icon"
-                                                                className="h-10 w-10 shrink-0 text-emerald-500 hover:text-emerald-400 hover:bg-emerald-500/10"
-                                                                onClick={() => {
-                                                                    field.onChange([...notes, 15]); // Default to "15min" when clicking +
-                                                                }}
-                                                            >
-                                                                <Plus className="w-5 h-5" />
-                                                            </Button>
-                                                        )}
                                                     </div>
                                                 ))}
                                             </div>
