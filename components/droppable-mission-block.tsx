@@ -99,7 +99,7 @@ function getBestSuggestion(tasks: BacklogTask[], maxDuration: number, mode: 'blo
 }
 
 import { cn, calculateDynamicTimeChange } from "@/lib/utils";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { toast } from "sonner";
 import {
     Dialog,
@@ -136,10 +136,82 @@ export function DroppableMissionBlock({ block, onDelete, onEdit, pendingBacklogT
         data: { type: 'mission-block', block }
     });
 
-    const { attributes, listeners, setNodeRef: setDraggableRef, transform, isDragging } = useDraggable({
-        id: `drag-${block.id}`,
-        data: { type: 'mission-block-drag', block }
-    });
+    const [isTimeDragging, setIsTimeDragging] = useState(false);
+    const [previewTime, setPreviewTime] = useState(block.startTime);
+    const [visualDeltaY, setVisualDeltaY] = useState(0);
+    const dragRef = useRef<{ startY: number, currentY: number, accumMins: number, timer: ReturnType<typeof setInterval> | null }>({ startY: 0, currentY: 0, accumMins: 0, timer: null });
+
+    useEffect(() => {
+        if (!isTimeDragging) setPreviewTime(block.startTime);
+    }, [block.startTime, isTimeDragging]);
+
+    const handlePointerDown = (e: React.PointerEvent) => {
+        e.stopPropagation();
+        setIsTimeDragging(true);
+
+        const [h, m] = block.startTime.split(':').map(Number);
+        dragRef.current.accumMins = h * 60 + m;
+        dragRef.current.startY = e.clientY;
+        dragRef.current.currentY = e.clientY;
+
+        if (dragRef.current.timer) clearInterval(dragRef.current.timer);
+
+        const tick = () => {
+            const deltaY = dragRef.current.currentY - dragRef.current.startY;
+            setVisualDeltaY(deltaY);
+
+            const absY = Math.abs(deltaY);
+            const sign = Math.sign(deltaY);
+
+            let velocity = 0; // minutes per tick
+            if (absY > 30) velocity = 0.5;
+            if (absY > 80) velocity = 2;
+            if (absY > 150) velocity = 5;
+            if (absY > 250) velocity = 15;
+
+            if (velocity > 0) {
+                dragRef.current.accumMins += sign * velocity;
+                let boundedMins = Math.max(0, Math.min(24 * 60 - 1, dragRef.current.accumMins));
+                dragRef.current.accumMins = boundedMins;
+
+                const newH = Math.floor(boundedMins / 60);
+                const newM = Math.floor(boundedMins % 60);
+                setPreviewTime(`${String(newH).padStart(2, '0')}:${String(newM).padStart(2, '0')}`);
+            }
+        };
+
+        dragRef.current.timer = setInterval(tick, 50);
+
+        const onPointerMove = (ev: PointerEvent) => {
+            dragRef.current.currentY = ev.clientY;
+        };
+
+        const onPointerUp = () => {
+            if (dragRef.current.timer) clearInterval(dragRef.current.timer);
+            setIsTimeDragging(false);
+            setVisualDeltaY(0);
+
+            document.removeEventListener('pointermove', onPointerMove);
+            document.removeEventListener('pointerup', onPointerUp);
+
+            let finalMins = Math.round(dragRef.current.accumMins / 5) * 5;
+            finalMins = Math.max(0, Math.min(24 * 60 - 1, finalMins));
+            const newH = Math.floor(finalMins / 60);
+            const newM = finalMins % 60;
+            const finalTime = `${String(newH).padStart(2, '0')}:${String(newM).padStart(2, '0')}`;
+
+            if (finalTime !== block.startTime) {
+                toast.promise(updateMissionBlock(block.id, { startTime: finalTime }), {
+                    loading: 'Reprogramando...',
+                    success: 'Horário ajustado!',
+                    error: 'Erro ao ajustar horário'
+                });
+            }
+        };
+
+        document.addEventListener('pointermove', onPointerMove);
+        document.addEventListener('pointerup', onPointerUp);
+    };
 
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
     const [addTasksDialogOpen, setAddTasksDialogOpen] = useState(false);
@@ -512,44 +584,22 @@ export function DroppableMissionBlock({ block, onDelete, onEdit, pendingBacklogT
     const Icon = BLOCK_ICONS.find(i => i.name === block.icon)?.icon || Zap;
 
     // Calculate preview time during drag
-    let displayTime = block.startTime;
-    let isTimeChanged = false;
-    let visualDeltaY = 0;
-
-    if (isDragging && transform) {
-        const [h, m] = block.startTime.split(':').map(Number);
-        const originalMins = h * 60 + m;
-
-        const deltaY = transform.y;
-        const timeChangeMins = calculateDynamicTimeChange(deltaY, originalMins);
-        visualDeltaY = deltaY; // Snap visually EXACTLY to the mouse cursor!
-
-        if (timeChangeMins !== 0) {
-            const totalMins = originalMins + timeChangeMins;
-            if (totalMins >= 0 && totalMins < 24 * 60) {
-                const newH = Math.floor(totalMins / 60);
-                const newM = totalMins % 60;
-                displayTime = `${String(newH).padStart(2, '0')}:${String(newM).padStart(2, '0')}`;
-                isTimeChanged = true;
-            }
-        }
-    }
+    const displayTime = isTimeDragging ? previewTime : block.startTime;
+    const isTimeChanged = isTimeDragging && previewTime !== block.startTime;
 
     return (
         <>
             <div
                 ref={(node) => {
                     setDroppableRef(node);
-                    setDraggableRef(node);
                 }}
-                className={cn("relative w-full group mb-4 pl-12 transition-opacity", isDragging ? "opacity-50 z-50" : "z-10")}
+                className={cn("relative w-full group mb-4 pl-12 transition-opacity", isTimeDragging ? "opacity-50 z-50" : "z-10")}
             >
                 {/* Drag Handle */}
                 <div
-                    {...listeners}
-                    {...attributes}
-                    className="absolute left-2 top-0 bottom-0 flex items-center justify-center w-8 cursor-grab active:cursor-grabbing text-zinc-600 hover:text-white opacity-0 group-hover:opacity-100 transition-opacity z-50"
-                    title="Arraste para ajustar o horário (15 em 15 min)"
+                    onPointerDown={handlePointerDown}
+                    className="absolute left-2 top-0 bottom-0 flex items-center justify-center w-8 cursor-ns-resize text-zinc-600 hover:text-white opacity-0 group-hover:opacity-100 transition-opacity z-50 touch-none"
+                    title="Segure e arraste o mouse para cima/baixo para rolar o horário infinito"
                 >
                     <GripVertical className="w-4 h-4" />
                 </div>
