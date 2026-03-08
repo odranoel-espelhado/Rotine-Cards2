@@ -68,7 +68,7 @@ const formSchema = z.object({
     subTasks: z.array(subtaskSchema).default([]),
     isRecurring: z.boolean().default(false),
     replicateWeekdays: z.boolean().default(false),
-    notification: z.number().nullable().default(null)
+    notifications: z.array(z.number()).default([])
 });
 
 const NOTIFICATION_OPTIONS = [
@@ -104,8 +104,8 @@ export function CreateBlockDialog({
     defaultDuration
 }: MissionBlockDialogProps) {
     const [internalOpen, setInternalOpen] = useState(false);
-    const [availableTypes, setAvailableTypes] = useState<{ label: string; icon: string; color: string; value: string; notification?: number | null }[]>([]);
-    const [filteredSuggestions, setFilteredSuggestions] = useState<{ label: string; icon: string; color: string; value: string; notification?: number | null }[]>([]);
+    const [availableTypes, setAvailableTypes] = useState<{ label: string; icon: string; color: string; value: string; notifications?: number[] | null }[]>([]);
+    const [filteredSuggestions, setFilteredSuggestions] = useState<{ label: string; icon: string; color: string; value: string; notifications?: number[] | null }[]>([]);
     const [showSuggestions, setShowSuggestions] = useState(false);
 
     const isControlled = controlledOpen !== undefined;
@@ -134,7 +134,7 @@ export function CreateBlockDialog({
             })) || [],
             isRecurring: blockToEdit?.type === 'recurring',
             replicateWeekdays: blockToEdit?.recurrencePattern === 'weekdays',
-            notification: blockToEdit?.notification !== undefined ? blockToEdit.notification : null,
+            notifications: Array.isArray(blockToEdit?.notifications) ? blockToEdit.notifications : [],
         },
     });
 
@@ -159,7 +159,7 @@ export function CreateBlockDialog({
                 })) || [],
                 isRecurring: blockToEdit?.type === 'recurring',
                 replicateWeekdays: blockToEdit?.recurrencePattern === 'weekdays',
-                notification: blockToEdit?.notification !== undefined ? blockToEdit.notification : null,
+                notifications: Array.isArray(blockToEdit?.notifications) ? blockToEdit.notifications : [],
             });
 
             // Fetch suggestions
@@ -194,7 +194,7 @@ export function CreateBlockDialog({
             })),
             type: values.isRecurring ? 'recurring' as const : 'unique' as const,
             recurrencePattern: values.replicateWeekdays ? 'weekdays' as const : undefined,
-            notification: values.notification,
+            notifications: values.notifications,
         };
 
         if (isEditing && blockToEdit) {
@@ -242,7 +242,7 @@ export function CreateBlockDialog({
             })),
             type: values.isRecurring ? 'recurring' as const : 'unique' as const,
             recurrencePattern: values.replicateWeekdays ? 'weekdays' as const : undefined,
-            notification: values.notification,
+            notifications: values.notifications,
         };
 
         let res;
@@ -279,8 +279,10 @@ export function CreateBlockDialog({
         form.setValue("title", suggestion.label);
         form.setValue("icon", suggestion.icon);
         form.setValue("color", suggestion.color);
-        if (suggestion.notification !== undefined) {
-            form.setValue("notification", suggestion.notification);
+        if (suggestion.notifications !== undefined && suggestion.notifications !== null) {
+            form.setValue("notifications", suggestion.notifications);
+        } else {
+            form.setValue("notifications", []);
         }
         setShowSuggestions(false);
     };
@@ -474,34 +476,89 @@ export function CreateBlockDialog({
                                 )}
                             />
 
-                            {/* Notificação Toggle */}
+                            {/* Notificações Toggle */}
                             <FormField
                                 control={form.control}
-                                name="notification"
-                                render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel className="text-[10px] font-black text-zinc-500 uppercase ml-1 block">Notificação de Início</FormLabel>
-                                        <Select
-                                            onValueChange={(val) => field.onChange(val === "none" ? null : Number(val))}
-                                            value={field.value === null ? "none" : field.value.toString()}
-                                        >
-                                            <FormControl>
-                                                <SelectTrigger className="bg-white/5 border-white/10 h-10 rounded-xl text-xs w-full">
-                                                    <SelectValue placeholder="Selecione..." />
-                                                </SelectTrigger>
-                                            </FormControl>
-                                            <SelectContent className="bg-[#050506] border-white/10 text-white">
-                                                <SelectItem value="none">Desativado</SelectItem>
-                                                {NOTIFICATION_OPTIONS.map((opt) => (
-                                                    <SelectItem key={opt.value} value={opt.value.toString()}>
-                                                        {opt.label}
-                                                    </SelectItem>
+                                name="notifications"
+                                render={({ field }) => {
+                                    const notes = field.value || [];
+                                    return (
+                                        <FormItem>
+                                            <FormLabel className="text-[10px] font-black text-zinc-500 uppercase ml-1 block">Notificações de Início</FormLabel>
+                                            <div className="space-y-2">
+                                                {notes.length === 0 && (
+                                                    <div className="flex gap-2 items-center">
+                                                        <Select
+                                                            onValueChange={(val) => {
+                                                                if (val !== "none") field.onChange([Number(val)]);
+                                                            }}
+                                                            value="none"
+                                                        >
+                                                            <FormControl>
+                                                                <SelectTrigger className="bg-white/5 border-white/10 h-10 rounded-xl text-xs w-full">
+                                                                    <SelectValue placeholder="Selecione..." />
+                                                                </SelectTrigger>
+                                                            </FormControl>
+                                                            <SelectContent className="bg-[#050506] border-white/10 text-white">
+                                                                <SelectItem value="none">Desativado</SelectItem>
+                                                                {NOTIFICATION_OPTIONS.map((opt) => (
+                                                                    <SelectItem key={opt.value} value={opt.value.toString()}>
+                                                                        {opt.label}
+                                                                    </SelectItem>
+                                                                ))}
+                                                            </SelectContent>
+                                                        </Select>
+                                                    </div>
+                                                )}
+
+                                                {notes.map((notif, index) => (
+                                                    <div key={index} className="flex gap-2 items-center">
+                                                        <Select
+                                                            onValueChange={(val) => {
+                                                                const current = [...notes];
+                                                                if (val === "none") {
+                                                                    current.splice(index, 1);
+                                                                } else {
+                                                                    current[index] = Number(val);
+                                                                }
+                                                                field.onChange(current);
+                                                            }}
+                                                            value={notif.toString()}
+                                                        >
+                                                            <FormControl>
+                                                                <SelectTrigger className="bg-white/5 border-white/10 h-10 rounded-xl text-xs w-full">
+                                                                    <SelectValue placeholder="Selecione..." />
+                                                                </SelectTrigger>
+                                                            </FormControl>
+                                                            <SelectContent className="bg-[#050506] border-white/10 text-white">
+                                                                <SelectItem value="none">Remover</SelectItem>
+                                                                {NOTIFICATION_OPTIONS.map((opt) => (
+                                                                    <SelectItem key={opt.value} value={opt.value.toString()}>
+                                                                        {opt.label}
+                                                                    </SelectItem>
+                                                                ))}
+                                                            </SelectContent>
+                                                        </Select>
+                                                        {index === notes.length - 1 && notes.length < 3 && (
+                                                            <Button
+                                                                type="button"
+                                                                variant="ghost"
+                                                                size="icon"
+                                                                className="h-10 w-10 shrink-0 text-emerald-500 hover:text-emerald-400 hover:bg-emerald-500/10"
+                                                                onClick={() => {
+                                                                    field.onChange([...notes, 15]); // Default to "15min" when clicking +
+                                                                }}
+                                                            >
+                                                                <Plus className="w-5 h-5" />
+                                                            </Button>
+                                                        )}
+                                                    </div>
                                                 ))}
-                                            </SelectContent>
-                                        </Select>
-                                        <FormMessage />
-                                    </FormItem>
-                                )}
+                                            </div>
+                                            <FormMessage />
+                                        </FormItem>
+                                    );
+                                }}
                             />
 
                             {/* Tempo */}

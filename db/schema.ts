@@ -37,7 +37,7 @@ export const missionBlocks = pgTable('mission_blocks', {
     exceptions: jsonb('exceptions').default([]), // List of YYYY-MM-DD strings to skip
     masterBlockId: text('master_block_id'), // Referência ao bloco recorrente original caso seja uma exceção
     completedDates: jsonb('completed_dates').default([]), // List of YYYY-MM-DD strings for recurring block completions
-    notification: integer('notification'), // Minutes before to notify/remind
+    notifications: integer('notifications').array(), // Minutes before to notify/remind
     createdAt: timestamp('created_at').defaultNow().notNull(),
 });
 
