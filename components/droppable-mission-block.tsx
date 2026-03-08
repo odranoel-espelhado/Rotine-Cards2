@@ -273,7 +273,7 @@ export function DroppableMissionBlock({ block, onDelete, onEdit, pendingBacklogT
 
     const totalDuration = block.totalDuration;
     const subTasks = (block.subTasks as any[]) || [];
-    const isFromTask = !isRecurring && subTasks.some(s => s.isFromTask || s.originalTaskId); // Check if the block originated from a task
+    const isFromTask = !isRecurring && subTasks.some(s => (s.isFromTask || s.originalTaskId) && s.title === block.title); // True ONLY if the block was generated from the task directly
 
     // NEW ALGORITHM: Compute times and gaps
     const timeToMins = (t: string) => {

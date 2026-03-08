@@ -478,6 +478,11 @@ export async function assignTasksToBlock(blockId: string, tasksToAssign: any[]) 
                 recurrencePattern: masterBlock.recurrencePattern,
                 status: (masterBlock.completedDates as string[] || []).includes(date) ? 'completed' : 'pending',
                 subTasks: masterBlock.subTasks,
+                description: masterBlock.description,
+                priority: masterBlock.priority,
+                deadline: masterBlock.deadline,
+                notifications: masterBlock.notifications,
+                linkedBlockType: masterBlock.linkedBlockType,
                 exceptions: [],
             }).returning();
 
