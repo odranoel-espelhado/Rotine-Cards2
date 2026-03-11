@@ -39,47 +39,67 @@ export async function GET(request: Request) {
         const dayOfWeek = brTime.getDay(); // 0 = Domingo, 6 = Sábado
         const isWeekday = dayOfWeek !== 0 && dayOfWeek !== 6;
 
-        // 1. Pega todas as Tarefas e Blocos
-        const allBlocks = await db.select().from(missionBlocks);
-
-        // 2. Filtra as Tarefas que são válidas para HOJE
-        const blocksToday = allBlocks.filter((block) => {
-            const isCompleted = (block.completedDates as string[] || []).includes(dateStr) || block.status === 'completed';
-            if (isCompleted) return false;
-
-            // Filtro por Data e Repetições (Idêntico ao Frontend)
-            if (block.type === 'unique' && block.date === dateStr) {
-                return true;
+        // 1. Padrão de verificação temporal unificado para suporte a dias no futuro (ex: avisar 7 dias antes do evento)
+        const checkTrigger = (eventStartMins: number, notifyMin: number) => {
+            // Conta positiva = X minutos no futuro em relação ao Agora
+            const triggerDate = new Date(brTime.getTime() + notifyMin * 60000);
+            const triggerDateStr = triggerDate.toISOString().split('T')[0];
+            const triggerTimeInMins = triggerDate.getHours() * 60 + triggerDate.getMinutes();
+            const triggerDayOfWeek = triggerDate.getDay();
+            
+            // Permite casamento mesmo se o evento cruzar a meia-noite (representado > 1440 mins)
+            const normalizedEventStart = eventStartMins % 1440;
+            const daysOverflow = Math.floor(eventStartMins / 1440);
+            
+            let checkDateStr = triggerDateStr;
+            let checkDayOfWeek = triggerDayOfWeek;
+            
+            if (daysOverflow > 0) {
+                // A data raiz em que o bloco "nasceu" era N dias atrás
+                const adjustedDate = new Date(triggerDate.getTime() - daysOverflow * 86400000);
+                checkDateStr = adjustedDate.toISOString().split('T')[0];
+                checkDayOfWeek = adjustedDate.getDay();
             }
+            
+            const checkIsWeekday = checkDayOfWeek !== 0 && checkDayOfWeek !== 6;
 
-            if (block.type === 'recurring') {
-                const exceptions = (block.exceptions as string[]) || [];
-                if (exceptions.includes(dateStr)) return false; // Pulou/deletou este dia específico
-
-                if (block.recurrencePattern === 'weekdays' && isWeekday && dateStr >= block.date) {
-                    return true;
-                }
-
-                if (block.recurrencePattern === 'weekly') {
-                    const originalDate = new Date(block.date);
-                    if (originalDate.getDay() === dayOfWeek && dateStr >= block.date) return true;
-                }
-            }
-
-            return false;
-        });
-
-        // We no longer return early here so that Reminders can be checked!
-
-        let sentCount = 0;
-
-        const timeToMins = (t: string) => {
-            const [h, m] = t.split(':').map(Number);
-            return h * 60 + m;
+            return { 
+                isHit: triggerTimeInMins === normalizedEventStart, 
+                triggerDateStr: checkDateStr, 
+                triggerDayOfWeek: checkDayOfWeek, 
+                triggerIsWeekday: checkIsWeekday 
+            };
         };
 
-        // 3. Verifica as notificações do bloco e das sub-tarefas
-        for (const block of blocksToday) {
+        const isBlockValid = (block: any, tDateStr: string, tDayOfWeek: number, tIsWeekday: boolean) => {
+            const isCompleted = (block.completedDates as string[] || []).includes(tDateStr) || block.status === 'completed';
+            if (isCompleted) return false;
+            
+            if (block.type === 'unique' && block.date === tDateStr) return true;
+            
+            if (block.type === 'recurring') {
+                const exceptions = (block.exceptions as string[]) || [];
+                if (exceptions.includes(tDateStr)) return false;
+                
+                if (block.recurrencePattern === 'weekdays' && tIsWeekday && tDateStr >= block.date) return true;
+                
+                if (block.recurrencePattern === 'weekly') {
+                    const originalDate = new Date(block.date + "T12:00:00");
+                    if (originalDate.getDay() === tDayOfWeek && tDateStr >= block.date) return true;
+                }
+            }
+            return false;
+        };
+
+        let sentCount = 0;
+        const timeToMins = (t: string) => {
+            const [h, m] = t.split(':').map(Number); return h * 60 + m;
+        };
+
+        // 2. Extrai Todos os Blocos e Processa Notificações Futuras e Atuais
+        const allBlocks = await db.select().from(missionBlocks);
+
+        for (const block of allBlocks) {
             const blockStartMins = timeToMins(block.startTime);
             const blockEndMins = blockStartMins + block.totalDuration;
 
@@ -95,21 +115,18 @@ export async function GET(request: Request) {
             const blockNotifications = block.notifications as number[] | null;
             if (blockNotifications && blockNotifications.length > 0) {
                 for (const notifyMin of blockNotifications) {
-                    const notifyTime = blockStartMins - notifyMin;
-                    if (currentTimeInMins === notifyTime) {
+                    const res = checkTrigger(blockStartMins, notifyMin);
+                    if (res.isHit && isBlockValid(block, res.triggerDateStr, res.triggerDayOfWeek, res.triggerIsWeekday)) {
                         const subs = await getUserSubs();
                         if (subs && subs.length > 0) {
-                            const timeText = notifyMin === 0 ? "agorinha" : `em ${notifyMin} minuto(s)`;
+                            const timeText = notifyMin === 0 ? "agorinha" : (notifyMin >= 1440 ? `em ${Math.floor(notifyMin/1440)} dia(s)` : `em ${notifyMin} minuto(s)`);
                             const payload = JSON.stringify({
                                 title: "Hora do Bloco!",
                                 body: `Seu bloco "${block.title}" começará ${timeText}.`
                             });
                             for (const subsc of subs) {
                                 try {
-                                    await webpush.sendNotification({
-                                        endpoint: subsc.endpoint,
-                                        keys: { auth: subsc.auth, p256dh: subsc.p256dh }
-                                    }, payload);
+                                    await webpush.sendNotification({ endpoint: subsc.endpoint, keys: { auth: subsc.auth, p256dh: subsc.p256dh } }, payload);
                                     sentCount++;
                                 } catch (error: any) {
                                     if (error.statusCode === 410 || error.statusCode === 404) {
@@ -172,44 +189,32 @@ export async function GET(request: Request) {
                 }
             });
 
-            // 4. Se encontrou alguma tarefa com 'notifications' pro momento exato, puxa a inscrição do usuário e notifica
+            // 3. Verifica tarefas do bloco
             for (let i = 0; i < subTasks.length; i++) {
                 const sub = subTasks[i];
-                // Fallback support for old remindMe scalar
                 const taskNotifs = sub.notifications || (sub.remindMe ? [sub.remindMe] : null);
                 if (sub.done || !taskNotifs || !Array.isArray(taskNotifs)) continue;
 
                 const computedStart = computedTaskTimes[i].start;
 
                 for (const notifyMin of taskNotifs) {
-                    const notifyTime = computedStart - notifyMin;
+                    const res = checkTrigger(computedStart, notifyMin);
 
-                    // O gatilho perfeito temporal:
-                    if (currentTimeInMins === notifyTime) {
-                        if (!userSubscriptions) {
-                            userSubscriptions = await getUserSubs();
-                        }
-
+                    if (res.isHit && isBlockValid(block, res.triggerDateStr, res.triggerDayOfWeek, res.triggerIsWeekday)) {
+                        if (!userSubscriptions) userSubscriptions = await getUserSubs();
                         if (!userSubscriptions || userSubscriptions.length === 0) continue;
 
-                        const timeText = notifyMin === 0 ? "agorinha" : `em ${notifyMin} minutos`;
+                        const timeText = notifyMin === 0 ? "agorinha" : (notifyMin >= 1440 ? `em ${Math.floor(notifyMin/1440)} dia(s)` : `em ${notifyMin} minuto(s)`);
                         const payload = JSON.stringify({
                             title: "Lembrete de Tarefa!",
-                            body: `Sua tarefa "${sub.title}" começará ${timeText}.`
+                            body: `A tarefa "${sub.title}" começará ${timeText}.`
                         });
 
                         for (const subsc of userSubscriptions) {
                             try {
-                                await webpush.sendNotification({
-                                    endpoint: subsc.endpoint,
-                                    keys: {
-                                        auth: subsc.auth,
-                                        p256dh: subsc.p256dh
-                                    }
-                                }, payload);
+                                await webpush.sendNotification({ endpoint: subsc.endpoint, keys: { auth: subsc.auth, p256dh: subsc.p256dh } }, payload);
                                 sentCount++;
                             } catch (error: any) {
-                                console.error("Erro ao enviar push:", subsc.endpoint, error);
                                 if (error.statusCode === 410 || error.statusCode === 404) {
                                     await db.delete(pushSubscriptions).where(eq(pushSubscriptions.id, subsc.id));
                                 }
@@ -220,12 +225,10 @@ export async function GET(request: Request) {
             }
         }
 
-        // 5. Verifica os Lembretes
+        // 4. Verifica os Lembretes
         const allReminders = await db.select().from(reminders);
-        const remindersToday = allReminders.filter(rem => matchesRepeatPattern(rem, dateStr));
 
-        for (const rem of remindersToday) {
-            // Charges = 0 significa que já acabou as ocorrências no limite, visual
+        for (const rem of allReminders) {
             if (rem.occurrencesLimit && rem.usedOccurrences !== null) {
                 if (rem.usedOccurrences >= rem.occurrencesLimit) continue;
             }
@@ -241,16 +244,16 @@ export async function GET(request: Request) {
                 return userSubscriptions;
             };
 
-            // A. Notificações Base do Lembrete
+            // A. Notificações Base (Suporta agendamentos totalmente pro futuro)
             for (const notifyMin of notifs) {
-                const notifyTime = remTimeMins - notifyMin;
-                if (currentTimeInMins === notifyTime) {
+                const res = checkTrigger(remTimeMins, notifyMin);
+                if (res.isHit && matchesRepeatPattern(rem, res.triggerDateStr)) {
                     const subs = await getUserSubs();
                     if (subs && subs.length > 0) {
-                        const timeText = notifyMin === 0 ? "agorinha" : `em ${notifyMin} minuto(s)`;
+                        const timeText = notifyMin === 0 ? "agorinha" : (notifyMin >= 1440 ? `em ${Math.floor(notifyMin/1440)} dia(s)` : `em ${notifyMin} minuto(s)`);
                         const payload = JSON.stringify({
                             title: "Lembrete!",
-                            body: `Seu lembrete "${rem.title}" está agendado para ${timeText}.`
+                            body: `Atenção: "${rem.title}" está agendado para ${timeText}.`
                         });
                         for (const subsc of subs) {
                             try {
@@ -266,37 +269,39 @@ export async function GET(request: Request) {
                 }
             }
 
-            // B. Notificações de Intervalo do Lembrete (A cada X horas)
-            if (rem.intervalHours && rem.intervalType && rem.intervalType !== 'none') {
-                const intervalMins = rem.intervalHours * 60;
-                let triggerLimit = 24; // fallback safe limit
+            // B. Notificações de Intervalo (A cada X horas, avaliado a partir da execução principal de Hoje)
+            if (matchesRepeatPattern(rem, dateStr)) {
+                if (rem.intervalHours && rem.intervalType && rem.intervalType !== 'none') {
+                    const intervalMins = rem.intervalHours * 60;
+                    let triggerLimit = 24;
 
-                if (rem.intervalType === 'occurrences' && rem.intervalOccurrences) {
-                    triggerLimit = rem.intervalOccurrences;
-                } else if (rem.intervalType === 'until_end_of_day') {
-                    triggerLimit = Math.ceil((24 * 60 - remTimeMins) / intervalMins) + 1;
-                }
+                    if (rem.intervalType === 'occurrences' && rem.intervalOccurrences) {
+                        triggerLimit = rem.intervalOccurrences;
+                    } else if (rem.intervalType === 'until_end_of_day') {
+                        triggerLimit = Math.ceil((24 * 60 - remTimeMins) / intervalMins) + 1;
+                    }
 
-                // Itera os próximos disparos
-                for (let i = 1; i <= triggerLimit; i++) {
-                    const intervalNotifyTime = remTimeMins + i * intervalMins;
-                    
-                    if (intervalNotifyTime >= 24 * 60 && rem.intervalType === 'until_end_of_day') break;
+                    for (let i = 1; i <= triggerLimit; i++) {
+                        const intervalNotifyTime = remTimeMins + i * intervalMins;
+                        
+                        if (intervalNotifyTime >= 24 * 60 && rem.intervalType === 'until_end_of_day') break;
 
-                    if (currentTimeInMins === intervalNotifyTime) {
-                        const subs = await getUserSubs();
-                        if (subs && subs.length > 0) {
-                            const payload = JSON.stringify({
-                                title: "Lembrete Recorrente!",
-                                body: `Mais uma vez: "${rem.title}".`
-                            });
-                            for (const subsc of subs) {
-                                try {
-                                    await webpush.sendNotification({ endpoint: subsc.endpoint, keys: { auth: subsc.auth, p256dh: subsc.p256dh } }, payload);
-                                    sentCount++;
-                                } catch (error: any) {
-                                    if (error.statusCode === 410 || error.statusCode === 404) {
-                                        await db.delete(pushSubscriptions).where(eq(pushSubscriptions.id, subsc.id));
+                        // Se o intervalo se cruza pelo dia, ignoramos para mantê-lo simples nas próximas execuções.
+                        if (currentTimeInMins === intervalNotifyTime) {
+                            const subs = await getUserSubs();
+                            if (subs && subs.length > 0) {
+                                const payload = JSON.stringify({
+                                    title: "Lembrete Recorrente!",
+                                    body: `Mais uma vez: "${rem.title}".`
+                                });
+                                for (const subsc of subs) {
+                                    try {
+                                        await webpush.sendNotification({ endpoint: subsc.endpoint, keys: { auth: subsc.auth, p256dh: subsc.p256dh } }, payload);
+                                        sentCount++;
+                                    } catch (error: any) {
+                                        if (error.statusCode === 410 || error.statusCode === 404) {
+                                            await db.delete(pushSubscriptions).where(eq(pushSubscriptions.id, subsc.id));
+                                        }
                                     }
                                 }
                             }
