@@ -173,42 +173,47 @@ export async function GET(request: Request) {
                 }
             });
 
-            // 4. Se encontrou alguma tarefa com 'remindMe' pro momento exato, puxa a inscrição do usuário e notifica
-
+            // 4. Se encontrou alguma tarefa com 'notifications' pro momento exato, puxa a inscrição do usuário e notifica
             for (let i = 0; i < subTasks.length; i++) {
                 const sub = subTasks[i];
-                if (sub.done || !sub.remindMe) continue;
+                // Fallback support for old remindMe scalar
+                const taskNotifs = sub.notifications || (sub.remindMe ? [sub.remindMe] : null);
+                if (sub.done || !taskNotifs || !Array.isArray(taskNotifs)) continue;
 
                 const computedStart = computedTaskTimes[i].start;
-                const notifyTime = computedStart - sub.remindMe;
 
-                // O gatilho perfeito temporal:
-                if (currentTimeInMins === notifyTime) {
-                    if (!userSubscriptions) {
-                        userSubscriptions = await getUserSubs();
-                    }
+                for (const notifyMin of taskNotifs) {
+                    const notifyTime = computedStart - notifyMin;
 
-                    if (!userSubscriptions || userSubscriptions.length === 0) continue;
+                    // O gatilho perfeito temporal:
+                    if (currentTimeInMins === notifyTime) {
+                        if (!userSubscriptions) {
+                            userSubscriptions = await getUserSubs();
+                        }
 
-                    const payload = JSON.stringify({
-                        title: "Lembrete de Tarefa!",
-                        body: `Sua tarefa "${sub.title}" começará em ${sub.remindMe} minutos.`
-                    });
+                        if (!userSubscriptions || userSubscriptions.length === 0) continue;
 
-                    for (const subsc of userSubscriptions) {
-                        try {
-                            await webpush.sendNotification({
-                                endpoint: subsc.endpoint,
-                                keys: {
-                                    auth: subsc.auth,
-                                    p256dh: subsc.p256dh
+                        const timeText = notifyMin === 0 ? "agorinha" : `em ${notifyMin} minutos`;
+                        const payload = JSON.stringify({
+                            title: "Lembrete de Tarefa!",
+                            body: `Sua tarefa "${sub.title}" começará ${timeText}.`
+                        });
+
+                        for (const subsc of userSubscriptions) {
+                            try {
+                                await webpush.sendNotification({
+                                    endpoint: subsc.endpoint,
+                                    keys: {
+                                        auth: subsc.auth,
+                                        p256dh: subsc.p256dh
+                                    }
+                                }, payload);
+                                sentCount++;
+                            } catch (error: any) {
+                                console.error("Erro ao enviar push:", subsc.endpoint, error);
+                                if (error.statusCode === 410 || error.statusCode === 404) {
+                                    await db.delete(pushSubscriptions).where(eq(pushSubscriptions.id, subsc.id));
                                 }
-                            }, payload);
-                            sentCount++;
-                        } catch (error: any) {
-                            console.error("Erro ao enviar push:", subsc.endpoint, error);
-                            if (error.statusCode === 410 || error.statusCode === 404) {
-                                await db.delete(pushSubscriptions).where(eq(pushSubscriptions.id, subsc.id));
                             }
                         }
                     }

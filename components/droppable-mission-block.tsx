@@ -399,35 +399,39 @@ export function DroppableMissionBlock({ block, onDelete, onEdit, pendingBacklogT
         if (!isToday || currentMinutes === undefined) return;
 
         processedSubTasks.forEach((sub: any, i: number) => {
-            if (sub.done || !sub.remindMe) return;
+            const taskNotifs = sub.notifications || (sub.remindMe ? [sub.remindMe] : null);
+            if (sub.done || !taskNotifs || !Array.isArray(taskNotifs)) return;
 
-            const notifyTime = sub.computedStart - sub.remindMe;
+            taskNotifs.forEach((notifyMin: number) => {
+                const notifyTime = sub.computedStart - notifyMin;
 
-            // Only fire if we precisely bounded to notifyTime (+ up to 1 mins window for safety)
-            if (currentMinutes >= notifyTime && currentMinutes <= notifyTime + 1) {
-                const key = `notified-${block.id}-${sub.originalTaskId || sub.title}-${notifyTime}-${new Date().toDateString()}`;
-                if (!localStorage.getItem(key)) {
-                    if (typeof window !== "undefined" && "Notification" in window && Notification.permission === 'granted') {
-                        try {
-                            new Notification("Rotine Cards: Lembrete", {
-                                body: `A tarefa "${sub.title}" começará em ${sub.remindMe} minutos.`,
-                                icon: "/favicon.ico"
-                            });
-                        } catch (e) {
-                            console.error("Notificação direta falhou (Mobile Chrome limitation), tentando fallback:", e);
-                            if ('serviceWorker' in navigator) {
-                                navigator.serviceWorker.ready.then(reg => {
-                                    reg.showNotification("Rotine Cards: Lembrete", {
-                                        body: `A tarefa "${sub.title}" começará em ${sub.remindMe} minutos.`,
-                                        icon: "/favicon.ico"
-                                    });
-                                }).catch(err => console.error("Fallback do SW também falhou:", err));
+                // Only fire if we precisely bounded to notifyTime (+ up to 1 mins window for safety)
+                if (currentMinutes >= notifyTime && currentMinutes <= notifyTime + 1) {
+                    const key = `notified-${block.id}-${sub.originalTaskId || sub.title}-${notifyTime}-${new Date().toDateString()}`;
+                    if (!localStorage.getItem(key)) {
+                        const timeText = notifyMin === 0 ? "agorinha" : `em ${notifyMin} minutos`;
+                        if (typeof window !== "undefined" && "Notification" in window && Notification.permission === 'granted') {
+                            try {
+                                new Notification("Rotine Cards: Lembrete", {
+                                    body: `A tarefa "${sub.title}" começará ${timeText}.`,
+                                    icon: "/favicon.ico"
+                                });
+                            } catch (e) {
+                                console.error("Notificação direta falhou (Mobile Chrome limitation), tentando fallback:", e);
+                                if ('serviceWorker' in navigator) {
+                                    navigator.serviceWorker.ready.then(reg => {
+                                        reg.showNotification("Rotine Cards: Lembrete", {
+                                            body: `A tarefa "${sub.title}" começará ${timeText}.`,
+                                            icon: "/favicon.ico"
+                                        });
+                                    }).catch(err => console.error("Fallback do SW também falhou:", err));
+                                }
                             }
                         }
+                        localStorage.setItem(key, "1");
                     }
-                    localStorage.setItem(key, "1");
                 }
-            }
+            });
         });
     }, [currentMinutes, isToday, processedSubTasks, block.id]);
 

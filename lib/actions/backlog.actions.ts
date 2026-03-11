@@ -40,7 +40,7 @@ export async function createBacklogTask(data: Partial<Omit<NewBacklogTask, 'id' 
             subTasks: data.subTasks || [],
             description: data.description,
             deadline: data.deadline,
-            remindMe: data.remindMe,
+            notifications: data.notifications,
             suggestible: data.suggestible ?? true,
             status: "pending",
             createdAt: new Date(),
@@ -70,7 +70,7 @@ export async function updateBacklogTask(id: string, data: Partial<Omit<NewBacklo
                 subTasks: data.subTasks,
                 description: data.description,
                 deadline: data.deadline,
-                remindMe: data.remindMe,
+                notifications: data.notifications,
                 suggestible: data.suggestible,
             })
             .where(and(eq(backlogTasks.id, id), eq(backlogTasks.userId, userId)));
@@ -131,7 +131,7 @@ export async function moveTaskToBlock(taskId: string, blockId: string) {
             originalColor: task.color,
             deadline: task.deadline,
             description: task.description,
-            remindMe: task.remindMe,
+            notifications: task.notifications,
             subTasks: task.subTasks || []
         };
 

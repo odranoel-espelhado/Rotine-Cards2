@@ -57,7 +57,7 @@ export const backlogTasks = pgTable('backlog_tasks', {
     description: text('description'), // Descrição detalhada (opcional)
     dummy: text('dummy'), // Temporary field to force migration
     deadline: text('deadline'), // Prazo (dd/mm/yyyy or YYYY-MM-DD)
-    remindMe: integer('remind_me'), // Minutos antes para notificar
+    notifications: integer('notifications').array(), // Minutos antes para notificar
     suggestible: boolean('suggestible').default(true), // Se aparece nas sugestões
     createdAt: timestamp('created_at').defaultNow().notNull(),
 });

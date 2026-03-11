@@ -41,6 +41,17 @@ const subtaskSchema = z.object({
     duration: z.coerce.number().min(1, "Mínimo 1 min"),
 });
 
+const NOTIFICATION_OPTIONS = [
+    { label: "No horário (0min)", value: 0 },
+    { label: "5min antes", value: 5 },
+    { label: "15min antes", value: 15 },
+    { label: "30min antes", value: 30 },
+    { label: "1 hora antes", value: 60 },
+    { label: "2 horas antes", value: 120 },
+    { label: "1 dia antes", value: 1440 },
+    { label: "7 dias antes", value: 10080 },
+];
+
 const formSchema = z.object({
     title: z.string().min(2, "Título deve ter pelo menos 2 caracteres."),
     linkedBlockType: z.string().optional(),
@@ -77,7 +88,7 @@ export function CreateTaskDialog({ availableBlockTypes = [], taskToEdit, open: c
         deadline: z.string().optional(),
         description: z.string().optional(),
         subTasks: z.array(subtaskSchema).default([]),
-        remindMe: z.number().nullable().optional(),
+        notifications: z.array(z.number()).default([]),
         suggestible: z.boolean().default(true),
     });
 
@@ -91,7 +102,7 @@ export function CreateTaskDialog({ availableBlockTypes = [], taskToEdit, open: c
             deadline: taskToEdit?.deadline || "",
             description: taskToEdit?.description || "",
             subTasks: (taskToEdit?.subTasks as any[]) || [],
-            remindMe: taskToEdit?.remindMe ?? null,
+            notifications: (taskToEdit?.notifications as number[]) || [],
             suggestible: taskToEdit?.suggestible ?? true,
         },
     });
@@ -113,7 +124,7 @@ export function CreateTaskDialog({ availableBlockTypes = [], taskToEdit, open: c
                 deadline: taskToEdit?.deadline || "",
                 description: taskToEdit?.description || "",
                 subTasks: (taskToEdit?.subTasks as any[]) || [],
-                remindMe: taskToEdit?.remindMe ?? null,
+                notifications: (taskToEdit?.notifications as number[]) || [],
                 suggestible: taskToEdit?.suggestible ?? true,
             });
             setShowDescription(!!taskToEdit?.description);
@@ -141,7 +152,7 @@ export function CreateTaskDialog({ availableBlockTypes = [], taskToEdit, open: c
                 subTasks: values.subTasks,
                 description: values.description,
                 deadline: values.deadline,
-                remindMe: values.remindMe,
+                notifications: values.notifications,
                 suggestible: values.suggestible,
             })
         } else {
@@ -154,7 +165,7 @@ export function CreateTaskDialog({ availableBlockTypes = [], taskToEdit, open: c
                 subTasks: values.subTasks,
                 description: values.description,
                 deadline: values.deadline,
-                remindMe: values.remindMe,
+                notifications: values.notifications,
                 suggestible: values.suggestible,
             });
         }
@@ -439,35 +450,10 @@ export function CreateTaskDialog({ availableBlockTypes = [], taskToEdit, open: c
                         </div>
 
 
-                        {/* Novas Configurações: Lembre-me & Sugerir */}
-                        <div className="flex gap-4 items-center bg-white/5 p-3 rounded-xl border border-white/10 mt-2">
-                            {/* Lembre-me */}
-                            <div className="flex flex-col gap-2 flex-1">
-                                <FormLabel className="text-[10px] font-black text-zinc-500 uppercase ml-1">Lembre-me</FormLabel>
-                                <div className="flex items-center gap-2">
-                                    <div
-                                        className={cn("w-3.5 h-3.5 rounded-full border flex items-center justify-center cursor-pointer transition-colors", form.watch('remindMe') !== null ? "border-emerald-500" : "border-white/20")}
-                                        onClick={() => form.setValue('remindMe', form.watch('remindMe') !== null ? null : 10)}
-                                    >
-                                        {form.watch('remindMe') !== null && <div className="w-2 h-2 rounded-full bg-emerald-500" />}
-                                    </div>
-                                    <span className="text-[10px] text-zinc-300">Sim,</span>
-                                    <Input
-                                        type="number"
-                                        value={form.watch('remindMe') || ''}
-                                        onChange={(e) => {
-                                            const val = parseInt(e.target.value);
-                                            form.setValue('remindMe', isNaN(val) ? null : val);
-                                        }}
-                                        disabled={form.watch('remindMe') === null}
-                                        className="w-14 h-6 text-xs bg-white/5 border-white/10 px-1 text-center font-mono disabled:opacity-50"
-                                    />
-                                    <span className="text-[10px] text-zinc-300">min.</span>
-                                </div>
-                            </div>
-
+                        {/* Configurações Finais: Sugerir & Notificações */}
+                        <div className="flex flex-col gap-4 bg-white/5 p-3 rounded-xl border border-white/10 mt-2">
                             {/* Sugerir */}
-                            <div className="flex flex-col gap-2 flex-1">
+                            <div className="flex flex-col gap-2">
                                 <FormLabel className="text-[10px] font-black text-zinc-500 uppercase ml-1">Sugerir</FormLabel>
                                 <FormField
                                     control={form.control}
@@ -488,6 +474,95 @@ export function CreateTaskDialog({ availableBlockTypes = [], taskToEdit, open: c
                                             </div>
                                         </div>
                                     )}
+                                />
+                            </div>
+
+                            {/* Notificações */}
+                            <div className="flex flex-col gap-2">
+                                <FormField
+                                    control={form.control}
+                                    name="notifications"
+                                    render={({ field }) => {
+                                        const notes = field.value || [];
+                                        return (
+                                            <FormItem className="flex flex-col gap-2">
+                                                <div className="flex items-center gap-2 mb-1">
+                                                    <FormLabel className="text-[10px] font-black text-zinc-500 uppercase ml-1 flex-1">
+                                                        Notificações de Início
+                                                    </FormLabel>
+                                                    {notes.length > 0 && notes.length < 3 && (
+                                                        <Button
+                                                            type="button"
+                                                            onClick={() => field.onChange([...notes, 15])}
+                                                            variant="ghost"
+                                                            size="sm"
+                                                            className="h-6 text-[10px] text-emerald-500 hover:text-emerald-400 hover:bg-emerald-500/10 font-bold uppercase"
+                                                        >
+                                                            + Adicionar
+                                                        </Button>
+                                                    )}
+                                                </div>
+                                                <div className="space-y-2">
+                                                    {notes.length === 0 && (
+                                                        <div className="flex gap-2 items-center">
+                                                            <Select
+                                                                onValueChange={(val) => {
+                                                                    if (val !== "none") field.onChange([Number(val)]);
+                                                                }}
+                                                                value="none"
+                                                            >
+                                                                <FormControl>
+                                                                    <SelectTrigger className="bg-white/5 border-white/10 h-10 rounded-xl text-xs w-full">
+                                                                        <SelectValue placeholder="Selecione..." />
+                                                                    </SelectTrigger>
+                                                                </FormControl>
+                                                                <SelectContent className="bg-[#050506] border-white/10 text-white">
+                                                                    <SelectItem value="none">Desativado</SelectItem>
+                                                                    {NOTIFICATION_OPTIONS.map((opt) => (
+                                                                        <SelectItem key={opt.value} value={opt.value.toString()}>
+                                                                            {opt.label}
+                                                                        </SelectItem>
+                                                                    ))}
+                                                                </SelectContent>
+                                                            </Select>
+                                                        </div>
+                                                    )}
+
+                                                    {notes.map((notif, index) => (
+                                                        <div key={index} className="flex gap-2 items-center">
+                                                            <Select
+                                                                onValueChange={(val) => {
+                                                                    const current = [...notes];
+                                                                    if (val === "none") {
+                                                                        current.splice(index, 1);
+                                                                    } else {
+                                                                        current[index] = Number(val);
+                                                                    }
+                                                                    field.onChange(current);
+                                                                }}
+                                                                value={notif.toString()}
+                                                            >
+                                                                <FormControl>
+                                                                    <SelectTrigger className="bg-white/5 border-white/10 h-10 rounded-xl text-xs w-full">
+                                                                        <SelectValue placeholder="Selecione..." />
+                                                                    </SelectTrigger>
+                                                                </FormControl>
+                                                                <SelectContent className="bg-[#050506] border-white/10 text-white">
+                                                                    <SelectItem value="none">Remover</SelectItem>
+                                                                    {NOTIFICATION_OPTIONS.map((opt) => (
+                                                                        <SelectItem key={opt.value} value={opt.value.toString()}>
+                                                                            {opt.label}
+                                                                        </SelectItem>
+                                                                    ))}
+                                                                </SelectContent>
+                                                            </Select>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                                <FormMessage />
+                                            </FormItem>
+                                        );
+                                    }}
                                 />
                             </div>
                         </div>
