@@ -164,6 +164,7 @@ export function DroppableMissionBlock({ block, onDelete, onEdit, pendingBacklogT
             const sign = Math.sign(deltaY);
 
             let velocity = 0; // minutes per tick
+            if (absY > 5) velocity = 1;
             if (absY > 30) velocity = 5;
             if (absY > 60) velocity = 10;
             if (absY > 100) velocity = 30;
@@ -179,7 +180,7 @@ export function DroppableMissionBlock({ block, onDelete, onEdit, pendingBacklogT
             }
         };
 
-        dragRef.current.timer = setInterval(tick, 150);
+        dragRef.current.timer = setInterval(tick, 400);
 
         const onPointerMove = (ev: PointerEvent) => {
             dragRef.current.currentY = ev.clientY;
