@@ -79,13 +79,53 @@ export async function GET(request: Request) {
             return h * 60 + m;
         };
 
-        // 3. Verifica as sub-tarefas de cada bloco para ver quem tem o alarme "remindMe" combinando
+        // 3. Verifica as notificações do bloco e das sub-tarefas
         for (const block of blocksToday) {
-            const subTasks = (block.subTasks as any[]) || [];
-            if (subTasks.length === 0) continue;
-
             const blockStartMins = timeToMins(block.startTime);
             const blockEndMins = blockStartMins + block.totalDuration;
+
+            let userSubscriptions: typeof pushSubscriptions.$inferSelect[] | null = null;
+            const getUserSubs = async () => {
+                if (!userSubscriptions) {
+                    userSubscriptions = await db.select().from(pushSubscriptions).where(eq(pushSubscriptions.userId, block.userId));
+                }
+                return userSubscriptions;
+            };
+
+            // A. VERIFICA NOTIFICAÇÕES DO BLOCO EM SI
+            const blockNotifications = block.notifications as number[] | null;
+            if (blockNotifications && blockNotifications.length > 0) {
+                for (const notifyMin of blockNotifications) {
+                    const notifyTime = blockStartMins - notifyMin;
+                    if (currentTimeInMins === notifyTime) {
+                        const subs = await getUserSubs();
+                        if (subs && subs.length > 0) {
+                            const timeText = notifyMin === 0 ? "agorinha" : `em ${notifyMin} minuto(s)`;
+                            const payload = JSON.stringify({
+                                title: "Hora do Bloco!",
+                                body: `Seu bloco "${block.title}" começará ${timeText}.`
+                            });
+                            for (const subsc of subs) {
+                                try {
+                                    await webpush.sendNotification({
+                                        endpoint: subsc.endpoint,
+                                        keys: { auth: subsc.auth, p256dh: subsc.p256dh }
+                                    }, payload);
+                                    sentCount++;
+                                } catch (error: any) {
+                                    if (error.statusCode === 410 || error.statusCode === 404) {
+                                        await db.delete(pushSubscriptions).where(eq(pushSubscriptions.id, subsc.id));
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // B. VERIFICA NOTIFICAÇÕES DAS TAREFAS DENTRO DO BLOCO
+            const subTasks = (block.subTasks as any[]) || [];
+            if (subTasks.length === 0) continue;
 
             const pinnedSegments: { start: number; end: number }[] = [];
             const computedTaskTimes: { start: number, end: number, isPinned: boolean }[] = [];
@@ -134,8 +174,6 @@ export async function GET(request: Request) {
             });
 
             // 4. Se encontrou alguma tarefa com 'remindMe' pro momento exato, puxa a inscrição do usuário e notifica
-            // Precisa checar se userSubscriptions ta vazia pra n fazer db a toa
-            let userSubscriptions: typeof pushSubscriptions.$inferSelect[] | null = null;
 
             for (let i = 0; i < subTasks.length; i++) {
                 const sub = subTasks[i];
@@ -147,7 +185,7 @@ export async function GET(request: Request) {
                 // O gatilho perfeito temporal:
                 if (currentTimeInMins === notifyTime) {
                     if (!userSubscriptions) {
-                        userSubscriptions = await db.select().from(pushSubscriptions).where(eq(pushSubscriptions.userId, block.userId));
+                        userSubscriptions = await getUserSubs();
                     }
 
                     if (!userSubscriptions || userSubscriptions.length === 0) continue;
