@@ -379,7 +379,18 @@ export function CreateTaskDialog({ availableBlockTypes = [], taskToEdit, open: c
                                 <FormLabel className="text-[10px] font-black text-zinc-500 uppercase ml-1">Subtarefas</FormLabel>
                                 <Button
                                     type="button"
-                                    onClick={() => append({ title: "", duration: 15 })}
+                                    onClick={() => {
+                                        append({ title: "", duration: 15 });
+                                        setTimeout(() => {
+                                            const currentTasks = form.getValues("subTasks");
+                                            if (currentTasks && currentTasks.length > 0) {
+                                                const sum = currentTasks.reduce((acc, sub) => acc + (Number(sub.duration) || 0), 0);
+                                                if (sum > 0) {
+                                                    form.setValue("estimatedDuration", sum, { shouldValidate: true });
+                                                }
+                                            }
+                                        }, 0);
+                                    }}
                                     variant="ghost"
                                     size="sm"
                                     className="h-5 text-[10px] text-emerald-500 hover:text-emerald-400 px-0"
@@ -451,7 +462,7 @@ export function CreateTaskDialog({ availableBlockTypes = [], taskToEdit, open: c
 
 
                         {/* Configurações Finais: Sugerir & Notificações */}
-                        <div className="flex flex-col gap-4 bg-white/5 p-3 rounded-xl border border-white/10 mt-2">
+                        <div className="flex flex-col gap-4 mt-2">
                             {/* Sugerir */}
                             <div className="flex flex-col gap-2">
                                 <FormLabel className="text-[10px] font-black text-zinc-500 uppercase ml-1">Sugerir</FormLabel>
