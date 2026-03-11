@@ -180,7 +180,7 @@ export function DroppableMissionBlock({ block, onDelete, onEdit, pendingBacklogT
             }
         };
 
-        dragRef.current.timer = setInterval(tick, 400);
+        dragRef.current.timer = setInterval(tick, 250);
 
         const onPointerMove = (ev: PointerEvent) => {
             dragRef.current.currentY = ev.clientY;
