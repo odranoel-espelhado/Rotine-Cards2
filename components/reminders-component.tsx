@@ -49,7 +49,20 @@ const reminderSchema = z.object({
         nth: z.number(),
         weekday: z.number()
     }).nullable().optional(),
+    time: z.string().optional(),
+    notifications: z.array(z.number()).default([]),
 });
+
+const NOTIFICATION_OPTIONS = [
+    { label: "No horário (0min)", value: 0 },
+    { label: "5min antes", value: 5 },
+    { label: "15min antes", value: 15 },
+    { label: "30min antes", value: 30 },
+    { label: "1 hora antes", value: 60 },
+    { label: "2 horas antes", value: 120 },
+    { label: "1 dia antes", value: 1440 },
+    { label: "7 dias antes", value: 10080 },
+];
 
 const DEFAULT_COLORS = [
     { label: 'Azul', value: '#3b82f6' },
@@ -113,6 +126,8 @@ export function RemindersComponent({ currentDate }: { currentDate: string }) {
             weekdays: [],
             monthlyDays: [],
             monthlyNth: { nth: 1, weekday: 1 },
+            time: "09:00",
+            notifications: [],
         },
     });
 
@@ -127,6 +142,8 @@ export function RemindersComponent({ currentDate }: { currentDate: string }) {
                 weekdays: [],
                 monthlyDays: [],
                 monthlyNth: { nth: 1, weekday: 1 },
+                time: "09:00",
+                notifications: [],
             });
         }
     }, [isCreateOpen, currentDate, form]);
@@ -437,6 +454,121 @@ export function RemindersComponent({ currentDate }: { currentDate: string }) {
                                             )}
                                         </div>
                                     )}
+                                    {/* Configurações de Tempo e Notificação */}
+                                    <div className="flex flex-col gap-4 mt-2">
+                                        <div className="flex gap-4">
+                                            {/* Hora */}
+                                            <div className="flex flex-col gap-2 flex-1">
+                                                <FormField
+                                                    control={form.control}
+                                                    name="time"
+                                                    render={({ field }) => (
+                                                        <FormItem className="flex-1">
+                                                            <FormLabel className="text-[10px] font-black text-zinc-500 uppercase ml-1 block whitespace-nowrap">Hora</FormLabel>
+                                                            <FormControl>
+                                                                <Input
+                                                                    type="time"
+                                                                    {...field}
+                                                                    className="bg-white/5 border-white/10 h-10 rounded-xl text-sm justify-center w-full"
+                                                                />
+                                                            </FormControl>
+                                                            <FormMessage />
+                                                        </FormItem>
+                                                    )}
+                                                />
+                                            </div>
+
+                                            {/* Notificações */}
+                                            <div className="flex flex-col gap-2 flex-[2]">
+                                                <FormField
+                                                    control={form.control}
+                                                    name="notifications"
+                                                    render={({ field }) => {
+                                                        const notes = field.value || [];
+                                                        return (
+                                                            <FormItem className="flex flex-col gap-2">
+                                                                <div className="flex items-center gap-2 mb-1">
+                                                                    <FormLabel className="text-[10px] font-black text-zinc-500 uppercase ml-1 flex-1">
+                                                                        Notificações
+                                                                    </FormLabel>
+                                                                    {notes.length > 0 && notes.length < 3 && (
+                                                                        <Button
+                                                                            type="button"
+                                                                            onClick={() => field.onChange([...notes, 15])}
+                                                                            variant="ghost"
+                                                                            size="sm"
+                                                                            className="h-6 text-[10px] text-emerald-500 hover:text-emerald-400 hover:bg-emerald-500/10 font-bold uppercase"
+                                                                        >
+                                                                            + Adicionar
+                                                                        </Button>
+                                                                    )}
+                                                                </div>
+                                                                <div className="space-y-2">
+                                                                    {notes.length === 0 && (
+                                                                        <div className="flex gap-2 items-center">
+                                                                            <Select
+                                                                                onValueChange={(val) => {
+                                                                                    if (val !== "none") field.onChange([Number(val)]);
+                                                                                }}
+                                                                                value="none"
+                                                                            >
+                                                                                <FormControl>
+                                                                                    <SelectTrigger className="bg-white/5 border-white/10 h-10 rounded-xl text-xs w-full">
+                                                                                        <SelectValue placeholder="Sem Notificação" />
+                                                                                    </SelectTrigger>
+                                                                                </FormControl>
+                                                                                <SelectContent className="bg-[#050506] border-white/10 text-white">
+                                                                                    <SelectItem value="none">Sem Notificação</SelectItem>
+                                                                                    {NOTIFICATION_OPTIONS.map((opt) => (
+                                                                                        <SelectItem key={opt.value} value={opt.value.toString()}>
+                                                                                            {opt.label}
+                                                                                        </SelectItem>
+                                                                                    ))}
+                                                                                </SelectContent>
+                                                                            </Select>
+                                                                        </div>
+                                                                    )}
+
+                                                                    {notes.map((notif, index) => (
+                                                                        <div key={index} className="flex gap-2 items-center">
+                                                                            <Select
+                                                                                onValueChange={(val) => {
+                                                                                    const current = [...notes];
+                                                                                    if (val === "none") {
+                                                                                        current.splice(index, 1);
+                                                                                    } else {
+                                                                                        current[index] = Number(val);
+                                                                                    }
+                                                                                    field.onChange(current);
+                                                                                }}
+                                                                                value={notif.toString()}
+                                                                            >
+                                                                                <FormControl>
+                                                                                    <SelectTrigger className="bg-white/5 border-white/10 h-10 rounded-xl text-xs w-full">
+                                                                                        <SelectValue placeholder="Selecione..." />
+                                                                                    </SelectTrigger>
+                                                                                </FormControl>
+                                                                                <SelectContent className="bg-[#050506] border-white/10 text-white">
+                                                                                    <SelectItem value="none">Remover</SelectItem>
+                                                                                    {NOTIFICATION_OPTIONS.map((opt) => (
+                                                                                        <SelectItem key={opt.value} value={opt.value.toString()}>
+                                                                                            {opt.label}
+                                                                                        </SelectItem>
+                                                                                    ))}
+                                                                                </SelectContent>
+                                                                            </Select>
+                                                                        </div>
+                                                                    ))}
+                                                                </div>
+                                                                <FormMessage />
+                                                            </FormItem>
+                                                        );
+                                                    }}
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+
                                     {/* Toggle Avançado */}
                                     <div
                                         onClick={() => setShowAdvanced(!showAdvanced)}

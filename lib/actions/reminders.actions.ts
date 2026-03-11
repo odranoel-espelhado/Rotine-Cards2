@@ -19,6 +19,8 @@ export type ReminderType = {
     weekdays?: number[] | null;
     monthlyDays?: number[] | null;
     monthlyNth?: { nth: number, weekday: number } | null;
+    time?: string | null;
+    notifications?: number[] | null;
 };
 
 function matchesRepeatPattern(r: any, checkDateStr: string): boolean {
@@ -118,6 +120,8 @@ export async function getRemindersAction(date: string) {
             weekdays: Array.isArray(r.weekdays) ? r.weekdays as number[] : null,
             monthlyDays: Array.isArray(r.monthlyDays) ? r.monthlyDays as number[] : null,
             monthlyNth: (r.monthlyNth as any) || null,
+            time: r.time,
+            notifications: Array.isArray(r.notifications) ? r.notifications as number[] : null,
         }));
     } catch (e) {
         console.error("Error fetching reminders", e);
@@ -141,6 +145,8 @@ export async function getAllRemindersAction() {
             weekdays: Array.isArray(r.weekdays) ? r.weekdays as number[] : null,
             monthlyDays: Array.isArray(r.monthlyDays) ? r.monthlyDays as number[] : null,
             monthlyNth: (r.monthlyNth as any) || null,
+            time: r.time,
+            notifications: Array.isArray(r.notifications) ? r.notifications as number[] : null,
         }));
     } catch (e) {
         console.error("Error fetching all reminders", e);
@@ -165,6 +171,8 @@ export async function createReminderAction(data: Omit<ReminderType, "id">) {
             weekdays: data.weekdays || [],
             monthlyDays: data.monthlyDays || [],
             monthlyNth: data.monthlyNth || null,
+            time: data.time || "09:00",
+            notifications: data.notifications || [],
         }).returning();
 
         revalidatePath("/dashboard");
@@ -176,6 +184,8 @@ export async function createReminderAction(data: Omit<ReminderType, "id">) {
                 weekdays: Array.isArray(newReminder.weekdays) ? newReminder.weekdays as number[] : null,
                 monthlyDays: Array.isArray(newReminder.monthlyDays) ? newReminder.monthlyDays as number[] : null,
                 monthlyNth: (newReminder.monthlyNth as any) || null,
+                time: newReminder.time,
+                notifications: Array.isArray(newReminder.notifications) ? newReminder.notifications as number[] : null,
             }
         };
     } catch (error: any) {
