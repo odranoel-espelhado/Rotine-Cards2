@@ -3,7 +3,7 @@ import { db } from "@/db";
 import { missionBlocks, pushSubscriptions, reminders } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
 import webpush from "web-push";
-import { matchesRepeatPattern } from "@/lib/actions/reminders.actions";
+import { matchesRepeatPattern } from "@/lib/utils";
 
 export const dynamic = 'force-dynamic'; // Prevents Vercel from caching the response time
 
