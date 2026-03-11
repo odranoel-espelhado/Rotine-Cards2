@@ -116,6 +116,21 @@ export function RemindersComponent({ currentDate }: { currentDate: string }) {
         },
     });
 
+    useEffect(() => {
+        if (isCreateOpen) {
+            form.reset({
+                title: "",
+                color: "#3b82f6",
+                description: "",
+                targetDate: currentDate,
+                repeatPattern: "none",
+                weekdays: [],
+                monthlyDays: [],
+                monthlyNth: { nth: 1, weekday: 1 },
+            });
+        }
+    }, [isCreateOpen, currentDate, form]);
+
     const onSubmit = async (values: z.infer<typeof reminderSchema> | any) => {
         const payload = {
             ...values,

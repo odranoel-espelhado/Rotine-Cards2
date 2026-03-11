@@ -22,7 +22,9 @@ export type ReminderType = {
 };
 
 function matchesRepeatPattern(r: any, checkDateStr: string): boolean {
-    if (r.targetDate === checkDateStr) return true;
+    if (!r.repeatPattern || r.repeatPattern === 'none') {
+        return r.targetDate === checkDateStr;
+    }
     if (checkDateStr < r.targetDate) return false;
 
     const targetObj = new Date(r.targetDate + "T12:00:00");
