@@ -97,6 +97,9 @@ export const reminders = pgTable('reminders', {
     monthlyNth: jsonb('monthly_nth'), // For 'monthly_on' pattern (nth weekday): { nth: 1|2|3|4|-1, weekday: 0-6 }
     time: text('time').default('09:00'), // e.g. "14:30"
     notifications: integer('notifications').array().default([]), // array of minutes before time
+    intervalHours: integer('interval_hours'),
+    intervalType: text('interval_type'), // 'until_end_of_day' | 'always' | 'occurrences'
+    intervalOccurrences: integer('interval_occurrences'),
     createdAt: timestamp('created_at').defaultNow().notNull(),
 });
 

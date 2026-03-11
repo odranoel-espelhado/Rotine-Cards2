@@ -51,6 +51,9 @@ const reminderSchema = z.object({
     }).nullable().optional(),
     time: z.string().optional(),
     notifications: z.array(z.number()).default([]),
+    intervalHours: z.number().nullable().optional(),
+    intervalType: z.enum(['none', 'until_end_of_day', 'always', 'occurrences']).nullable().optional(),
+    intervalOccurrences: z.number().nullable().optional(),
 });
 
 const NOTIFICATION_OPTIONS = [
@@ -98,6 +101,7 @@ export function RemindersComponent({ currentDate }: { currentDate: string }) {
     const [isCreateOpen, setIsCreateOpen] = useState(false);
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
     const [showAdvanced, setShowAdvanced] = useState(false);
+    const [showNotifications, setShowNotifications] = useState(false);
     const [monthlyTab, setMonthlyTab] = useState<'weekdays' | 'days'>('weekdays');
 
     const loadReminders = async () => {
@@ -128,6 +132,9 @@ export function RemindersComponent({ currentDate }: { currentDate: string }) {
             monthlyNth: { nth: 1, weekday: 1 },
             time: "09:00",
             notifications: [],
+            intervalHours: null,
+            intervalType: "none",
+            intervalOccurrences: null,
         },
     });
 
@@ -144,6 +151,9 @@ export function RemindersComponent({ currentDate }: { currentDate: string }) {
                 monthlyNth: { nth: 1, weekday: 1 },
                 time: "09:00",
                 notifications: [],
+                intervalHours: null,
+                intervalType: "none",
+                intervalOccurrences: null,
             });
         }
     }, [isCreateOpen, currentDate, form]);
@@ -454,120 +464,217 @@ export function RemindersComponent({ currentDate }: { currentDate: string }) {
                                             )}
                                         </div>
                                     )}
-                                    {/* Configurações de Tempo e Notificação */}
-                                    <div className="flex flex-col gap-4 mt-2">
-                                        <div className="flex gap-4">
-                                            {/* Hora */}
-                                            <div className="flex flex-col gap-2 flex-1">
-                                                <FormField
-                                                    control={form.control}
-                                                    name="time"
-                                                    render={({ field }) => (
-                                                        <FormItem className="flex-1">
-                                                            <FormLabel className="text-[10px] font-black text-zinc-500 uppercase ml-1 block whitespace-nowrap">Hora</FormLabel>
-                                                            <FormControl>
-                                                                <Input
-                                                                    type="time"
-                                                                    {...field}
-                                                                    className="bg-white/5 border-white/10 h-10 rounded-xl text-sm justify-center w-full"
-                                                                />
-                                                            </FormControl>
-                                                            <FormMessage />
-                                                        </FormItem>
-                                                    )}
-                                                />
-                                            </div>
 
-                                            {/* Notificações */}
-                                            <div className="flex flex-col gap-2 flex-[2]">
-                                                <FormField
-                                                    control={form.control}
-                                                    name="notifications"
-                                                    render={({ field }) => {
-                                                        const notes = field.value || [];
-                                                        return (
-                                                            <FormItem className="flex flex-col gap-2">
-                                                                <div className="flex items-center gap-2 mb-1">
-                                                                    <FormLabel className="text-[10px] font-black text-zinc-500 uppercase ml-1 flex-1">
-                                                                        Notificações
-                                                                    </FormLabel>
-                                                                    {notes.length > 0 && notes.length < 3 && (
-                                                                        <Button
-                                                                            type="button"
-                                                                            onClick={() => field.onChange([...notes, 15])}
-                                                                            variant="ghost"
-                                                                            size="sm"
-                                                                            className="h-6 text-[10px] text-emerald-500 hover:text-emerald-400 hover:bg-emerald-500/10 font-bold uppercase"
-                                                                        >
-                                                                            + Adicionar
-                                                                        </Button>
-                                                                    )}
-                                                                </div>
-                                                                <div className="space-y-2">
-                                                                    {notes.length === 0 && (
-                                                                        <div className="flex gap-2 items-center">
-                                                                            <Select
-                                                                                onValueChange={(val) => {
-                                                                                    if (val !== "none") field.onChange([Number(val)]);
-                                                                                }}
-                                                                                value="none"
-                                                                            >
-                                                                                <FormControl>
-                                                                                    <SelectTrigger className="bg-white/5 border-white/10 h-10 rounded-xl text-xs w-full">
-                                                                                        <SelectValue placeholder="Sem Notificação" />
-                                                                                    </SelectTrigger>
-                                                                                </FormControl>
-                                                                                <SelectContent className="bg-[#050506] border-white/10 text-white">
-                                                                                    <SelectItem value="none">Sem Notificação</SelectItem>
-                                                                                    {NOTIFICATION_OPTIONS.map((opt) => (
-                                                                                        <SelectItem key={opt.value} value={opt.value.toString()}>
-                                                                                            {opt.label}
-                                                                                        </SelectItem>
-                                                                                    ))}
-                                                                                </SelectContent>
-                                                                            </Select>
-                                                                        </div>
-                                                                    )}
+                                    {/* Toggle Notificações e Tempo */}
+                                    <div
+                                        onClick={() => setShowNotifications(!showNotifications)}
+                                        className="flex items-center gap-1 cursor-pointer text-[10px] font-black text-zinc-500 uppercase ml-1 hover:text-zinc-300 transition-colors select-none w-fit mt-2"
+                                    >
+                                        <span>Notificações & Hora</span>
+                                        {showNotifications ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
+                                    </div>
 
-                                                                    {notes.map((notif, index) => (
-                                                                        <div key={index} className="flex gap-2 items-center">
-                                                                            <Select
-                                                                                onValueChange={(val) => {
-                                                                                    const current = [...notes];
-                                                                                    if (val === "none") {
-                                                                                        current.splice(index, 1);
-                                                                                    } else {
-                                                                                        current[index] = Number(val);
-                                                                                    }
-                                                                                    field.onChange(current);
-                                                                                }}
-                                                                                value={notif.toString()}
-                                                                            >
-                                                                                <FormControl>
-                                                                                    <SelectTrigger className="bg-white/5 border-white/10 h-10 rounded-xl text-xs w-full">
-                                                                                        <SelectValue placeholder="Selecione..." />
-                                                                                    </SelectTrigger>
-                                                                                </FormControl>
-                                                                                <SelectContent className="bg-[#050506] border-white/10 text-white">
-                                                                                    <SelectItem value="none">Remover</SelectItem>
-                                                                                    {NOTIFICATION_OPTIONS.map((opt) => (
-                                                                                        <SelectItem key={opt.value} value={opt.value.toString()}>
-                                                                                            {opt.label}
-                                                                                        </SelectItem>
-                                                                                    ))}
-                                                                                </SelectContent>
-                                                                            </Select>
-                                                                        </div>
-                                                                    ))}
-                                                                </div>
+                                    {showNotifications && (
+                                        <div className="flex flex-col gap-4 mt-2">
+                                            <div className="flex gap-4">
+                                                {/* Hora */}
+                                                <div className="flex flex-col gap-2 flex-1">
+                                                    <FormField
+                                                        control={form.control}
+                                                        name="time"
+                                                        render={({ field }) => (
+                                                            <FormItem className="flex-1">
+                                                                <FormLabel className="text-[10px] font-black text-zinc-500 uppercase ml-1 block whitespace-nowrap">Hora</FormLabel>
+                                                                <FormControl>
+                                                                    <Input
+                                                                        type="time"
+                                                                        {...field}
+                                                                        className="bg-white/5 border-white/10 h-10 rounded-xl text-sm justify-center w-full"
+                                                                    />
+                                                                </FormControl>
                                                                 <FormMessage />
                                                             </FormItem>
-                                                        );
-                                                    }}
-                                                />
+                                                        )}
+                                                    />
+                                                </div>
+
+                                                {/* Notificações */}
+                                                <div className="flex flex-col gap-2 flex-[2]">
+                                                    <FormField
+                                                        control={form.control}
+                                                        name="notifications"
+                                                        render={({ field }) => {
+                                                            const notes = field.value || [];
+                                                            return (
+                                                                <FormItem className="flex flex-col gap-2">
+                                                                    <div className="flex items-center gap-2 mb-1">
+                                                                        <FormLabel className="text-[10px] font-black text-zinc-500 uppercase ml-1 flex-1">
+                                                                            Notificações
+                                                                        </FormLabel>
+                                                                        {notes.length > 0 && notes.length < 3 && (
+                                                                            <Button
+                                                                                type="button"
+                                                                                onClick={() => field.onChange([...notes, 15])}
+                                                                                variant="ghost"
+                                                                                size="sm"
+                                                                                className="h-6 text-[10px] text-emerald-500 hover:text-emerald-400 hover:bg-emerald-500/10 font-bold uppercase"
+                                                                            >
+                                                                                + Adicionar
+                                                                            </Button>
+                                                                        )}
+                                                                    </div>
+                                                                    <div className="space-y-2">
+                                                                        {notes.length === 0 && (
+                                                                            <div className="flex gap-2 items-center">
+                                                                                <Select
+                                                                                    onValueChange={(val) => {
+                                                                                        if (val !== "none") field.onChange([Number(val)]);
+                                                                                    }}
+                                                                                    value="none"
+                                                                                >
+                                                                                    <FormControl>
+                                                                                        <SelectTrigger className="bg-white/5 border-white/10 h-10 rounded-xl text-xs w-full">
+                                                                                            <SelectValue placeholder="Sem Notificação" />
+                                                                                        </SelectTrigger>
+                                                                                    </FormControl>
+                                                                                    <SelectContent className="bg-[#050506] border-white/10 text-white">
+                                                                                        <SelectItem value="none">Sem Notificação</SelectItem>
+                                                                                        {NOTIFICATION_OPTIONS.map((opt) => (
+                                                                                            <SelectItem key={opt.value} value={opt.value.toString()}>
+                                                                                                {opt.label}
+                                                                                            </SelectItem>
+                                                                                        ))}
+                                                                                    </SelectContent>
+                                                                                </Select>
+                                                                            </div>
+                                                                        )}
+
+                                                                        {notes.map((notif, index) => (
+                                                                            <div key={index} className="flex gap-2 items-center">
+                                                                                <Select
+                                                                                    onValueChange={(val) => {
+                                                                                        const current = [...notes];
+                                                                                        if (val === "none") {
+                                                                                            current.splice(index, 1);
+                                                                                        } else {
+                                                                                            current[index] = Number(val);
+                                                                                        }
+                                                                                        field.onChange(current);
+                                                                                    }}
+                                                                                    value={notif.toString()}
+                                                                                >
+                                                                                    <FormControl>
+                                                                                        <SelectTrigger className="bg-white/5 border-white/10 h-10 rounded-xl text-xs w-full">
+                                                                                            <SelectValue placeholder="Selecione..." />
+                                                                                        </SelectTrigger>
+                                                                                    </FormControl>
+                                                                                    <SelectContent className="bg-[#050506] border-white/10 text-white">
+                                                                                        <SelectItem value="none">Remover</SelectItem>
+                                                                                        {NOTIFICATION_OPTIONS.map((opt) => (
+                                                                                            <SelectItem key={opt.value} value={opt.value.toString()}>
+                                                                                                {opt.label}
+                                                                                            </SelectItem>
+                                                                                        ))}
+                                                                                    </SelectContent>
+                                                                                </Select>
+                                                                            </div>
+                                                                        ))}
+                                                                    </div>
+                                                                    <FormMessage />
+                                                                </FormItem>
+                                                            );
+                                                        }}
+                                                    />
+                                                </div>
+                                            </div>
+
+                                            {/* Interval Settings */}
+                                            <div className="border-t border-white/5 pt-4 mt-1">
+                                                <FormLabel className="text-[10px] font-black text-zinc-500 uppercase ml-1 block mb-3">A Cada X Horas (Opcional)</FormLabel>
+
+                                                <div className="flex flex-col gap-3">
+                                                    <div className="flex items-center gap-2 w-1/2">
+                                                        <span className="text-xs text-zinc-400">A cada</span>
+                                                        <FormField
+                                                            control={form.control}
+                                                            name="intervalHours"
+                                                            render={({ field }) => (
+                                                                <FormItem className="flex-1">
+                                                                    <FormControl>
+                                                                        <Input
+                                                                            type="number"
+                                                                            {...field}
+                                                                            value={field.value || ''}
+                                                                            onChange={e => field.onChange(e.target.value ? parseInt(e.target.value) : null)}
+                                                                            className="bg-white/5 border-white/10 h-8 rounded-lg text-xs"
+                                                                            placeholder="Ex: 8"
+                                                                            min="1"
+                                                                        />
+                                                                    </FormControl>
+                                                                </FormItem>
+                                                            )}
+                                                        />
+                                                        <span className="text-xs text-zinc-400">horas</span>
+                                                    </div>
+
+                                                    <FormField
+                                                        control={form.control}
+                                                        name="intervalType"
+                                                        render={({ field }) => (
+                                                            <FormItem>
+                                                                <div className="flex flex-wrap gap-2">
+                                                                    <div
+                                                                        onClick={() => field.onChange(field.value === 'until_end_of_day' ? 'none' : 'until_end_of_day')}
+                                                                        className={cn("text-[10px] font-bold uppercase py-1.5 px-3 rounded-md cursor-pointer transition-colors border", field.value === 'until_end_of_day' ? "bg-white/10 border-white/20 text-white" : "border-transparent text-zinc-500 hover:text-zinc-300")}
+                                                                    >
+                                                                        Até o fim do dia
+                                                                    </div>
+                                                                    <div
+                                                                        onClick={() => field.onChange(field.value === 'always' ? 'none' : 'always')}
+                                                                        className={cn("text-[10px] font-bold uppercase py-1.5 px-3 rounded-md cursor-pointer transition-colors border", field.value === 'always' ? "bg-white/10 border-white/20 text-white" : "border-transparent text-zinc-500 hover:text-zinc-300")}
+                                                                    >
+                                                                        Sempre
+                                                                    </div>
+                                                                    <div
+                                                                        onClick={() => field.onChange(field.value === 'occurrences' ? 'none' : 'occurrences')}
+                                                                        className={cn("text-[10px] font-bold uppercase py-1.5 px-3 rounded-md cursor-pointer transition-colors border", field.value === 'occurrences' ? "bg-white/10 border-white/20 text-white" : "border-transparent text-zinc-500 hover:text-zinc-300")}
+                                                                    >
+                                                                        X Ocorrências
+                                                                    </div>
+                                                                </div>
+                                                            </FormItem>
+                                                        )}
+                                                    />
+
+                                                    {form.watch('intervalType') === 'occurrences' && (
+                                                        <FormField
+                                                            control={form.control}
+                                                            name="intervalOccurrences"
+                                                            render={({ field }) => (
+                                                                <FormItem className="mt-1">
+                                                                    <div className="flex items-center gap-2">
+                                                                        <span className="text-xs text-zinc-400">Parar após</span>
+                                                                        <FormControl>
+                                                                            <Input
+                                                                                type="number"
+                                                                                {...field}
+                                                                                value={field.value || ''}
+                                                                                onChange={e => field.onChange(e.target.value ? parseInt(e.target.value) : null)}
+                                                                                className="bg-white/5 border-white/10 h-8 rounded-lg text-xs w-20"
+                                                                                placeholder="Ex: 3"
+                                                                                min="1"
+                                                                            />
+                                                                        </FormControl>
+                                                                        <span className="text-xs text-zinc-400">vezes</span>
+                                                                    </div>
+                                                                </FormItem>
+                                                            )}
+                                                        />
+                                                    )}
+                                                </div>
                                             </div>
                                         </div>
-                                    </div>
+                                    )}
 
                                     {/* Toggle Avançado */}
                                     <div

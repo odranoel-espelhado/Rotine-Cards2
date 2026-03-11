@@ -21,6 +21,9 @@ export type ReminderType = {
     monthlyNth?: { nth: number, weekday: number } | null;
     time?: string | null;
     notifications?: number[] | null;
+    intervalHours?: number | null;
+    intervalType?: string | null;
+    intervalOccurrences?: number | null;
 };
 
 function matchesRepeatPattern(r: any, checkDateStr: string): boolean {
@@ -122,6 +125,9 @@ export async function getRemindersAction(date: string) {
             monthlyNth: (r.monthlyNth as any) || null,
             time: r.time,
             notifications: Array.isArray(r.notifications) ? r.notifications as number[] : null,
+            intervalHours: r.intervalHours,
+            intervalType: r.intervalType,
+            intervalOccurrences: r.intervalOccurrences,
         }));
     } catch (e) {
         console.error("Error fetching reminders", e);
@@ -147,6 +153,9 @@ export async function getAllRemindersAction() {
             monthlyNth: (r.monthlyNth as any) || null,
             time: r.time,
             notifications: Array.isArray(r.notifications) ? r.notifications as number[] : null,
+            intervalHours: r.intervalHours,
+            intervalType: r.intervalType,
+            intervalOccurrences: r.intervalOccurrences,
         }));
     } catch (e) {
         console.error("Error fetching all reminders", e);
@@ -173,6 +182,9 @@ export async function createReminderAction(data: Omit<ReminderType, "id">) {
             monthlyNth: data.monthlyNth || null,
             time: data.time || "09:00",
             notifications: data.notifications || [],
+            intervalHours: data.intervalHours,
+            intervalType: data.intervalType,
+            intervalOccurrences: data.intervalOccurrences,
         }).returning();
 
         revalidatePath("/dashboard");
@@ -186,6 +198,9 @@ export async function createReminderAction(data: Omit<ReminderType, "id">) {
                 monthlyNth: (newReminder.monthlyNth as any) || null,
                 time: newReminder.time,
                 notifications: Array.isArray(newReminder.notifications) ? newReminder.notifications as number[] : null,
+                intervalHours: newReminder.intervalHours,
+                intervalType: newReminder.intervalType,
+                intervalOccurrences: newReminder.intervalOccurrences,
             }
         };
     } catch (error: any) {
