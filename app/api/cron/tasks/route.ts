@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
 import { db } from "@/db";
-import { missionBlocks, pushSubscriptions } from "@/db/schema";
+import { missionBlocks, pushSubscriptions, reminders } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
 import webpush from "web-push";
+import { matchesRepeatPattern } from "@/lib/actions/reminders.actions";
 
 export const dynamic = 'force-dynamic'; // Prevents Vercel from caching the response time
 
@@ -68,9 +69,7 @@ export async function GET(request: Request) {
             return false;
         });
 
-        if (blocksToday.length === 0) {
-            return NextResponse.json({ message: "Nenhuma tarefa agendada para hoje.", debugServerTime: timeStr, debugDate: dateStr });
-        }
+        // We no longer return early here so that Reminders can be checked!
 
         let sentCount = 0;
 
@@ -213,6 +212,92 @@ export async function GET(request: Request) {
                                 console.error("Erro ao enviar push:", subsc.endpoint, error);
                                 if (error.statusCode === 410 || error.statusCode === 404) {
                                     await db.delete(pushSubscriptions).where(eq(pushSubscriptions.id, subsc.id));
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // 5. Verifica os Lembretes
+        const allReminders = await db.select().from(reminders);
+        const remindersToday = allReminders.filter(rem => matchesRepeatPattern(rem, dateStr));
+
+        for (const rem of remindersToday) {
+            // Charges = 0 significa que já acabou as ocorrências no limite, visual
+            if (rem.occurrencesLimit && rem.usedOccurrences !== null) {
+                if (rem.usedOccurrences >= rem.occurrencesLimit) continue;
+            }
+
+            const remTimeMins = timeToMins(rem.time || "09:00");
+            const notifs = (rem.notifications || []) as number[];
+
+            let userSubscriptions: typeof pushSubscriptions.$inferSelect[] | null = null;
+            const getUserSubs = async () => {
+                if (!userSubscriptions) {
+                    userSubscriptions = await db.select().from(pushSubscriptions).where(eq(pushSubscriptions.userId, rem.userId));
+                }
+                return userSubscriptions;
+            };
+
+            // A. Notificações Base do Lembrete
+            for (const notifyMin of notifs) {
+                const notifyTime = remTimeMins - notifyMin;
+                if (currentTimeInMins === notifyTime) {
+                    const subs = await getUserSubs();
+                    if (subs && subs.length > 0) {
+                        const timeText = notifyMin === 0 ? "agorinha" : `em ${notifyMin} minuto(s)`;
+                        const payload = JSON.stringify({
+                            title: "Lembrete!",
+                            body: `Seu lembrete "${rem.title}" está agendado para ${timeText}.`
+                        });
+                        for (const subsc of subs) {
+                            try {
+                                await webpush.sendNotification({ endpoint: subsc.endpoint, keys: { auth: subsc.auth, p256dh: subsc.p256dh } }, payload);
+                                sentCount++;
+                            } catch (error: any) {
+                                if (error.statusCode === 410 || error.statusCode === 404) {
+                                    await db.delete(pushSubscriptions).where(eq(pushSubscriptions.id, subsc.id));
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // B. Notificações de Intervalo do Lembrete (A cada X horas)
+            if (rem.intervalHours && rem.intervalType && rem.intervalType !== 'none') {
+                const intervalMins = rem.intervalHours * 60;
+                let triggerLimit = 24; // fallback safe limit
+
+                if (rem.intervalType === 'occurrences' && rem.intervalOccurrences) {
+                    triggerLimit = rem.intervalOccurrences;
+                } else if (rem.intervalType === 'until_end_of_day') {
+                    triggerLimit = Math.ceil((24 * 60 - remTimeMins) / intervalMins) + 1;
+                }
+
+                // Itera os próximos disparos
+                for (let i = 1; i <= triggerLimit; i++) {
+                    const intervalNotifyTime = remTimeMins + i * intervalMins;
+                    
+                    if (intervalNotifyTime >= 24 * 60 && rem.intervalType === 'until_end_of_day') break;
+
+                    if (currentTimeInMins === intervalNotifyTime) {
+                        const subs = await getUserSubs();
+                        if (subs && subs.length > 0) {
+                            const payload = JSON.stringify({
+                                title: "Lembrete Recorrente!",
+                                body: `Mais uma vez: "${rem.title}".`
+                            });
+                            for (const subsc of subs) {
+                                try {
+                                    await webpush.sendNotification({ endpoint: subsc.endpoint, keys: { auth: subsc.auth, p256dh: subsc.p256dh } }, payload);
+                                    sentCount++;
+                                } catch (error: any) {
+                                    if (error.statusCode === 410 || error.statusCode === 404) {
+                                        await db.delete(pushSubscriptions).where(eq(pushSubscriptions.id, subsc.id));
+                                    }
                                 }
                             }
                         }

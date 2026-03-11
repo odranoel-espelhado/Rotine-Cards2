@@ -26,7 +26,7 @@ export type ReminderType = {
     intervalOccurrences?: number | null;
 };
 
-function matchesRepeatPattern(r: any, checkDateStr: string): boolean {
+export function matchesRepeatPattern(r: any, checkDateStr: string): boolean {
     if (!r.repeatPattern || r.repeatPattern === 'none') {
         return r.targetDate === checkDateStr;
     }
