@@ -712,214 +712,299 @@ export function CreateBlockDialog({
                                 </div>
                             </div>
 
-                            {/* Repetição */}
-                            <FormField
-                                control={form.control}
-                                name="repeatPattern"
-                                render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel className="text-[10px] font-black text-zinc-500 uppercase ml-1">Repetir</FormLabel>
-                                        <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                            <FormControl>
-                                                <SelectTrigger className="bg-white/5 border-white/10 h-10 rounded-xl text-xs w-full">
-                                                    <SelectValue placeholder="Selecione..." />
-                                                </SelectTrigger>
-                                            </FormControl>
-                                            <SelectContent className="bg-[#050506] border-white/10 text-white">
-                                                <SelectItem value="none">Sem repetição</SelectItem>
-                                                <SelectItem value="daily">Todo dia</SelectItem>
-                                                <SelectItem value="workdays">Seg a Sex</SelectItem>
-                                                <SelectItem value="weekly">Toda semana</SelectItem>
-                                                <SelectItem value="monthly">Todo mês</SelectItem>
-                                                <SelectItem value="yearly">Todo ano</SelectItem>
-                                                <SelectItem value="custom">Dias selecionados</SelectItem>
-                                                <SelectItem value="monthly_on">Mensal no(a)</SelectItem>
-                                                <SelectItem value="interval">A cada...</SelectItem>
-                                            </SelectContent>
-                                        </Select>
-                                        <FormMessage />
-                                    </FormItem>
-                                )}
-                            />
+                            {/* ── Repetição ─────────────────────────────── */}
+                            <div className="space-y-3">
+                                <p className="text-[10px] font-black text-zinc-500 uppercase ml-1">Repetição</p>
 
-                            {form.watch("repeatPattern") === "custom" && (
-                                <FormField
-                                    control={form.control}
-                                    name="weekdays"
-                                    render={({ field }) => (
-                                        <FormItem>
-                                            <FormLabel className="text-[10px] font-black text-zinc-500 uppercase ml-1">Dias da Semana</FormLabel>
-                                            <div className="space-y-1 mt-2 bg-white/5 border border-white/10 rounded-xl p-3">
-                                                {DAYS_OF_WEEK.map(day => {
-                                                    const isSelected = field.value?.includes(day.value);
-                                                    return (
-                                                        <div
-                                                            key={day.value}
-                                                            className="flex items-center justify-between cursor-pointer group py-1"
-                                                            onClick={() => {
-                                                                const current = field.value || [];
-                                                                const next = isSelected ? current.filter(v => v !== day.value) : [...current, day.value];
-                                                                field.onChange(next);
-                                                            }}
-                                                        >
-                                                            <span className={cn("text-xs font-medium transition-colors", isSelected ? "text-white" : "text-zinc-500 group-hover:text-zinc-300")}>{day.label}</span>
-                                                            <div className={cn("w-4 h-4 rounded-[4px] border flex items-center justify-center transition-colors", isSelected ? "border-emerald-500 bg-emerald-500" : "border-white/20 hover:border-white/40")}>
-                                                                {isSelected && <svg width="10" height="8" viewBox="0 0 10 8" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M1 4L3.5 6.5L9 1" stroke="#050506" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>}
-                                                            </div>
-                                                        </div>
-                                                    );
-                                                })}
-                                            </div>
-                                            <FormMessage />
-                                        </FormItem>
-                                    )}
-                                />
-                            )}
+                                {/* Atalhos rápidos – Pills */}
+                                <div className="flex flex-wrap gap-2">
+                                    {[
+                                        { label: "Nunca", value: "none", emoji: "🚫" },
+                                        { label: "Todo dia", value: "daily", emoji: "☀️" },
+                                        { label: "Seg–Sex", value: "workdays", emoji: "💼" },
+                                        { label: "Semanal", value: "weekly", emoji: "📅" },
+                                        { label: "Mensal", value: "monthly", emoji: "🗓️" },
+                                        { label: "Anual", value: "yearly", emoji: "🎯" },
+                                    ].map((opt) => {
+                                        const isActive = form.watch("repeatPattern") === opt.value;
+                                        return (
+                                            <button
+                                                key={opt.value}
+                                                type="button"
+                                                onClick={() => form.setValue("repeatPattern", opt.value as any)}
+                                                className={cn(
+                                                    "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border transition-all duration-200",
+                                                    isActive
+                                                        ? "bg-emerald-500 border-emerald-400 text-black shadow-lg shadow-emerald-500/20 scale-105"
+                                                        : "bg-white/5 border-white/10 text-zinc-400 hover:bg-white/10 hover:text-white hover:border-white/20"
+                                                )}
+                                            >
+                                                <span>{opt.emoji}</span>
+                                                {opt.label}
+                                            </button>
+                                        );
+                                    })}
 
-                            {form.watch("repeatPattern") === "interval" && (
-                                <div className="flex gap-2 items-center w-full">
-                                    <span className="text-[10px] font-black text-zinc-500 uppercase shrink-0">A cada</span>
-                                    
-                                    <FormField
-                                        control={form.control}
-                                        name="repeatIntervalValue"
-                                        render={({ field }) => (
-                                            <FormItem className="flex-1">
-                                                <Select onValueChange={(val) => field.onChange(Number(val))} value={field.value?.toString() || "2"}>
-                                                    <FormControl>
-                                                        <SelectTrigger className="bg-white/5 border-white/10 h-10 rounded-xl text-xs w-full">
-                                                            <SelectValue placeholder="2" />
-                                                        </SelectTrigger>
-                                                    </FormControl>
-                                                    <SelectContent className="bg-[#050506] border-white/10 text-white max-h-[150px]">
-                                                        {Array.from({ length: 98 }, (_, i) => i + 2).map((num) => (
-                                                            <SelectItem key={num} value={num.toString()}>{num}</SelectItem>
-                                                        ))}
-                                                    </SelectContent>
-                                                </Select>
-                                            </FormItem>
-                                        )}
-                                    />
-
-                                    <FormField
-                                        control={form.control}
-                                        name="repeatIntervalUnit"
-                                        render={({ field }) => (
-                                            <FormItem className="flex-1">
-                                                <Select onValueChange={field.onChange} value={field.value || "days"}>
-                                                    <FormControl>
-                                                        <SelectTrigger className="bg-white/5 border-white/10 h-10 rounded-xl text-xs w-full">
-                                                            <SelectValue placeholder="Dias" />
-                                                        </SelectTrigger>
-                                                    </FormControl>
-                                                    <SelectContent className="bg-[#050506] border-white/10 text-white max-h-[150px]">
-                                                        <SelectItem value="days">Dias</SelectItem>
-                                                        <SelectItem value="weeks">Semanas</SelectItem>
-                                                        <SelectItem value="months">Meses</SelectItem>
-                                                    </SelectContent>
-                                                </Select>
-                                            </FormItem>
-                                        )}
-                                    />
+                                    {/* Botões extras que expandem sub-painéis */}
+                                    {[
+                                        { label: "Dias específicos", value: "custom", emoji: "📌" },
+                                        { label: "Mensal personalizado", value: "monthly_on", emoji: "🔁" },
+                                        { label: "A cada...", value: "interval", emoji: "⏱️" },
+                                    ].map((opt) => {
+                                        const isActive = form.watch("repeatPattern") === opt.value;
+                                        return (
+                                            <button
+                                                key={opt.value}
+                                                type="button"
+                                                onClick={() => form.setValue("repeatPattern", opt.value as any)}
+                                                className={cn(
+                                                    "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border transition-all duration-200",
+                                                    isActive
+                                                        ? "bg-violet-500 border-violet-400 text-white shadow-lg shadow-violet-500/20 scale-105"
+                                                        : "bg-white/5 border-white/10 text-zinc-400 hover:bg-white/10 hover:text-white hover:border-white/20"
+                                                )}
+                                            >
+                                                <span>{opt.emoji}</span>
+                                                {opt.label}
+                                            </button>
+                                        );
+                                    })}
                                 </div>
-                            )}
 
-                            {form.watch("repeatPattern") === "monthly_on" && (
-                                <div className="space-y-4 mt-2 bg-white/5 border border-white/10 rounded-xl p-3">
-                                    <div className="flex bg-black/40 p-1 rounded-xl">
-                                        <button
-                                            type="button"
-                                            onClick={() => setMonthlyTab('weekdays')}
-                                            className={cn(
-                                                "flex-1 text-xs py-1.5 rounded-lg font-bold transition-all",
-                                                monthlyTab === 'weekdays' ? "bg-white/10 text-white shadow-sm" : "text-zinc-500 hover:text-white"
-                                            )}
-                                        >
-                                            Semana
-                                        </button>
-                                        <button
-                                            type="button"
-                                            onClick={() => setMonthlyTab('days')}
-                                            className={cn(
-                                                "flex-1 text-xs py-1.5 rounded-lg font-bold transition-all",
-                                                monthlyTab === 'days' ? "bg-white/10 text-white shadow-sm" : "text-zinc-500 hover:text-white"
-                                            )}
-                                        >
-                                            Dias
-                                        </button>
-                                    </div>
-
-                                    {monthlyTab === 'weekdays' && (
-                                        <FormField
-                                            control={form.control}
-                                            name="monthlyNth"
-                                            render={({ field }) => (
-                                                <FormItem>
-                                                    <div className="flex gap-2">
-                                                        <Select onValueChange={(val) => field.onChange({ ...field.value, nth: Number(val) })} value={field.value?.nth?.toString() || "1"}>
-                                                            <FormControl>
-                                                                <SelectTrigger className="bg-black/40 border-white/10 h-10 rounded-xl text-xs flex-1">
-                                                                    <SelectValue placeholder="Semana..." />
-                                                                </SelectTrigger>
-                                                            </FormControl>
-                                                            <SelectContent className="bg-[#050506] border-white/10 text-white">
-                                                                {NTH_OPTIONS.map(opt => (
-                                                                    <SelectItem key={opt.value} value={opt.value.toString()}>{opt.label}</SelectItem>
-                                                                ))}
-                                                            </SelectContent>
-                                                        </Select>
-
-                                                        <Select onValueChange={(val) => field.onChange({ ...field.value, weekday: Number(val) })} value={field.value?.weekday?.toString() || "1"}>
-                                                            <FormControl>
-                                                                <SelectTrigger className="bg-black/40 border-white/10 h-10 rounded-xl text-xs flex-[2]">
-                                                                    <SelectValue placeholder="Dia..." />
-                                                                </SelectTrigger>
-                                                            </FormControl>
-                                                            <SelectContent className="bg-[#050506] border-white/10 text-white">
-                                                                {DAYS_OF_WEEK.map(day => (
-                                                                    <SelectItem key={day.value} value={day.value.toString()}>{day.label}</SelectItem>
-                                                                ))}
-                                                            </SelectContent>
-                                                        </Select>
-                                                    </div>
-                                                </FormItem>
-                                            )}
-                                        />
-                                    )}
-
-                                    {monthlyTab === 'days' && (
-                                        <FormField
-                                            control={form.control}
-                                            name="monthlyDays"
-                                            render={({ field }) => (
-                                                <FormItem>
-                                                    <div className="grid grid-cols-7 gap-1">
-                                                        {Array.from({ length: 31 }, (_, i) => i + 1).map(day => {
-                                                            const isSelected = field.value?.includes(day);
+                                {/* ── Painel: Dias específicos (custom) ── */}
+                                {form.watch("repeatPattern") === "custom" && (
+                                    <FormField
+                                        control={form.control}
+                                        name="weekdays"
+                                        render={({ field }) => (
+                                            <FormItem>
+                                                <div className="bg-white/5 border border-white/10 rounded-2xl p-4 space-y-2 animate-in slide-in-from-top-2 duration-200">
+                                                    <p className="text-[9px] font-black text-zinc-500 uppercase tracking-widest mb-3">Quais dias da semana?</p>
+                                                    <div className="flex gap-1.5 flex-wrap">
+                                                        {[
+                                                            { label: "Seg", value: 1 },
+                                                            { label: "Ter", value: 2 },
+                                                            { label: "Qua", value: 3 },
+                                                            { label: "Qui", value: 4 },
+                                                            { label: "Sex", value: 5 },
+                                                            { label: "Sáb", value: 6 },
+                                                            { label: "Dom", value: 0 },
+                                                        ].map((day) => {
+                                                            const isSelected = field.value?.includes(day.value);
                                                             return (
-                                                                <div
-                                                                    key={day}
+                                                                <button
+                                                                    key={day.value}
+                                                                    type="button"
                                                                     onClick={() => {
                                                                         const current = field.value || [];
-                                                                        const next = isSelected ? current.filter(v => v !== day) : [...current, day];
+                                                                        const next = isSelected
+                                                                            ? current.filter((v) => v !== day.value)
+                                                                            : [...current, day.value];
                                                                         field.onChange(next);
                                                                     }}
                                                                     className={cn(
-                                                                        "h-8 flex items-center justify-center rounded-lg text-xs cursor-pointer transition-colors border",
-                                                                        isSelected ? "bg-emerald-500 border-emerald-500 text-black font-black" : "bg-black/40 border-white/5 text-zinc-400 hover:text-white hover:border-white/20"
+                                                                        "flex-1 min-w-[40px] h-10 rounded-xl text-xs font-black transition-all duration-150 border",
+                                                                        isSelected
+                                                                            ? "bg-violet-500 border-violet-400 text-white shadow-md shadow-violet-500/30"
+                                                                            : "bg-black/40 border-white/10 text-zinc-500 hover:text-white hover:border-white/20"
                                                                     )}
                                                                 >
-                                                                    {day}
-                                                                </div>
+                                                                    {day.label}
+                                                                </button>
                                                             );
                                                         })}
                                                     </div>
-                                                </FormItem>
-                                            )}
-                                        />
-                                    )}
-                                </div>
-                            )}
+                                                    {(!field.value || field.value.length === 0) && (
+                                                        <p className="text-[9px] text-amber-400/70 font-medium pt-1">Selecione pelo menos 1 dia</p>
+                                                    )}
+                                                </div>
+                                                <FormMessage />
+                                            </FormItem>
+                                        )}
+                                    />
+                                )}
+
+                                {/* ── Painel: A cada... (interval) ── */}
+                                {form.watch("repeatPattern") === "interval" && (
+                                    <div className="bg-white/5 border border-white/10 rounded-2xl p-4 animate-in slide-in-from-top-2 duration-200">
+                                        <p className="text-[9px] font-black text-zinc-500 uppercase tracking-widest mb-3">Intervalo de repetição</p>
+                                        <div className="flex items-center gap-3">
+                                            <span className="text-xs font-black text-zinc-400 shrink-0">A cada</span>
+
+                                            <FormField
+                                                control={form.control}
+                                                name="repeatIntervalValue"
+                                                render={({ field }) => (
+                                                    <FormItem className="flex-1">
+                                                        <Select
+                                                            onValueChange={(val) => field.onChange(Number(val))}
+                                                            value={field.value?.toString() || "2"}
+                                                        >
+                                                            <FormControl>
+                                                                <SelectTrigger className="bg-black/40 border-white/10 h-10 rounded-xl text-sm font-black text-white w-full">
+                                                                    <SelectValue placeholder="2" />
+                                                                </SelectTrigger>
+                                                            </FormControl>
+                                                            <SelectContent className="bg-[#0a0a0b] border-white/10 text-white max-h-[200px]">
+                                                                {Array.from({ length: 98 }, (_, i) => i + 2).map((num) => (
+                                                                    <SelectItem key={num} value={num.toString()} className="text-sm font-bold">
+                                                                        {num}
+                                                                    </SelectItem>
+                                                                ))}
+                                                            </SelectContent>
+                                                        </Select>
+                                                    </FormItem>
+                                                )}
+                                            />
+
+                                            <FormField
+                                                control={form.control}
+                                                name="repeatIntervalUnit"
+                                                render={({ field }) => (
+                                                    <FormItem className="flex-[2]">
+                                                        <div className="flex gap-1">
+                                                            {[
+                                                                { label: "Dias", value: "days" },
+                                                                { label: "Semanas", value: "weeks" },
+                                                                { label: "Meses", value: "months" },
+                                                            ].map((unit) => (
+                                                                <button
+                                                                    key={unit.value}
+                                                                    type="button"
+                                                                    onClick={() => field.onChange(unit.value)}
+                                                                    className={cn(
+                                                                        "flex-1 h-10 rounded-xl text-xs font-black border transition-all",
+                                                                        (field.value || "days") === unit.value
+                                                                            ? "bg-violet-500 border-violet-400 text-white shadow-md shadow-violet-500/30"
+                                                                            : "bg-black/40 border-white/10 text-zinc-500 hover:text-white hover:border-white/20"
+                                                                    )}
+                                                                >
+                                                                    {unit.label}
+                                                                </button>
+                                                            ))}
+                                                        </div>
+                                                    </FormItem>
+                                                )}
+                                            />
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* ── Painel: Mensal no(a) (monthly_on) ── */}
+                                {form.watch("repeatPattern") === "monthly_on" && (
+                                    <div className="bg-white/5 border border-white/10 rounded-2xl p-4 space-y-4 animate-in slide-in-from-top-2 duration-200">
+                                        {/* Tab selector */}
+                                        <div className="flex bg-black/50 p-1 rounded-xl gap-1">
+                                            {[
+                                                { label: "Por Semana", value: "weekdays" },
+                                                { label: "Por Dias", value: "days" },
+                                            ].map((tab) => (
+                                                <button
+                                                    key={tab.value}
+                                                    type="button"
+                                                    onClick={() => setMonthlyTab(tab.value as any)}
+                                                    className={cn(
+                                                        "flex-1 py-2 rounded-lg text-xs font-black transition-all",
+                                                        monthlyTab === tab.value
+                                                            ? "bg-violet-500 text-white shadow-sm"
+                                                            : "text-zinc-500 hover:text-white"
+                                                    )}
+                                                >
+                                                    {tab.label}
+                                                </button>
+                                            ))}
+                                        </div>
+
+                                        {/* Sub-painel: N-ésimo dia da semana */}
+                                        {monthlyTab === "weekdays" && (
+                                            <FormField
+                                                control={form.control}
+                                                name="monthlyNth"
+                                                render={({ field }) => (
+                                                    <FormItem>
+                                                        <p className="text-[9px] font-black text-zinc-500 uppercase tracking-widest mb-2">Qual ocorrência?</p>
+                                                        <div className="flex gap-2">
+                                                            <Select
+                                                                onValueChange={(val) => field.onChange({ ...field.value, nth: Number(val) })}
+                                                                value={field.value?.nth?.toString() || "1"}
+                                                            >
+                                                                <FormControl>
+                                                                    <SelectTrigger className="bg-black/40 border-white/10 h-10 rounded-xl text-xs font-bold flex-1">
+                                                                        <SelectValue placeholder="Semana..." />
+                                                                    </SelectTrigger>
+                                                                </FormControl>
+                                                                <SelectContent className="bg-[#0a0a0b] border-white/10 text-white">
+                                                                    {NTH_OPTIONS.map((opt) => (
+                                                                        <SelectItem key={opt.value} value={opt.value.toString()}>
+                                                                            {opt.label}
+                                                                        </SelectItem>
+                                                                    ))}
+                                                                </SelectContent>
+                                                            </Select>
+
+                                                            <Select
+                                                                onValueChange={(val) => field.onChange({ ...field.value, weekday: Number(val) })}
+                                                                value={field.value?.weekday?.toString() || "1"}
+                                                            >
+                                                                <FormControl>
+                                                                    <SelectTrigger className="bg-black/40 border-white/10 h-10 rounded-xl text-xs font-bold flex-[2]">
+                                                                        <SelectValue placeholder="Dia..." />
+                                                                    </SelectTrigger>
+                                                                </FormControl>
+                                                                <SelectContent className="bg-[#0a0a0b] border-white/10 text-white">
+                                                                    {DAYS_OF_WEEK.map((day) => (
+                                                                        <SelectItem key={day.value} value={day.value.toString()}>
+                                                                            {day.label}
+                                                                        </SelectItem>
+                                                                    ))}
+                                                                </SelectContent>
+                                                            </Select>
+                                                        </div>
+                                                    </FormItem>
+                                                )}
+                                            />
+                                        )}
+
+                                        {/* Sub-painel: Dias específicos do mês */}
+                                        {monthlyTab === "days" && (
+                                            <FormField
+                                                control={form.control}
+                                                name="monthlyDays"
+                                                render={({ field }) => (
+                                                    <FormItem>
+                                                        <p className="text-[9px] font-black text-zinc-500 uppercase tracking-widest mb-2">Quais dias do mês?</p>
+                                                        <div className="grid grid-cols-7 gap-1">
+                                                            {Array.from({ length: 31 }, (_, i) => i + 1).map((day) => {
+                                                                const isSelected = field.value?.includes(day);
+                                                                return (
+                                                                    <div
+                                                                        key={day}
+                                                                        onClick={() => {
+                                                                            const current = field.value || [];
+                                                                            const next = isSelected
+                                                                                ? current.filter((v) => v !== day)
+                                                                                : [...current, day];
+                                                                            field.onChange(next);
+                                                                        }}
+                                                                        className={cn(
+                                                                            "h-8 flex items-center justify-center rounded-lg text-xs cursor-pointer transition-all border font-bold",
+                                                                            isSelected
+                                                                                ? "bg-violet-500 border-violet-400 text-white shadow-md shadow-violet-500/30"
+                                                                                : "bg-black/40 border-white/5 text-zinc-500 hover:text-white hover:border-white/20"
+                                                                        )}
+                                                                    >
+                                                                        {day}
+                                                                    </div>
+                                                                );
+                                                            })}
+                                                        </div>
+                                                    </FormItem>
+                                                )}
+                                            />
+                                        )}
+                                    </div>
+                                )}
+                            </div>
 
                             <div className="pt-2 gap-3 flex flex-col">
                                 <Button type="submit" className="w-full h-16 bg-emerald-600 hover:bg-emerald-500 text-white font-black tracking-widest text-lg rounded-2xl uppercase shadow-xl transition-all hover:scale-[1.02]">
