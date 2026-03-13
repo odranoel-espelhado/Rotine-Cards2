@@ -25,6 +25,8 @@ export type ReminderType = {
     intervalHours?: number | null;
     intervalType?: string | null;
     intervalOccurrences?: number | null;
+    repeatIntervalValue?: number | null;
+    repeatIntervalUnit?: string | null;
 };
 
 export async function getRemindersAction(date: string) {
@@ -100,6 +102,8 @@ export async function getRemindersAction(date: string) {
             intervalHours: r.intervalHours,
             intervalType: r.intervalType,
             intervalOccurrences: r.intervalOccurrences,
+            repeatIntervalValue: r.repeatIntervalValue,
+            repeatIntervalUnit: r.repeatIntervalUnit,
         }));
     } catch (e) {
         console.error("Error fetching reminders", e);
@@ -128,6 +132,8 @@ export async function getAllRemindersAction() {
             intervalHours: r.intervalHours,
             intervalType: r.intervalType,
             intervalOccurrences: r.intervalOccurrences,
+            repeatIntervalValue: r.repeatIntervalValue,
+            repeatIntervalUnit: r.repeatIntervalUnit,
         }));
     } catch (e) {
         console.error("Error fetching all reminders", e);
@@ -157,6 +163,8 @@ export async function createReminderAction(data: Omit<ReminderType, "id">) {
             intervalHours: data.intervalHours,
             intervalType: data.intervalType,
             intervalOccurrences: data.intervalOccurrences,
+            repeatIntervalValue: data.repeatIntervalValue,
+            repeatIntervalUnit: data.repeatIntervalUnit,
         }).returning();
 
         revalidatePath("/dashboard");
@@ -206,7 +214,13 @@ export async function decreaseReminderChargeAction(id: string) {
         if (newCharges !== null && newCharges > 0) {
             newCharges -= 1;
 
-            await db.update(reminders).set({ charges: newCharges }).where(and(eq(reminders.id, id), eq(reminders.userId, userId)));
+            await db.update(reminders).set({
+                charges: newCharges,
+                intervalOccurrences: rem.intervalOccurrences,
+                repeatIntervalValue: rem.repeatIntervalValue,
+                repeatIntervalUnit: rem.repeatIntervalUnit,
+            })
+            .where(and(eq(reminders.id, id), eq(reminders.userId, userId)));
             revalidatePath("/dashboard");
         }
 

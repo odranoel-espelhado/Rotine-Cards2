@@ -70,5 +70,27 @@ export function matchesRepeatPattern(r: any, checkDateStr: string): boolean {
             }
         }
     }
+    
+    if (r.repeatPattern === 'interval') {
+        const val = r.repeatIntervalValue || 2;
+        const unit = r.repeatIntervalUnit || 'days';
+        const diffTime = checkObj.getTime() - targetObj.getTime();
+        const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+        
+        if (unit === 'days') {
+            if (diffDays % val === 0) return true;
+        } else if (unit === 'weeks') {
+            if (diffDays % 7 === 0) {
+                const diffWeeks = diffDays / 7;
+                if (diffWeeks % val === 0) return true;
+            }
+        } else if (unit === 'months') {
+            if (targetObj.getDate() === checkObj.getDate()) {
+                const diffMonths = (checkObj.getFullYear() - targetObj.getFullYear()) * 12 + (checkObj.getMonth() - targetObj.getMonth());
+                if (diffMonths % val === 0) return true;
+            }
+        }
+    }
+
     return false;
 }

@@ -40,7 +40,7 @@ const reminderSchema = z.object({
     color: z.string().min(1, "A cor é obrigatória."),
     targetDate: z.string().min(1, "A data é obrigatória."),
     description: z.string().optional(),
-    repeatPattern: z.enum(['none', 'daily', 'weekly', 'monthly', 'yearly', 'workdays', 'monthly_on', 'custom']).default('none'),
+    repeatPattern: z.enum(['none', 'daily', 'weekly', 'monthly', 'yearly', 'workdays', 'monthly_on', 'custom', 'interval']).default('none'),
     occurrencesLimit: z.number().optional(),
     charges: z.number().optional(),
     weekdays: z.array(z.number()).optional(),
@@ -54,6 +54,8 @@ const reminderSchema = z.object({
     intervalHours: z.number().nullable().optional(),
     intervalType: z.enum(['none', 'until_end_of_day', 'always', 'occurrences']).nullable().optional(),
     intervalOccurrences: z.number().nullable().optional(),
+    repeatIntervalValue: z.number().nullable().optional(),
+    repeatIntervalUnit: z.enum(['days', 'weeks', 'months']).nullable().optional(),
 });
 
 const NOTIFICATION_OPTIONS = [
@@ -135,6 +137,8 @@ export function RemindersComponent({ currentDate }: { currentDate: string }) {
             intervalHours: null,
             intervalType: "none",
             intervalOccurrences: null,
+            repeatIntervalValue: 2,
+            repeatIntervalUnit: "days",
         },
     });
 
@@ -154,6 +158,8 @@ export function RemindersComponent({ currentDate }: { currentDate: string }) {
                 intervalHours: null,
                 intervalType: "none",
                 intervalOccurrences: null,
+                repeatIntervalValue: 2,
+                repeatIntervalUnit: "days",
             });
         }
     }, [isCreateOpen, currentDate, form]);
@@ -327,6 +333,7 @@ export function RemindersComponent({ currentDate }: { currentDate: string }) {
                                                         <SelectItem value="yearly">Todo ano</SelectItem>
                                                         <SelectItem value="workdays">Dias selecionados</SelectItem>
                                                         <SelectItem value="monthly_on">Mensal no(a)</SelectItem>
+                                                        <SelectItem value="interval">A cada...</SelectItem>
                                                     </SelectContent>
                                                 </Select>
                                                 <FormMessage />
@@ -366,6 +373,54 @@ export function RemindersComponent({ currentDate }: { currentDate: string }) {
                                                 </FormItem>
                                             )}
                                         />
+                                    )}
+
+                                    {form.watch("repeatPattern") === "interval" && (
+                                        <div className="flex gap-2 items-center w-full">
+                                            <span className="text-[10px] font-black text-zinc-500 uppercase uppercase shrink-0">A cada</span>
+                                            
+                                            <FormField
+                                                control={form.control}
+                                                name="repeatIntervalValue"
+                                                render={({ field }) => (
+                                                    <FormItem className="flex-1">
+                                                        <Select onValueChange={(val) => field.onChange(Number(val))} value={field.value?.toString() || "2"}>
+                                                            <FormControl>
+                                                                <SelectTrigger className="bg-white/5 border-white/10 h-10 rounded-xl text-xs w-full">
+                                                                    <SelectValue placeholder="2" />
+                                                                </SelectTrigger>
+                                                            </FormControl>
+                                                            <SelectContent className="bg-[#050506] border-white/10 text-white max-h-[150px]">
+                                                                {Array.from({ length: 98 }, (_, i) => i + 2).map((num) => (
+                                                                    <SelectItem key={num} value={num.toString()}>{num}</SelectItem>
+                                                                ))}
+                                                            </SelectContent>
+                                                        </Select>
+                                                    </FormItem>
+                                                )}
+                                            />
+
+                                            <FormField
+                                                control={form.control}
+                                                name="repeatIntervalUnit"
+                                                render={({ field }) => (
+                                                    <FormItem className="flex-1">
+                                                        <Select onValueChange={field.onChange} value={field.value || "days"}>
+                                                            <FormControl>
+                                                                <SelectTrigger className="bg-white/5 border-white/10 h-10 rounded-xl text-xs w-full">
+                                                                    <SelectValue placeholder="Dias" />
+                                                                </SelectTrigger>
+                                                            </FormControl>
+                                                            <SelectContent className="bg-[#050506] border-white/10 text-white max-h-[150px]">
+                                                                <SelectItem value="days">Dias</SelectItem>
+                                                                <SelectItem value="weeks">Semanas</SelectItem>
+                                                                <SelectItem value="months">Meses</SelectItem>
+                                                            </SelectContent>
+                                                        </Select>
+                                                    </FormItem>
+                                                )}
+                                            />
+                                        </div>
                                     )}
 
                                     {form.watch("repeatPattern") === "monthly_on" && (

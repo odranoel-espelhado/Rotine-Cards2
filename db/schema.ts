@@ -100,6 +100,8 @@ export const reminders = pgTable('reminders', {
     intervalHours: integer('interval_hours'),
     intervalType: text('interval_type'), // 'until_end_of_day' | 'always' | 'occurrences'
     intervalOccurrences: integer('interval_occurrences'),
+    repeatIntervalValue: integer('repeat_interval_value'),
+    repeatIntervalUnit: text('repeat_interval_unit'),
     createdAt: timestamp('created_at').defaultNow().notNull(),
 });
 
