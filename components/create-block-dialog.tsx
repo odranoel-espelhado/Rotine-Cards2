@@ -20,7 +20,6 @@ import {
     FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { Checkbox } from "@/components/ui/checkbox";
 import {
     Select,
     SelectContent,
@@ -66,9 +65,17 @@ const formSchema = z.object({
     startTime: z.string().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, { message: "Formato inválido." }),
     totalDuration: z.coerce.number().min(5, { message: "Duração mínima de 5 minutos." }),
     subTasks: z.array(subtaskSchema).default([]),
-    isRecurring: z.boolean().default(false),
-    replicateWeekdays: z.boolean().default(false),
-    notifications: z.array(z.number()).default([])
+    notifications: z.array(z.number()).default([]),
+    repeatPattern: z.enum(['none', 'daily', 'weekdays', 'weekly', 'monthly', 'yearly', 'workdays', 'monthly_on', 'custom', 'interval']).default('none'),
+    occurrencesLimit: z.number().optional(),
+    weekdays: z.array(z.number()).optional(),
+    monthlyDays: z.array(z.number()).optional(),
+    monthlyNth: z.object({
+        nth: z.number(),
+        weekday: z.number()
+    }).nullable().optional(),
+    repeatIntervalValue: z.number().nullable().optional(),
+    repeatIntervalUnit: z.enum(['days', 'weeks', 'months']).nullable().optional(),
 });
 
 const NOTIFICATION_OPTIONS = [
@@ -80,6 +87,24 @@ const NOTIFICATION_OPTIONS = [
     { label: '2h', value: 120 },
     { label: '1 dia', value: 1440 },
     { label: '7 dias', value: 10080 },
+];
+
+const DAYS_OF_WEEK = [
+    { label: 'Segunda-feira', value: 1 },
+    { label: 'Terça-feira', value: 2 },
+    { label: 'Quarta-feira', value: 3 },
+    { label: 'Quinta-feira', value: 4 },
+    { label: 'Sexta-feira', value: 5 },
+    { label: 'Sábado', value: 6 },
+    { label: 'Domingo', value: 0 },
+];
+
+const NTH_OPTIONS = [
+    { label: '1º', value: 1 },
+    { label: '2º', value: 2 },
+    { label: '3º', value: 3 },
+    { label: '4º', value: 4 },
+    { label: 'Último', value: -1 },
 ];
 
 import { updateMissionBlock, MissionBlock } from "@/lib/actions/mission.actions";
@@ -107,6 +132,7 @@ export function CreateBlockDialog({
     const [availableTypes, setAvailableTypes] = useState<{ label: string; icon: string; color: string; value: string; notifications?: number[] | null }[]>([]);
     const [filteredSuggestions, setFilteredSuggestions] = useState<{ label: string; icon: string; color: string; value: string; notifications?: number[] | null }[]>([]);
     const [showSuggestions, setShowSuggestions] = useState(false);
+    const [monthlyTab, setMonthlyTab] = useState<'weekdays' | 'days'>('weekdays');
 
     const isControlled = controlledOpen !== undefined;
     const open = isControlled ? controlledOpen : internalOpen;
@@ -132,9 +158,14 @@ export function CreateBlockDialog({
                 description: s.description,
                 done: s.done
             })) || [],
-            isRecurring: blockToEdit?.type === 'recurring',
-            replicateWeekdays: blockToEdit?.recurrencePattern === 'weekdays',
             notifications: Array.isArray(blockToEdit?.notifications) ? blockToEdit.notifications : [],
+            repeatPattern: (blockToEdit?.recurrencePattern as any) || (blockToEdit?.type === 'recurring' ? 'daily' : 'none'),
+            occurrencesLimit: blockToEdit?.occurrencesLimit || undefined,
+            weekdays: Array.isArray(blockToEdit?.weekdays) ? blockToEdit.weekdays as number[] : [],
+            monthlyDays: Array.isArray(blockToEdit?.monthlyDays) ? blockToEdit.monthlyDays as number[] : [],
+            monthlyNth: (blockToEdit?.monthlyNth as any) || { nth: 1, weekday: 1 },
+            repeatIntervalValue: blockToEdit?.repeatIntervalValue || 2,
+            repeatIntervalUnit: (blockToEdit?.repeatIntervalUnit as any) || "days",
         },
     });
 
@@ -157,9 +188,14 @@ export function CreateBlockDialog({
                     description: s.description,
                     done: s.done
                 })) || [],
-                isRecurring: blockToEdit?.type === 'recurring',
-                replicateWeekdays: blockToEdit?.recurrencePattern === 'weekdays',
                 notifications: Array.isArray(blockToEdit?.notifications) ? blockToEdit.notifications : [],
+                repeatPattern: (blockToEdit?.recurrencePattern as any) || (blockToEdit?.type === 'recurring' ? 'daily' : 'none'),
+                occurrencesLimit: blockToEdit?.occurrencesLimit || undefined,
+                weekdays: Array.isArray(blockToEdit?.weekdays) ? blockToEdit.weekdays as number[] : [],
+                monthlyDays: Array.isArray(blockToEdit?.monthlyDays) ? blockToEdit.monthlyDays as number[] : [],
+                monthlyNth: (blockToEdit?.monthlyNth as any) || { nth: 1, weekday: 1 },
+                repeatIntervalValue: blockToEdit?.repeatIntervalValue || 2,
+                repeatIntervalUnit: (blockToEdit?.repeatIntervalUnit as any) || "days",
             });
 
             // Fetch suggestions
@@ -192,10 +228,16 @@ export function CreateBlockDialog({
                 done: s.done || false,
                 isFixed: s.isFromTask ? false : (s.isFixed !== undefined ? s.isFixed : true)
             })),
-            type: values.isRecurring ? 'recurring' as const : 'unique' as const,
-            recurrencePattern: values.replicateWeekdays ? 'weekdays' as const : undefined,
+            type: (values.repeatPattern === 'none' ? 'unique' : 'recurring') as any,
+            recurrencePattern: values.repeatPattern as any,
+            occurrencesLimit: values.occurrencesLimit,
+            weekdays: values.weekdays,
+            monthlyDays: values.monthlyDays,
+            monthlyNth: values.monthlyNth,
+            repeatIntervalValue: values.repeatIntervalValue,
+            repeatIntervalUnit: values.repeatIntervalUnit,
             notifications: values.notifications,
-        };
+        } as any;
 
         if (isEditing && blockToEdit) {
             res = await updateMissionBlock(blockToEdit.id, payload, updateAll);
@@ -240,10 +282,16 @@ export function CreateBlockDialog({
                 done: s.done || false,
                 isFixed: s.isFromTask ? false : (s.isFixed !== undefined ? s.isFixed : true)
             })),
-            type: values.isRecurring ? 'recurring' as const : 'unique' as const,
-            recurrencePattern: values.replicateWeekdays ? 'weekdays' as const : undefined,
+            type: (values.repeatPattern === 'none' ? 'unique' : 'recurring') as any,
+            recurrencePattern: values.repeatPattern as any,
+            occurrencesLimit: values.occurrencesLimit,
+            weekdays: values.weekdays,
+            monthlyDays: values.monthlyDays,
+            monthlyNth: values.monthlyNth,
+            repeatIntervalValue: values.repeatIntervalValue,
+            repeatIntervalUnit: values.repeatIntervalUnit,
             notifications: values.notifications,
-        };
+        } as any;
 
         let res;
         if (isEditing && blockToEdit) {
@@ -296,13 +344,7 @@ export function CreateBlockDialog({
         { hex: '#ec4899', class: 'bg-pink-500' },   // New
         { hex: '#f97316', class: 'bg-orange-500' }, // New
         { hex: '#6366f1', class: 'bg-indigo-500' }, // New
-    ];
-
-    const isRecurring = form.watch("isRecurring");
-
-
-
-    // If confirmation is needed, we switch the content
+    ];    // If confirmation is needed, we switch the content
     if (showRecurringConfirmation) {
         return (
             <Dialog open={open} onOpenChange={(val) => {
@@ -670,60 +712,213 @@ export function CreateBlockDialog({
                                 </div>
                             </div>
 
-                            {/* Mode Toggle */}
-                            <div className="grid grid-cols-2 gap-4">
-                                <FormField
-                                    control={form.control}
-                                    name="isRecurring"
-                                    render={({ field }) => (
-                                        <>
-                                            <div
-                                                className={cn(
-                                                    "h-14 rounded-2xl flex items-center justify-center gap-3 cursor-pointer border transition-all",
-                                                    !field.value ? "bg-white/5 border-primary/50 text-white shadow-[0_0_15px_-5px_#3b82f6]" : "bg-transparent border-white/5 text-zinc-600 hover:bg-white/5"
-                                                )}
-                                                onClick={() => field.onChange(false)}
-                                            >
-                                                <div className={cn("w-3 h-3 rounded-full transition-colors", !field.value ? "bg-red-500" : "bg-zinc-700")} />
-                                                <span className="text-xs font-black uppercase">Única</span>
-                                            </div>
-                                            <div
-                                                className={cn(
-                                                    "h-14 rounded-2xl flex items-center justify-center gap-3 cursor-pointer border transition-all",
-                                                    field.value ? "bg-white/5 border-emerald-500/50 text-white shadow-[0_0_15px_-5px_#10b981]" : "bg-transparent border-white/5 text-zinc-600 hover:bg-white/5"
-                                                )}
-                                                onClick={() => field.onChange(true)}
-                                            >
-                                                <div className={cn("w-3 h-3 rounded-full transition-colors", field.value ? "bg-emerald-500" : "bg-zinc-700")} />
-                                                <span className="text-xs font-black uppercase">Recorrente</span>
-                                            </div>
-                                        </>
-                                    )}
-                                />
-                            </div>
-
-                            {/* Replicate Checkbox - Only visible if Recurring and NOT editing */}
-                            {isRecurring && !isEditing && (
-                                <FormField
-                                    control={form.control}
-                                    name="replicateWeekdays"
-                                    render={({ field }) => (
-                                        <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-xl border border-white/5 p-4 bg-white/5 animate-in slide-in-from-top-2">
+                            {/* Repetição */}
+                            <FormField
+                                control={form.control}
+                                name="repeatPattern"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel className="text-[10px] font-black text-zinc-500 uppercase ml-1">Repetir</FormLabel>
+                                        <Select onValueChange={field.onChange} defaultValue={field.value}>
                                             <FormControl>
-                                                <Checkbox
-                                                    checked={field.value}
-                                                    onCheckedChange={field.onChange}
-                                                    className="data-[state=checked]:bg-indigo-500 data-[state=checked]:border-indigo-500 border-white/20"
-                                                />
+                                                <SelectTrigger className="bg-white/5 border-white/10 h-10 rounded-xl text-xs w-full">
+                                                    <SelectValue placeholder="Selecione..." />
+                                                </SelectTrigger>
                                             </FormControl>
-                                            <div className="space-y-1 leading-none">
-                                                <FormLabel className="text-xs font-bold text-white uppercase">
-                                                    Replicar (Seg - Sex)
-                                                </FormLabel>
+                                            <SelectContent className="bg-[#050506] border-white/10 text-white">
+                                                <SelectItem value="none">Sem repetição</SelectItem>
+                                                <SelectItem value="daily">Todo dia</SelectItem>
+                                                <SelectItem value="workdays">Seg a Sex</SelectItem>
+                                                <SelectItem value="weekly">Toda semana</SelectItem>
+                                                <SelectItem value="monthly">Todo mês</SelectItem>
+                                                <SelectItem value="yearly">Todo ano</SelectItem>
+                                                <SelectItem value="custom">Dias selecionados</SelectItem>
+                                                <SelectItem value="monthly_on">Mensal no(a)</SelectItem>
+                                                <SelectItem value="interval">A cada...</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+
+                            {form.watch("repeatPattern") === "custom" && (
+                                <FormField
+                                    control={form.control}
+                                    name="weekdays"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel className="text-[10px] font-black text-zinc-500 uppercase ml-1">Dias da Semana</FormLabel>
+                                            <div className="space-y-1 mt-2 bg-white/5 border border-white/10 rounded-xl p-3">
+                                                {DAYS_OF_WEEK.map(day => {
+                                                    const isSelected = field.value?.includes(day.value);
+                                                    return (
+                                                        <div
+                                                            key={day.value}
+                                                            className="flex items-center justify-between cursor-pointer group py-1"
+                                                            onClick={() => {
+                                                                const current = field.value || [];
+                                                                const next = isSelected ? current.filter(v => v !== day.value) : [...current, day.value];
+                                                                field.onChange(next);
+                                                            }}
+                                                        >
+                                                            <span className={cn("text-xs font-medium transition-colors", isSelected ? "text-white" : "text-zinc-500 group-hover:text-zinc-300")}>{day.label}</span>
+                                                            <div className={cn("w-4 h-4 rounded-[4px] border flex items-center justify-center transition-colors", isSelected ? "border-emerald-500 bg-emerald-500" : "border-white/20 hover:border-white/40")}>
+                                                                {isSelected && <svg width="10" height="8" viewBox="0 0 10 8" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M1 4L3.5 6.5L9 1" stroke="#050506" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>}
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })}
                                             </div>
+                                            <FormMessage />
                                         </FormItem>
                                     )}
                                 />
+                            )}
+
+                            {form.watch("repeatPattern") === "interval" && (
+                                <div className="flex gap-2 items-center w-full">
+                                    <span className="text-[10px] font-black text-zinc-500 uppercase shrink-0">A cada</span>
+                                    
+                                    <FormField
+                                        control={form.control}
+                                        name="repeatIntervalValue"
+                                        render={({ field }) => (
+                                            <FormItem className="flex-1">
+                                                <Select onValueChange={(val) => field.onChange(Number(val))} value={field.value?.toString() || "2"}>
+                                                    <FormControl>
+                                                        <SelectTrigger className="bg-white/5 border-white/10 h-10 rounded-xl text-xs w-full">
+                                                            <SelectValue placeholder="2" />
+                                                        </SelectTrigger>
+                                                    </FormControl>
+                                                    <SelectContent className="bg-[#050506] border-white/10 text-white max-h-[150px]">
+                                                        {Array.from({ length: 98 }, (_, i) => i + 2).map((num) => (
+                                                            <SelectItem key={num} value={num.toString()}>{num}</SelectItem>
+                                                        ))}
+                                                    </SelectContent>
+                                                </Select>
+                                            </FormItem>
+                                        )}
+                                    />
+
+                                    <FormField
+                                        control={form.control}
+                                        name="repeatIntervalUnit"
+                                        render={({ field }) => (
+                                            <FormItem className="flex-1">
+                                                <Select onValueChange={field.onChange} value={field.value || "days"}>
+                                                    <FormControl>
+                                                        <SelectTrigger className="bg-white/5 border-white/10 h-10 rounded-xl text-xs w-full">
+                                                            <SelectValue placeholder="Dias" />
+                                                        </SelectTrigger>
+                                                    </FormControl>
+                                                    <SelectContent className="bg-[#050506] border-white/10 text-white max-h-[150px]">
+                                                        <SelectItem value="days">Dias</SelectItem>
+                                                        <SelectItem value="weeks">Semanas</SelectItem>
+                                                        <SelectItem value="months">Meses</SelectItem>
+                                                    </SelectContent>
+                                                </Select>
+                                            </FormItem>
+                                        )}
+                                    />
+                                </div>
+                            )}
+
+                            {form.watch("repeatPattern") === "monthly_on" && (
+                                <div className="space-y-4 mt-2 bg-white/5 border border-white/10 rounded-xl p-3">
+                                    <div className="flex bg-black/40 p-1 rounded-xl">
+                                        <button
+                                            type="button"
+                                            onClick={() => setMonthlyTab('weekdays')}
+                                            className={cn(
+                                                "flex-1 text-xs py-1.5 rounded-lg font-bold transition-all",
+                                                monthlyTab === 'weekdays' ? "bg-white/10 text-white shadow-sm" : "text-zinc-500 hover:text-white"
+                                            )}
+                                        >
+                                            Semana
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => setMonthlyTab('days')}
+                                            className={cn(
+                                                "flex-1 text-xs py-1.5 rounded-lg font-bold transition-all",
+                                                monthlyTab === 'days' ? "bg-white/10 text-white shadow-sm" : "text-zinc-500 hover:text-white"
+                                            )}
+                                        >
+                                            Dias
+                                        </button>
+                                    </div>
+
+                                    {monthlyTab === 'weekdays' && (
+                                        <FormField
+                                            control={form.control}
+                                            name="monthlyNth"
+                                            render={({ field }) => (
+                                                <FormItem>
+                                                    <div className="flex gap-2">
+                                                        <Select onValueChange={(val) => field.onChange({ ...field.value, nth: Number(val) })} value={field.value?.nth?.toString() || "1"}>
+                                                            <FormControl>
+                                                                <SelectTrigger className="bg-black/40 border-white/10 h-10 rounded-xl text-xs flex-1">
+                                                                    <SelectValue placeholder="Semana..." />
+                                                                </SelectTrigger>
+                                                            </FormControl>
+                                                            <SelectContent className="bg-[#050506] border-white/10 text-white">
+                                                                {NTH_OPTIONS.map(opt => (
+                                                                    <SelectItem key={opt.value} value={opt.value.toString()}>{opt.label}</SelectItem>
+                                                                ))}
+                                                            </SelectContent>
+                                                        </Select>
+
+                                                        <Select onValueChange={(val) => field.onChange({ ...field.value, weekday: Number(val) })} value={field.value?.weekday?.toString() || "1"}>
+                                                            <FormControl>
+                                                                <SelectTrigger className="bg-black/40 border-white/10 h-10 rounded-xl text-xs flex-[2]">
+                                                                    <SelectValue placeholder="Dia..." />
+                                                                </SelectTrigger>
+                                                            </FormControl>
+                                                            <SelectContent className="bg-[#050506] border-white/10 text-white">
+                                                                {DAYS_OF_WEEK.map(day => (
+                                                                    <SelectItem key={day.value} value={day.value.toString()}>{day.label}</SelectItem>
+                                                                ))}
+                                                            </SelectContent>
+                                                        </Select>
+                                                    </div>
+                                                </FormItem>
+                                            )}
+                                        />
+                                    )}
+
+                                    {monthlyTab === 'days' && (
+                                        <FormField
+                                            control={form.control}
+                                            name="monthlyDays"
+                                            render={({ field }) => (
+                                                <FormItem>
+                                                    <div className="grid grid-cols-7 gap-1">
+                                                        {Array.from({ length: 31 }, (_, i) => i + 1).map(day => {
+                                                            const isSelected = field.value?.includes(day);
+                                                            return (
+                                                                <div
+                                                                    key={day}
+                                                                    onClick={() => {
+                                                                        const current = field.value || [];
+                                                                        const next = isSelected ? current.filter(v => v !== day) : [...current, day];
+                                                                        field.onChange(next);
+                                                                    }}
+                                                                    className={cn(
+                                                                        "h-8 flex items-center justify-center rounded-lg text-xs cursor-pointer transition-colors border",
+                                                                        isSelected ? "bg-emerald-500 border-emerald-500 text-black font-black" : "bg-black/40 border-white/5 text-zinc-400 hover:text-white hover:border-white/20"
+                                                                    )}
+                                                                >
+                                                                    {day}
+                                                                </div>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                </FormItem>
+                                            )}
+                                        />
+                                    )}
+                                </div>
                             )}
 
                             <div className="pt-2 gap-3 flex flex-col">

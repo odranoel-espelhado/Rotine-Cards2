@@ -71,22 +71,24 @@ export async function GET(request: Request) {
             };
         };
 
-        const isBlockValid = (block: any, tDateStr: string, tDayOfWeek: number, tIsWeekday: boolean) => {
+        const isBlockValid = (block: any, tDateStr: string) => {
             const isCompleted = (block.completedDates as string[] || []).includes(tDateStr) || block.status === 'completed';
             if (isCompleted) return false;
             
             if (block.type === 'unique' && block.date === tDateStr) return true;
             
             if (block.type === 'recurring') {
-                const exceptions = (block.exceptions as string[]) || [];
-                if (exceptions.includes(tDateStr)) return false;
-                
-                if (block.recurrencePattern === 'weekdays' && tIsWeekday && tDateStr >= block.date) return true;
-                
-                if (block.recurrencePattern === 'weekly') {
-                    const originalDate = new Date(block.date + "T12:00:00");
-                    if (originalDate.getDay() === tDayOfWeek && tDateStr >= block.date) return true;
-                }
+                const patternObj = {
+                    date: block.date,
+                    repeatPattern: block.recurrencePattern || 'none',
+                    weekdays: block.weekdays,
+                    monthlyDays: block.monthlyDays,
+                    monthlyNth: block.monthlyNth,
+                    repeatIntervalValue: block.repeatIntervalValue,
+                    repeatIntervalUnit: block.repeatIntervalUnit,
+                    exceptions: block.exceptions,
+                };
+                return matchesRepeatPattern(patternObj, tDateStr);
             }
             return false;
         };
@@ -116,7 +118,7 @@ export async function GET(request: Request) {
             if (blockNotifications && blockNotifications.length > 0) {
                 for (const notifyMin of blockNotifications) {
                     const res = checkTrigger(blockStartMins, notifyMin);
-                    if (res.isHit && isBlockValid(block, res.triggerDateStr, res.triggerDayOfWeek, res.triggerIsWeekday)) {
+                    if (res.isHit && isBlockValid(block, res.triggerDateStr)) {
                         const subs = await getUserSubs();
                         if (subs && subs.length > 0) {
                             const timeText = notifyMin === 0 ? "agorinha" : (notifyMin >= 1440 ? `em ${Math.floor(notifyMin/1440)} dia(s)` : `em ${notifyMin} minuto(s)`);
@@ -200,7 +202,7 @@ export async function GET(request: Request) {
                 for (const notifyMin of taskNotifs) {
                     const res = checkTrigger(computedStart, notifyMin);
 
-                    if (res.isHit && isBlockValid(block, res.triggerDateStr, res.triggerDayOfWeek, res.triggerIsWeekday)) {
+                    if (res.isHit && isBlockValid(block, res.triggerDateStr)) {
                         if (!userSubscriptions) userSubscriptions = await getUserSubs();
                         if (!userSubscriptions || userSubscriptions.length === 0) continue;
 

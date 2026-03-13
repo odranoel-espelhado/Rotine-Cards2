@@ -45,19 +45,34 @@ export function calculateDynamicTimeChange(deltaY: number, originalMins: number 
 }
 
 export function matchesRepeatPattern(r: any, checkDateStr: string): boolean {
-    if (!r.repeatPattern || r.repeatPattern === 'none') {
-        return r.targetDate === checkDateStr;
-    }
-    if (checkDateStr < r.targetDate) return false;
+    const baseDate = r.targetDate || r.date;
+    if (!baseDate) return false;
 
-    const targetObj = new Date(r.targetDate + "T12:00:00");
+    // Se possui exceções (Blocos), um dia na lista de exceções nunca "matcha"
+    if (r.exceptions && Array.isArray(r.exceptions) && r.exceptions.includes(checkDateStr)) {
+        return false;
+    }
+
+    if (!r.repeatPattern || r.repeatPattern === 'none') {
+        return baseDate === checkDateStr;
+    }
+    if (checkDateStr < baseDate) return false;
+
+    const targetObj = new Date(baseDate + "T12:00:00");
     const checkObj = new Date(checkDateStr + "T12:00:00");
 
     if (r.repeatPattern === 'daily') return true;
     if (r.repeatPattern === 'weekly' && targetObj.getDay() === checkObj.getDay()) return true;
     if (r.repeatPattern === 'monthly' && targetObj.getDate() === checkObj.getDate()) return true;
     if (r.repeatPattern === 'yearly' && targetObj.getDate() === checkObj.getDate() && targetObj.getMonth() === checkObj.getMonth()) return true;
-    if (r.repeatPattern === 'workdays' && Array.isArray(r.weekdays) && r.weekdays.includes(checkObj.getDay())) return true;
+    
+    // Suporte Legado do Bloco
+    if (r.repeatPattern === 'weekdays') {
+        const d = checkObj.getDay();
+        if (d !== 0 && d !== 6) return true;
+    }
+
+    if ((r.repeatPattern === 'workdays' || r.repeatPattern === 'custom') && Array.isArray(r.weekdays) && r.weekdays.includes(checkObj.getDay())) return true;
     if (r.repeatPattern === 'monthly_on') {
         if (Array.isArray(r.monthlyDays) && r.monthlyDays.length > 0 && r.monthlyDays.includes(checkObj.getDate())) return true;
         if (r.monthlyNth && typeof r.monthlyNth === 'object' && !Array.isArray(r.monthlyNth)) {

@@ -38,6 +38,16 @@ export const missionBlocks = pgTable('mission_blocks', {
     masterBlockId: text('master_block_id'), // Referência ao bloco recorrente original caso seja uma exceção
     completedDates: jsonb('completed_dates').default([]), // List of YYYY-MM-DD strings for recurring block completions
     notifications: integer('notifications').array(), // Minutes before to notify/remind
+    
+    // Novas colunas para sistema unificado de repetição (Similares aos Reminders)
+    occurrencesLimit: integer('occurrences_limit'),
+    usedOccurrences: integer('used_occurrences').default(0),
+    weekdays: jsonb('weekdays').default([]),
+    monthlyDays: jsonb('monthly_days').default([]),
+    monthlyNth: jsonb('monthly_nth'),
+    repeatIntervalValue: integer('repeat_interval_value'),
+    repeatIntervalUnit: text('repeat_interval_unit'),
+
     createdAt: timestamp('created_at').defaultNow().notNull(),
 });
 
