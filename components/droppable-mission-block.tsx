@@ -597,7 +597,7 @@ export function DroppableMissionBlock({ block, onDelete, onEdit, pendingBacklogT
             ref={(node) => {
                 setDroppableRef(node);
             }}
-            className={cn("relative w-full group mb-4 pl-9 sm:pl-12 pr-9 sm:pr-0 transition-opacity", isTimeDragging ? "opacity-50 z-50" : "z-10")}
+            className={cn("relative w-full group mb-4 pl-9 sm:pl-12 pr-8 sm:pr-0 transition-opacity", isTimeDragging ? "opacity-50 z-50" : "z-10")}
         >
             {/* Drag Handle */}
             <div
@@ -1034,7 +1034,7 @@ export function DroppableMissionBlock({ block, onDelete, onEdit, pendingBacklogT
                     </div>
                 </div>
                 {/* Duration Display for Mobile (Outside Block) */}
-                <div className="sm:hidden absolute right-1 top-1/2 -translate-y-1/2 flex flex-col items-center leading-none text-white/40 font-black">
+                <div className="sm:hidden absolute right-0 top-1/2 -translate-y-1/2 flex flex-col items-center leading-none text-white/40 font-black">
                     <span className="text-[14px]">{block.totalDuration}</span>
                     <span className="text-[8px] mt-0.5 tracking-widest uppercase">Min</span>
                 </div>

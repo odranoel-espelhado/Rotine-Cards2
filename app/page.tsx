@@ -31,17 +31,11 @@ export default function Home() {
         </p>
 
         {/* CTA */}
-        <div className="flex flex-col sm:flex-row gap-4 mt-8">
+        <div className="flex justify-center mt-8 w-full">
           <Link href="/dashboard">
             <Button size="lg" className="bg-primary hover:bg-primary/90 text-white font-semibold px-8 py-6 text-lg rounded-xl shadow-[0_0_30px_-5px_var(--primary)] transition-all hover:scale-105 hover:shadow-[0_0_50px_-10px_var(--primary)]">
-              AJEITAR ROTINA
+              AJEITE SUA ROTINA
               <ArrowRight className="ml-2 h-5 w-5" />
-            </Button>
-          </Link>
-
-          <Link href="https://github.com" target="_blank">
-            <Button variant="outline" size="lg" className="bg-transparent border-white/10 hover:bg-white/5 text-zinc-300 hover:text-white px-8 py-6 text-lg rounded-xl transition-all">
-              Documentação
             </Button>
           </Link>
         </div>
