@@ -869,15 +869,32 @@ export function RemindersComponent({ currentDate }: { currentDate: string }) {
                             Nenhum lembrete para hoje
                         </div>
                     ) : (
-                        reminders.map(rem => (
-                            <div
-                                key={rem.id}
-                                style={{ backgroundColor: rem.color + '20', borderColor: rem.charges === 0 ? '#10b981' : rem.color + '40' }}
-                                className={cn(
-                                    "shrink-0 w-[200px] min-h-[4.5rem] p-3 rounded-2xl border flex flex-col justify-center relative overflow-hidden group",
-                                    rem.charges === 0 ? "shadow-[0_0_15px_rgba(16,185,129,0.4)]" : ""
-                                )}
-                            >
+                        reminders.map(rem => {
+                            const status = reminderStatus[rem.id] || 0;
+                            // Visual feedback based on status (0: neutro, 1: verde, 2: vermelho, 3: reset/neutro)
+                            const isSuccess = status === 1;
+                            const isFailure = status === 2;
+                            const isCompleted = rem.charges === 0 && status === 0;
+
+                            return (
+                                <div
+                                    key={rem.id}
+                                    onClick={() => {
+                                        setReminderStatus(prev => ({
+                                            ...prev,
+                                            [rem.id]: ( (prev[rem.id] || 0) + 1 ) % 4
+                                        }));
+                                    }}
+                                    style={{
+                                        backgroundColor: rem.color + '20',
+                                        borderColor: isSuccess || isCompleted ? '#10b981' : isFailure ? '#ef4444' : rem.color + '40'
+                                    }}
+                                    className={cn(
+                                        "shrink-0 w-[200px] min-h-[4.5rem] p-3 rounded-2xl border flex flex-col justify-center relative overflow-hidden group cursor-pointer transition-all duration-300 active:scale-[0.98]",
+                                        (isSuccess || isCompleted) ? "shadow-[0_0_15px_rgba(16,185,129,0.4)]" :
+                                        isFailure ? "shadow-[0_0_15px_rgba(239,68,68,0.4)]" : ""
+                                    )}
+                                >
                                 <div className="absolute top-0 right-0 p-2 opacity-0 group-hover:opacity-100 transition-opacity">
                                     <Trash2 className="w-3 h-3 text-white/50 hover:text-red-400 cursor-pointer" onClick={() => handleDelete(rem.id)} />
                                 </div>
@@ -899,8 +916,9 @@ export function RemindersComponent({ currentDate }: { currentDate: string }) {
                                         <span>{rem.charges}x</span>
                                     </div>
                                 )}
-                            </div>
-                        ))
+                                </div>
+                            );
+                        })
                     )}
                 </div>
             </div>
