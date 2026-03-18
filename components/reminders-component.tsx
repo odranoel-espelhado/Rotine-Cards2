@@ -99,6 +99,8 @@ const NTH_OPTIONS = [
 export function RemindersComponent({ currentDate }: { currentDate: string }) {
     const [isExpanded, setIsExpanded] = useState(true);
     const [reminders, setReminders] = useState<ReminderType[]>([]);
+    // Map to track UI status (0: pending, 1: success, 2: failure, 3: reset)
+    const [reminderStatus, setReminderStatus] = useState<Record<string, number>>({});
     const [allReminders, setAllReminders] = useState<ReminderType[]>([]);
     const [isCreateOpen, setIsCreateOpen] = useState(false);
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -109,6 +111,12 @@ export function RemindersComponent({ currentDate }: { currentDate: string }) {
     const loadReminders = async () => {
         const todayReminders = await getRemindersAction(currentDate);
         setReminders(todayReminders);
+        // Initialize status map for loaded reminders
+        const statusMap: Record<string, number> = {};
+        todayReminders.forEach(r => {
+          statusMap[r.id] = 0; // start as pending
+        });
+        setReminderStatus(statusMap);
     };
 
     const loadAllReminders = async () => {
@@ -119,6 +127,14 @@ export function RemindersComponent({ currentDate }: { currentDate: string }) {
     useEffect(() => {
         loadReminders();
         loadAllReminders();
+        // Initialize status map when reminders load
+        setReminderStatus(prev => {
+          const map: Record<string, number> = {};
+          reminders.forEach(r => {
+            map[r.id] = 0; // default pending
+          });
+          return map;
+        });
     }, [currentDate]);
 
     const form = useForm<z.infer<typeof reminderSchema>>({

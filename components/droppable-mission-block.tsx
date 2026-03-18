@@ -593,65 +593,65 @@ export function DroppableMissionBlock({ block, onDelete, onEdit, pendingBacklogT
 
     return (
         <>
+        <div
+            ref={(node) => {
+                setDroppableRef(node);
+            }}
+            className={cn("relative w-full group mb-4 pl-9 sm:pl-12 transition-opacity", isTimeDragging ? "opacity-50 z-50" : "z-10")}
+        >
+            {/* Drag Handle */}
             <div
-                ref={(node) => {
-                    setDroppableRef(node);
-                }}
-                className={cn("relative w-full group mb-4 pl-12 transition-opacity", isTimeDragging ? "opacity-50 z-50" : "z-10")}
+                onPointerDown={handlePointerDown}
+                className="absolute left-1 top-0 bottom-0 flex items-center justify-center w-8 cursor-ns-resize text-zinc-600 hover:text-white opacity-0 group-hover:opacity-100 transition-opacity z-50 touch-none"
+                title="Segure e arraste o mouse para cima/baixo para rolar o horário infinito"
             >
-                {/* Drag Handle */}
-                <div
-                    onPointerDown={handlePointerDown}
-                    className="absolute left-2 top-0 bottom-0 flex items-center justify-center w-8 cursor-ns-resize text-zinc-600 hover:text-white opacity-0 group-hover:opacity-100 transition-opacity z-50 touch-none"
-                    title="Segure e arraste o mouse para cima/baixo para rolar o horário infinito"
-                >
-                    <GripVertical className="w-4 h-4" />
-                </div>
+                <GripVertical className="w-4 h-4" />
+            </div>
 
-                {/* Time Marker */}
-                <span className={cn(
-                    "text-[10px] font-mono absolute left-2 top-0 mt-3 w-8 text-right pointer-events-none transition-all",
-                    isTimeChanged ? "text-amber-400 font-black scale-110 drop-shadow-[0_0_8px_rgba(251,191,36,0.8)]" : "text-zinc-600 font-medium"
+            {/* Time Marker */}
+            <span className={cn(
+                "text-[10px] font-mono absolute left-1 sm:left-2 top-0 mt-3 w-8 text-right pointer-events-none transition-all",
+                isTimeChanged ? "text-amber-400 font-black scale-110 drop-shadow-[0_0_8px_rgba(251,191,36,0.8)]" : "text-zinc-600 font-medium"
+            )}
+                style={isTimeChanged ? { transform: `translate3d(0, ${visualDeltaY}px, 0)` } : undefined}>
+                {displayTime}
+            </span>
+
+            <div
+                onClick={() => setExpanded(!expanded)}
+                className={cn(
+                    "relative overflow-visible rounded-2xl transition-all duration-300 cursor-pointer", // overflow-visible for shadow
+                    optimisticCompleted ? "bg-[#050506]" : "bg-[var(--block-color)]",
+                    isOver ? "scale-[1.02] ring-1 ring-white/20" : "hover:scale-[1.01]"
                 )}
-                    style={isTimeChanged ? { transform: `translate3d(0, ${visualDeltaY}px, 0)` } : undefined}>
-                    {displayTime}
-                </span>
+                style={{ ...containerStyle, ...borderStyle }}
+            >
+                {/* Current Time Line Indicator */}
+                {currentTimeOffset !== undefined && (
+                    <div
+                        className="absolute left-0 w-full z-30 pointer-events-none flex items-center"
+                        style={{ top: `${(currentTimeOffset / block.totalDuration) * 100}%` }}
+                        id="current-time-line"
+                    >
+                        <div className="w-full h-[2px] bg-blue-500 shadow-[0_0_10px_2px_rgba(59,130,246,0.5)]"></div>
+                        <div className="absolute -left-1.5 w-3 h-3 bg-blue-500 rounded-full shadow-[0_0_10px_2px_rgba(59,130,246,0.5)]"></div>
+                    </div>
+                )}
 
-                <div
-                    onClick={() => setExpanded(!expanded)}
-                    className={cn(
-                        "relative overflow-visible rounded-2xl transition-all duration-300 cursor-pointer", // overflow-visible for shadow
-                        optimisticCompleted ? "bg-[#050506]" : "bg-[var(--block-color)]",
-                        isOver ? "scale-[1.02] ring-1 ring-white/20" : "hover:scale-[1.01]"
-                    )}
-                    style={{ ...containerStyle, ...borderStyle }}
-                >
-                    {/* Current Time Line Indicator */}
-                    {currentTimeOffset !== undefined && (
-                        <div
-                            className="absolute left-0 w-full z-30 pointer-events-none flex items-center"
-                            style={{ top: `${(currentTimeOffset / block.totalDuration) * 100}%` }}
-                            id="current-time-line"
-                        >
-                            <div className="w-full h-[2px] bg-blue-500 shadow-[0_0_10px_2px_rgba(59,130,246,0.5)]"></div>
-                            <div className="absolute -left-1.5 w-3 h-3 bg-blue-500 rounded-full shadow-[0_0_10px_2px_rgba(59,130,246,0.5)]"></div>
-                        </div>
-                    )}
-
-                    <div className="p-4 flex gap-4 relative z-10 h-full">
+                <div className="px-1 py-4 sm:p-4 flex gap-1 sm:gap-4 relative z-10 h-full">
                         {/* Column for Checkbox + Vertical Timeline */}
                         <div className="flex flex-col items-center gap-1 shrink-0">
                             {/* Checkbox */}
                             <div
                                 onClick={handleToggle}
                                 className={cn(
-                                    "h-8 w-8 shrink-0 rounded-[8px] border-2 flex items-center justify-center cursor-pointer transition-all duration-300 z-20",
+                                    "h-6 w-6 sm:h-8 sm:w-8 shrink-0 rounded-[8px] border-2 flex items-center justify-center cursor-pointer transition-all duration-300 z-20",
                                     optimisticCompleted
                                         ? (isPlatinumGlow ? "bg-zinc-200 border-white shadow-[0_0_15px_rgba(212,212,216,0.8)]" : "bg-[#050506] border-[var(--block-color)] shadow-[0_0_15px_var(--block-color)]")
                                         : "bg-transparent border-white/30 hover:bg-white/10"
                                 )}
                             >
-                                {optimisticCompleted && <Check className={cn("h-5 w-5", isPlatinumGlow ? "text-zinc-900 drop-shadow-[0_0_8px_rgba(0,0,0,0.8)]" : "text-white")} strokeWidth={4} />}
+                                {optimisticCompleted && <Check className={cn("h-4 w-4 sm:h-5 sm:w-5", isPlatinumGlow ? "text-zinc-900 drop-shadow-[0_0_8px_rgba(0,0,0,0.8)]" : "text-white")} strokeWidth={4} />}
                             </div>
 
                             {/* Vertical Timeline Removed */}
@@ -748,7 +748,7 @@ export function DroppableMissionBlock({ block, onDelete, onEdit, pendingBacklogT
                                                         {/* Gap Indicator */}
                                                         {sub.gapBefore > 0 && (
                                                             <div className="flex items-center gap-3 py-1 opacity-50 relative group">
-                                                                <div className="w-[30px] text-right pt-[1px]">
+                                                                <div className="w-[24px] text-right pt-[1px]">
                                                                     <span className="text-[9px] font-mono text-white/30 truncate">{sub.gapBefore}m</span>
                                                                 </div>
                                                                 <div className="flex flex-col items-center h-full justify-center">
@@ -763,7 +763,7 @@ export function DroppableMissionBlock({ block, onDelete, onEdit, pendingBacklogT
                                                             </div>
                                                         )}
 
-                                                        <div className={cn("flex items-start gap-1 md:gap-3 group/item relative", sub.isPastEnd && "opacity-60")}>
+                                                        <div className={cn("flex items-start gap-1 sm:gap-2 md:gap-3 group/item relative", sub.isPastEnd && "opacity-60")}>
                                                             {sub.isPastEnd && (
                                                                 <div className="absolute left-[-2px] bottom-0 w-[2px] h-full bg-red-500/50 rounded-full" title="Ultrapassa o horário final do bloco" />
                                                             )}
@@ -779,7 +779,7 @@ export function DroppableMissionBlock({ block, onDelete, onEdit, pendingBacklogT
                                                             </div>
 
                                                             {/* Duration Column */}
-                                                            <div className="w-[30px] text-right pt-[2px]">
+                                                            <div className="w-[24px] sm:w-[30px] text-right pt-[2px]">
                                                                 <span className="text-[10px] font-mono text-white/40 group-hover/item:text-white/60 transition-colors block leading-none" title={sub.pinnedTime ? `Cravado: ${sub.pinnedTime}` : `Automático: ${minsToTime(sub.computedStart)}`}>
                                                                     {sub.duration}m
                                                                 </span>
