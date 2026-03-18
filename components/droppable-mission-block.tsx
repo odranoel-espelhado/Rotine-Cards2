@@ -597,7 +597,7 @@ export function DroppableMissionBlock({ block, onDelete, onEdit, pendingBacklogT
             ref={(node) => {
                 setDroppableRef(node);
             }}
-            className={cn("relative w-full group mb-4 pl-9 sm:pl-12 transition-opacity", isTimeDragging ? "opacity-50 z-50" : "z-10")}
+            className={cn("relative w-full group mb-4 pl-9 sm:pl-12 pr-9 sm:pr-0 transition-opacity", isTimeDragging ? "opacity-50 z-50" : "z-10")}
         >
             {/* Drag Handle */}
             <div
@@ -620,7 +620,7 @@ export function DroppableMissionBlock({ block, onDelete, onEdit, pendingBacklogT
             <div
                 onClick={() => setExpanded(!expanded)}
                 className={cn(
-                    "relative overflow-visible rounded-2xl transition-all duration-300 cursor-pointer", // overflow-visible for shadow
+                    "relative overflow-visible rounded-2xl transition-all duration-300 cursor-pointer mr-[2px] sm:mr-0", // overflow-visible for shadow
                     optimisticCompleted ? "bg-[#050506]" : "bg-[var(--block-color)]",
                     isOver ? "scale-[1.02] ring-1 ring-white/20" : "hover:scale-[1.01]"
                 )}
@@ -638,7 +638,7 @@ export function DroppableMissionBlock({ block, onDelete, onEdit, pendingBacklogT
                     </div>
                 )}
 
-                <div className="px-1 py-4 sm:p-4 flex gap-1 sm:gap-4 relative z-10 h-full">
+                <div className="pl-[7px] pr-1 py-4 sm:p-4 flex gap-1 sm:gap-4 relative z-10 h-full">
                         {/* Column for Checkbox + Vertical Timeline */}
                         <div className="flex flex-col items-center gap-1 shrink-0">
                             {/* Checkbox */}
@@ -727,7 +727,7 @@ export function DroppableMissionBlock({ block, onDelete, onEdit, pendingBacklogT
                                 </div>
 
                                 <div className={cn(
-                                    "flex gap-2 text-[9px] sm:text-[10px] font-bold uppercase tracking-widest transition-colors duration-300 order-2 sm:order-1",
+                                    "hidden sm:flex gap-2 text-[10px] font-bold uppercase tracking-widest transition-colors duration-300 sm:order-1",
                                     optimisticCompleted ? "text-[#3a3a3a]" : "text-white/60"
                                 )}>
                                     <span>{block.totalDuration} MIN</span>
@@ -1032,12 +1032,16 @@ export function DroppableMissionBlock({ block, onDelete, onEdit, pendingBacklogT
                             </button>
                         </div>
                     </div>
-                    {/* No horizontal timeline */}
                 </div>
-            </div >
+                {/* Duration Display for Mobile (Outside Block) */}
+                <div className="sm:hidden absolute right-1 top-1/2 -translate-y-1/2 flex flex-col items-center leading-none text-white/40 font-black">
+                    <span className="text-[14px]">{block.totalDuration}</span>
+                    <span className="text-[8px] mt-0.5 tracking-widest uppercase">Min</span>
+                </div>
+            </div>
 
             {/* Dialogs... (keep existing) */}
-            < Dialog open={addTasksDialogOpen} onOpenChange={setAddTasksDialogOpen} >
+            <Dialog open={addTasksDialogOpen} onOpenChange={setAddTasksDialogOpen}>
                 <DialogContent className="bg-[#050506] border-white/10 text-white sm:max-w-[400px]">
                     <DialogHeader>
                         <div className="flex justify-between items-center pr-8">
