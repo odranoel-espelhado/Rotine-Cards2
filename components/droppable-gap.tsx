@@ -36,7 +36,12 @@ export function DroppableGap({ id, durationMinutes, startTime, onConvertToBlock,
                     id="current-time-line"
                 >
                     <div className="w-full h-[2px] bg-blue-500 shadow-[0_0_10px_2px_rgba(59,130,246,0.5)]"></div>
-                    <div className="absolute -left-1.5 w-3 h-3 bg-blue-500 rounded-full shadow-[0_0_10px_2px_rgba(59,130,246,0.5)]"></div>
+                    <div className="absolute -left-1.5 flex flex-col items-center">
+                        <span className="text-[10px] font-black text-blue-400 absolute -top-4 whitespace-nowrap drop-shadow-[0_0_5px_rgba(96,165,250,0.8)]">
+                            {startTime}
+                        </span>
+                        <div className="w-3 h-3 bg-blue-500 rounded-full shadow-[0_0_10px_2px_rgba(59,130,246,0.5)]"></div>
+                    </div>
                 </div>
             )}
 

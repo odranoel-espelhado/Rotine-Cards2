@@ -154,9 +154,9 @@ export function DroppableMissionBlock({ block, onDelete, onEdit, pendingBacklogT
         dragRef.current.startY = e.clientY;
         dragRef.current.currentY = e.clientY;
 
-        if (dragRef.current.timer) clearInterval(dragRef.current.timer);
+        if (dragRef.current.timer) clearTimeout(dragRef.current.timer as any);
 
-        const tick = () => {
+        const scheduleTick = () => {
             const deltaY = dragRef.current.currentY - dragRef.current.startY;
             setVisualDeltaY(deltaY);
 
@@ -164,10 +164,12 @@ export function DroppableMissionBlock({ block, onDelete, onEdit, pendingBacklogT
             const sign = Math.sign(deltaY);
 
             let velocity = 0; // minutes per tick
-            if (absY > 5) velocity = 1;
-            if (absY > 30) velocity = 5;
-            if (absY > 60) velocity = 10;
-            if (absY > 100) velocity = 30;
+            let delay = 250; // default delay
+
+            if (absY > 5) { velocity = 1; delay = 800; }
+            if (absY > 30) { velocity = 5; delay = 500; }
+            if (absY > 60) { velocity = 10; delay = 250; }
+            if (absY > 100) { velocity = 30; delay = 100; }
 
             if (velocity > 0) {
                 dragRef.current.accumMins += sign * velocity;
@@ -178,16 +180,18 @@ export function DroppableMissionBlock({ block, onDelete, onEdit, pendingBacklogT
                 const newM = Math.floor(boundedMins % 60);
                 setPreviewTime(`${String(newH).padStart(2, '0')}:${String(newM).padStart(2, '0')}`);
             }
+
+            dragRef.current.timer = setTimeout(scheduleTick, delay);
         };
 
-        dragRef.current.timer = setInterval(tick, 250);
+        dragRef.current.timer = setTimeout(scheduleTick, 250);
 
         const onPointerMove = (ev: PointerEvent) => {
             dragRef.current.currentY = ev.clientY;
         };
 
         const onPointerUp = () => {
-            if (dragRef.current.timer) clearInterval(dragRef.current.timer);
+            if (dragRef.current.timer) clearTimeout(dragRef.current.timer as any);
             setIsTimeDragging(false);
             setVisualDeltaY(0);
 
@@ -593,10 +597,9 @@ export function DroppableMissionBlock({ block, onDelete, onEdit, pendingBacklogT
 
             {/* Time Marker */}
             <span className={cn(
-                "text-[10px] font-mono absolute left-1 sm:left-2 top-0 mt-3 w-8 text-right pointer-events-none transition-all",
+                "text-xs font-mono absolute left-1 sm:left-2 top-0 mt-3 w-8 text-right pointer-events-none transition-all",
                 isTimeChanged ? "text-amber-400 font-black scale-110 drop-shadow-[0_0_8px_rgba(251,191,36,0.8)]" : "text-zinc-600 font-medium"
-            )}
-                style={isTimeChanged ? { transform: `translate3d(0, ${visualDeltaY}px, 0)` } : undefined}>
+            )}>
                 {displayTime}
             </span>
 
@@ -617,7 +620,12 @@ export function DroppableMissionBlock({ block, onDelete, onEdit, pendingBacklogT
                         id="current-time-line"
                     >
                         <div className="w-full h-[2px] bg-blue-500 shadow-[0_0_10px_2px_rgba(59,130,246,0.5)]"></div>
-                        <div className="absolute -left-1.5 w-3 h-3 bg-blue-500 rounded-full shadow-[0_0_10px_2px_rgba(59,130,246,0.5)]"></div>
+                        <div className="absolute -left-1.5 flex flex-col items-center">
+                            <span className="text-[10px] font-black text-blue-400 absolute -top-4 whitespace-nowrap drop-shadow-[0_0_5px_rgba(96,165,250,0.8)]">
+                                {minsToTime(currentMinutes || 0)}
+                            </span>
+                            <div className="w-3 h-3 bg-blue-500 rounded-full shadow-[0_0_10px_2px_rgba(59,130,246,0.5)]"></div>
+                        </div>
                     </div>
                 )}
 

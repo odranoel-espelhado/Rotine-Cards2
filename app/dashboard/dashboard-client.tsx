@@ -494,11 +494,51 @@ export default function DashboardClient({
                                     </div>
                                 </div>
                                 <div className="flex-1 overflow-y-auto p-6 relative space-y-4 custom-scrollbar">
-                                    <div className="absolute top-6 left-6 h-full w-[2px] bg-white/5 z-0"></div>
                                     {(() => {
+                                        const isToday = selectedDate === format(new Date(), 'yyyy-MM-dd');
+                                        const timelineStartMins = getMinutes(settings.timelineStart || '08:00');
+                                        const timelineEndMins = getMinutes(settings.timelineEnd || '24:00');
+
+                                        // Global Current Time Indicator for Today
+                                        const GlobalTimeIndicator = () => {
+                                            if (!isToday) return null;
+                                            
+                                            const showGlobal = blocks.length === 0 || currentMinutes < timelineStartMins || currentMinutes > timelineEndMins;
+                                            if (!showGlobal) return null;
+
+                                            let topPos = "0px";
+                                            if (currentMinutes < timelineStartMins) {
+                                                topPos = "-20px";
+                                            } else if (currentMinutes > timelineEndMins) {
+                                                topPos = "100%";
+                                            } else if (blocks.length === 0) {
+                                                const offset = currentMinutes - timelineStartMins;
+                                                const total = timelineEndMins - timelineStartMins;
+                                                const percent = (offset / total) * 100;
+                                                topPos = `calc(60px + ${percent}%)`;
+                                            }
+
+                                            return (
+                                                <div
+                                                    className="absolute left-0 w-full z-40 pointer-events-none flex items-center"
+                                                    style={{ top: topPos }}
+                                                    id="current-time-line-global"
+                                                >
+                                                    <div className="w-full h-[2px] bg-blue-500/50 shadow-[0_0_10px_1px_rgba(59,130,246,0.3)] border-t border-blue-400/20"></div>
+                                                    <div className="absolute -left-1.5 flex flex-col items-center">
+                                                        <span className="text-[10px] font-black text-blue-400 absolute -top-4 whitespace-nowrap drop-shadow-[0_0_5px_rgba(96,165,250,0.8)]">
+                                                            {minutesToTime(currentMinutes)}
+                                                        </span>
+                                                        <div className="w-3 h-3 bg-blue-500 rounded-full shadow-[0_0_10px_2px_rgba(59,130,246,0.5)]"></div>
+                                                    </div>
+                                                </div>
+                                            );
+                                        };
+
                                         if (blocks.length === 0) {
                                             return (
                                                 <>
+                                                    <GlobalTimeIndicator />
                                                     <DroppableBoundary
                                                         id={`boundary-start-${selectedDate}`}
                                                         time={settings.timelineStart || '08:00'}
@@ -519,14 +559,11 @@ export default function DashboardClient({
 
                                         let startBoundaryRendered = false;
                                         let endBoundaryRendered = false;
-                                        const timelineStartMins = getMinutes(settings.timelineStart || '08:00');
-                                        const timelineEndMins = getMinutes(settings.timelineEnd || '24:00');
 
                                         const mapNodes = blocks.map((block, index) => {
                                             const blockStart = getMinutes(block.startTime);
                                             const prevBlock = index > 0 ? blocks[index - 1] : null;
 
-                                            // Gap Logic: Between Blocks
                                             let gapStart = prevBlock ? getMinutes(prevBlock.startTime) + prevBlock.totalDuration : getMinutes(settings.timelineStart || '08:00');
                                             let showGap = false;
                                             let gapDuration = 0;
@@ -537,9 +574,6 @@ export default function DashboardClient({
                                                     gapDuration = blockStart - gapStart;
                                                 }
                                             }
-
-                                            // Current Time Logic
-                                            const isToday = selectedDate === format(new Date(), 'yyyy-MM-dd');
 
                                             let effectiveGapStart = gapStart;
                                             let effectiveGapDuration = gapDuration;
@@ -586,7 +620,6 @@ export default function DashboardClient({
 
                                             nodes.push(
                                                 <div key={block.id}>
-                                                    {/* Gap Indicator */}
                                                     {showGap && gapDuration > 0 && effectiveGapDuration > 0 && (
                                                         <DroppableGap
                                                             id={`gap-${selectedDate}-${minutesToTime(gapStart)}`}
@@ -599,10 +632,9 @@ export default function DashboardClient({
                                                         />
                                                     )}
 
-                                                    {/* Conflict Indicator */}
                                                     {index > 0 && blockStart < gapStart && (
                                                         <div className="relative z-20 -mt-6 mb-2 flex justify-end pr-12 pointer-events-none">
-                                                            <div className="bg-red-500 text-white text-[10px] font-black uppercase px-3 py-1 rounded-b-lg shadow-lg flex items-center gap-2 animate-in slide-in-from-top-2 duration-300">
+                                                            <div className="bg-red-500 text-white text-xs font-black uppercase px-3 py-1 rounded-b-lg shadow-lg flex items-center gap-2 animate-in slide-in-from-top-2 duration-300">
                                                                 <AlertTriangle className="w-3 h-3 text-white" fill="currentColor" />
                                                                 <span>CONFLITO: {gapStart - blockStart} MIN</span>
                                                             </div>
@@ -634,7 +666,6 @@ export default function DashboardClient({
                                         }
 
                                         const finalGapDuration = dayEndMins - finalGapStart;
-                                        const isToday = selectedDate === format(new Date(), 'yyyy-MM-dd');
                                         let finalEffectiveGapStart = finalGapStart;
                                         let finalEffectiveGapDuration = finalGapDuration;
 
@@ -691,6 +722,7 @@ export default function DashboardClient({
 
                                         return (
                                             <>
+                                                <GlobalTimeIndicator />
                                                 {mapNodes}
                                                 {finalNodes}
                                             </>

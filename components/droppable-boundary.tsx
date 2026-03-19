@@ -26,7 +26,7 @@ export function DroppableBoundary({ id, time, label }: DroppableBoundaryProps) {
         >
             {/* Left Label */}
             <span className={cn(
-                "absolute left-0 text-[10px] font-mono font-bold transition-all w-12 text-right pointer-events-none",
+                "absolute left-0 text-xs font-mono font-bold transition-all w-12 text-right pointer-events-none",
                 isOver ? "text-white scale-110 drop-shadow-[0_0_8px_rgba(255,255,255,0.8)]" : "text-zinc-500 group-hover:text-zinc-300"
             )}>
                 {time}
