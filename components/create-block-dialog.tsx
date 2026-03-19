@@ -133,6 +133,7 @@ export function CreateBlockDialog({
     const [filteredSuggestions, setFilteredSuggestions] = useState<{ label: string; icon: string; color: string; value: string; notifications?: number[] | null }[]>([]);
     const [showSuggestions, setShowSuggestions] = useState(false);
     const [monthlyTab, setMonthlyTab] = useState<'weekdays' | 'days'>('weekdays');
+    const [showRecurrence, setShowRecurrence] = useState(false);
 
     const isControlled = controlledOpen !== undefined;
     const open = isControlled ? controlledOpen : internalOpen;
@@ -211,7 +212,7 @@ export function CreateBlockDialog({
     const [showRecurringConfirmation, setShowRecurringConfirmation] = useState(false);
     const [pendingValues, setPendingValues] = useState<z.infer<typeof formSchema> | null>(null);
 
-    async function handleFinalSubmit(updateAll: boolean) {
+    async function handleFinalSubmit(updateMode: 'single' | 'forward' | 'all') {
         if (!pendingValues) return;
         const values = pendingValues;
 
@@ -240,7 +241,7 @@ export function CreateBlockDialog({
         } as any;
 
         if (isEditing && blockToEdit) {
-            res = await updateMissionBlock(blockToEdit.id, payload, updateAll);
+            res = await updateMissionBlock(blockToEdit.id, payload, updateMode as any);
         } else {
             res = await createMissionBlock(payload);
         }
@@ -295,7 +296,7 @@ export function CreateBlockDialog({
 
         let res;
         if (isEditing && blockToEdit) {
-            res = await updateMissionBlock(blockToEdit.id, payload, false);
+            res = await updateMissionBlock(blockToEdit.id, payload, 'single' as any);
         } else {
             res = await createMissionBlock(payload);
         }
@@ -346,6 +347,8 @@ export function CreateBlockDialog({
         { hex: '#6366f1', class: 'bg-indigo-500' }, // New
     ];    // If confirmation is needed, we switch the content
     if (showRecurringConfirmation) {
+        const isComplexRecurrence = blockToEdit?.recurrencePattern === 'custom' || blockToEdit?.recurrencePattern === 'monthly_on';
+
         return (
             <Dialog open={open} onOpenChange={(val) => {
                 if (!val) setShowRecurringConfirmation(false);
@@ -365,21 +368,33 @@ export function CreateBlockDialog({
                         <Button
                             variant="outline"
                             className="border-white/10 hover:bg-white/5 justify-start h-12 text-left font-bold"
-                            onClick={() => handleFinalSubmit(false)}
+                            onClick={() => handleFinalSubmit('single')}
                         >
                             <span className="flex flex-col items-start leading-none gap-1">
-                                <span>Alterar apenas este</span>
-                                <span className="text-[10px] text-zinc-500 font-normal uppercase">Cria uma exceção para hoje</span>
+                                <span>Só esse ({currentDate.split('-').reverse().join('/')})</span>
+                                <span className="text-[10px] text-zinc-500 font-normal uppercase">Cria uma exceção exclusiva para hoje</span>
                             </span>
                         </Button>
 
+                        {isComplexRecurrence && (
+                            <Button
+                                className="justify-start h-12 text-left font-bold bg-violet-500/10 text-violet-500 hover:bg-violet-500/20 border-violet-500/20 border"
+                                onClick={() => handleFinalSubmit('forward')}
+                            >
+                                <span className="flex flex-col items-start leading-none gap-1">
+                                    <span>Só esse na lógica</span>
+                                    <span className="text-[10px] text-violet-300/50 font-normal uppercase">Extrai este dia para uma nova repetição</span>
+                                </span>
+                            </Button>
+                        )}
+
                         <Button
                             className="justify-start h-12 text-left font-bold bg-amber-500/10 text-amber-500 hover:bg-amber-500/20 border-amber-500/20 border"
-                            onClick={() => handleFinalSubmit(true)}
+                            onClick={() => handleFinalSubmit('all')}
                         >
                             <span className="flex flex-col items-start leading-none gap-1">
-                                <span>Alterar {blockToEdit?.recurrencePattern === 'weekdays' ? 'dias de semana' : 'toda a série'}</span>
-                                <span className="text-[10px] text-amber-300/50 font-normal uppercase">Atualiza todas as ocorrências futuras</span>
+                                <span>Todos da lógica</span>
+                                <span className="text-[10px] text-amber-300/50 font-normal uppercase">Atualiza todas as ocorrências originais</span>
                             </span>
                         </Button>
 
@@ -413,8 +428,10 @@ export function CreateBlockDialog({
                         {/* ... form content ... */}
                         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
 
-                            {/* Nome com Autocomplete */}
-                            <FormField
+                            {!isEditing && (
+                                <>
+                                    {/* Nome com Autocomplete */}
+                                    <FormField
                                 control={form.control}
                                 name="title"
                                 render={({ field }) => (
@@ -517,6 +534,8 @@ export function CreateBlockDialog({
                                     </FormItem>
                                 )}
                             />
+                            </>
+                            )}
 
                             {/* Notificações Toggle */}
                             <FormField
@@ -713,63 +732,72 @@ export function CreateBlockDialog({
                             </div>
 
                             {/* ── Repetição ─────────────────────────────── */}
-                            <div className="space-y-3">
-                                <p className="text-[10px] font-black text-zinc-500 uppercase ml-1">Repetição</p>
+                            {!isEditing && (
+                                <div className="space-y-3">
+                                    <p className="text-[10px] font-black text-zinc-500 uppercase ml-1">Repetição</p>
 
-                                {/* Atalhos rápidos – Pills */}
-                                <div className="flex flex-wrap gap-2">
-                                    {[
-                                        { label: "Nunca", value: "none", emoji: "🚫" },
-                                        { label: "Todo dia", value: "daily", emoji: "☀️" },
-                                        { label: "Seg–Sex", value: "workdays", emoji: "💼" },
-                                        { label: "Semanal", value: "weekly", emoji: "📅" },
-                                        { label: "Mensal", value: "monthly", emoji: "🗓️" },
-                                        { label: "Anual", value: "yearly", emoji: "🎯" },
-                                    ].map((opt) => {
-                                        const isActive = form.watch("repeatPattern") === opt.value;
-                                        return (
-                                            <button
-                                                key={opt.value}
-                                                type="button"
-                                                onClick={() => form.setValue("repeatPattern", opt.value as any)}
-                                                className={cn(
-                                                    "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border transition-all duration-200",
-                                                    isActive
-                                                        ? "bg-emerald-500 border-emerald-400 text-black shadow-lg shadow-emerald-500/20 scale-105"
-                                                        : "bg-white/5 border-white/10 text-zinc-400 hover:bg-white/10 hover:text-white hover:border-white/20"
-                                                )}
-                                            >
-                                                <span>{opt.emoji}</span>
-                                                {opt.label}
-                                            </button>
-                                        );
-                                    })}
+                                    {/* Atalhos rápidos – Pills */}
+                                    <div className="flex flex-wrap gap-2">
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                form.setValue("repeatPattern", "none");
+                                                setShowRecurrence(false);
+                                            }}
+                                            className={cn(
+                                                "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border transition-all duration-200",
+                                                form.watch("repeatPattern") === "none"
+                                                    ? "bg-emerald-500 border-emerald-400 text-black shadow-lg shadow-emerald-500/20 scale-105"
+                                                    : "bg-white/5 border-white/10 text-zinc-400 hover:bg-white/10 hover:text-white hover:border-white/20"
+                                            )}
+                                        >
+                                            <span>🚫</span> Nunca
+                                        </button>
+                                        
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowRecurrence(!showRecurrence)}
+                                            className={cn(
+                                                "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border transition-all duration-200",
+                                                (showRecurrence || form.watch("repeatPattern") !== "none")
+                                                    ? "bg-emerald-500 border-emerald-400 text-black shadow-lg shadow-emerald-500/20 scale-105"
+                                                    : "bg-white/5 border-white/10 text-zinc-400 hover:bg-white/10 hover:text-white hover:border-white/20"
+                                            )}
+                                        >
+                                            <span>🔁</span> Recorrência
+                                        </button>
+                                    </div>
 
-                                    {/* Botões extras que expandem sub-painéis */}
-                                    {[
-                                        { label: "Dias específicos", value: "custom", emoji: "📌" },
-                                        { label: "Mensal personalizado", value: "monthly_on", emoji: "🔁" },
-                                        { label: "A cada...", value: "interval", emoji: "⏱️" },
-                                    ].map((opt) => {
-                                        const isActive = form.watch("repeatPattern") === opt.value;
-                                        return (
-                                            <button
-                                                key={opt.value}
-                                                type="button"
-                                                onClick={() => form.setValue("repeatPattern", opt.value as any)}
-                                                className={cn(
-                                                    "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border transition-all duration-200",
-                                                    isActive
-                                                        ? "bg-violet-500 border-violet-400 text-white shadow-lg shadow-violet-500/20 scale-105"
-                                                        : "bg-white/5 border-white/10 text-zinc-400 hover:bg-white/10 hover:text-white hover:border-white/20"
-                                                )}
-                                            >
-                                                <span>{opt.emoji}</span>
-                                                {opt.label}
-                                            </button>
-                                        );
-                                    })}
-                                </div>
+                                    {(showRecurrence || form.watch("repeatPattern") !== "none") && (
+                                    <div className="flex flex-wrap gap-2 pt-1 animate-in fade-in slide-in-from-top-2">
+                                        {[
+                                            { label: "Semanal", value: "weekly", emoji: "📅" },
+                                            { label: "Mensal", value: "monthly", emoji: "🗓️" },
+                                            { label: "Anual", value: "yearly", emoji: "🎯" },
+                                            { label: "Dias específicos", value: "custom", emoji: "📌" },
+                                            { label: "Mensal personalizado", value: "monthly_on", emoji: "🔁" },
+                                            { label: "A cada...", value: "interval", emoji: "⏱️" },
+                                        ].map((opt) => {
+                                            const isActive = form.watch("repeatPattern") === opt.value;
+                                            return (
+                                                <button
+                                                    key={opt.value}
+                                                    type="button"
+                                                    onClick={() => form.setValue("repeatPattern", opt.value as any)}
+                                                    className={cn(
+                                                        "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border transition-all duration-200",
+                                                        isActive
+                                                            ? "bg-emerald-500 border-emerald-400 text-black shadow-lg shadow-emerald-500/20 scale-105"
+                                                            : "bg-white/5 border-white/10 text-zinc-400 hover:bg-white/10 hover:text-white hover:border-white/20"
+                                                    )}
+                                                >
+                                                    <span>{opt.emoji}</span>
+                                                    {opt.label}
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                    )}
 
                                 {/* ── Painel: Dias específicos (custom) ── */}
                                 {form.watch("repeatPattern") === "custom" && (
@@ -1005,6 +1033,7 @@ export function CreateBlockDialog({
                                     </div>
                                 )}
                             </div>
+                            )}
 
                             <div className="pt-2 gap-3 flex flex-col">
                                 <Button type="submit" className="w-full h-16 bg-emerald-600 hover:bg-emerald-500 text-white font-black tracking-widest text-lg rounded-2xl uppercase shadow-xl transition-all hover:scale-[1.02]">

@@ -244,28 +244,11 @@ export function DroppableMissionBlock({ block, onDelete, onEdit, pendingBacklogT
         }
     };
 
-    const handleDelete = async (deleteAll: boolean = false) => {
+    const handleDelete = async (deleteMode: 'single' | 'forward' | 'all' = 'single') => {
         setDeleteDialogOpen(false);
-        // Call onDelete with extra param or handle directly if possible.
-        // Since onDelete prop signature is (id: string) => void, we might need to change the prop or handle it here if we imported the server action.
-        // But onDelete is likely passed from DashboardClient.
-        // Let's assume we need to call the server action directly here OR update the prop signature.
-        // Given the architecture, it's cleaner if we handle it here or if DashboardClient passes a smarter handler.
-        // However, looking at the code, onDelete is passed. Let's look at DashboardClient later.
-        // Actually, we can just call the server action directly here for the specific logic if we want, OR pass a composite ID/flag.
-        // But wait, the previous code called onDelete(block.id).
-
-        // Let's modify this component to import deleteMissionBlock directly for this advanced logic, 
-        // OR assume onDelete handles it. But DashboardClient's handleDelete just calls generic delete.
-        // Let's use the server action directly for the advanced cases to avoid prop drilling complexity changes if possible,
-        // BUT we need to be careful about state updates. revalidatePath handles it.
-
-        // BETTER APPROACH: Call the server action directly here for the deletion logic, 
-        // ignoring the onDelete prop for the actual action, but maybe calling it for optimistic UI if needed.
-        // Actually, let's just stick to the server action.
 
         try {
-            await deleteMissionBlock(block.id, deleteAll);
+            await deleteMissionBlock(block.id, deleteMode);
             toast.success("Bloco removido!");
         } catch (e) {
             toast.error("Erro ao remover.");
@@ -1112,10 +1095,10 @@ export function DroppableMissionBlock({ block, onDelete, onEdit, pendingBacklogT
                 <DialogContent className="bg-[#050506] border-white/10 text-white group-data-[state=open]:animate-in group-data-[state=closed]:animate-out fade-in-0 zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=open]:slide-in-from-left-1/2 duration-200">
                     <DialogHeader>
                         <DialogTitle className="text-xl font-black uppercase text-red-500 italic flex items-center gap-2">
-                            <Trash2 className="w-5 h-5" /> Excluir Recorrência
+                            <Trash2 className="w-5 h-5" /> {isRecurring || block.id.includes("-virtual-") ? "Excluir Recorrência" : "Deletar esse bloco?"}
                         </DialogTitle>
                         <DialogDescription className="text-zinc-400">
-                            Este é um bloco recorrente. Como deseja prosseguir?
+                            {isRecurring || block.id.includes("-virtual-") ? "Este é um bloco recorrente. Como deseja prosseguir?" : "Esta ação deletará o bloco definitivamente."}
                         </DialogDescription>
                     </DialogHeader>
 
@@ -1124,7 +1107,7 @@ export function DroppableMissionBlock({ block, onDelete, onEdit, pendingBacklogT
                             <Button
                                 variant="outline"
                                 className="border-white/10 hover:bg-white/5 justify-start h-12 text-left font-bold"
-                                onClick={() => handleDelete(false)}
+                                onClick={() => handleDelete('single')}
                             >
                                 <span className="flex flex-col items-start leading-none gap-1">
                                     <span>Deletar apenas este</span>
@@ -1132,14 +1115,27 @@ export function DroppableMissionBlock({ block, onDelete, onEdit, pendingBacklogT
                                 </span>
                             </Button>
 
+                            {(block.recurrencePattern === 'custom' || block.recurrencePattern === 'monthly_on') && (
+                                <Button
+                                    variant="outline"
+                                    className="border-white/10 hover:bg-white/5 justify-start h-12 text-left font-bold border-blue-500/30 text-blue-400 hover:text-blue-300 hover:bg-blue-500/10"
+                                    onClick={() => handleDelete('forward')}
+                                >
+                                    <span className="flex flex-col items-start leading-none gap-1">
+                                        <span>Só esse na lógica</span>
+                                        <span className="text-[10px] text-blue-500/50 font-normal uppercase">Desvincula este dia do padrão contínuo</span>
+                                    </span>
+                                </Button>
+                            )}
+
                             <Button
                                 variant="destructive"
                                 className="justify-start h-12 text-left font-bold bg-red-500/10 text-red-500 hover:bg-red-500/20 border-red-500/20 border"
-                                onClick={() => handleDelete(true)}
+                                onClick={() => handleDelete('all')}
                             >
                                 <span className="flex flex-col items-start leading-none gap-1">
-                                    <span>Deletar {block.recurrencePattern === 'weekdays' ? 'dias de semana' : 'toda a série'}</span>
-                                    <span className="text-[10px] text-red-300/50 font-normal uppercase">Remove todas as ocorrências futuras</span>
+                                    <span>Deletar {block.recurrencePattern === 'custom' ? 'dias configurados' : 'toda a lógica'}</span>
+                                    <span className="text-[10px] text-red-300/50 font-normal uppercase">Remove da raiz, limpando todas as ocorrências</span>
                                 </span>
                             </Button>
 
@@ -1148,9 +1144,9 @@ export function DroppableMissionBlock({ block, onDelete, onEdit, pendingBacklogT
                             </Button>
                         </div>
                     ) : (
-                        <DialogFooter className="gap-2 sm:gap-0">
+                        <DialogFooter className="gap-2 sm:gap-0 mt-4">
                             <Button variant="ghost" onClick={() => setDeleteDialogOpen(false)}>Cancelar</Button>
-                            <Button variant="destructive" onClick={() => handleDelete(false)}>Excluir Definitivamente</Button>
+                            <Button variant="destructive" onClick={() => handleDelete('single')}>Deseja deletar esse bloco</Button>
                         </DialogFooter>
                     )}
                 </DialogContent>

@@ -208,7 +208,7 @@ export async function archiveMissionBlock(id: string) {
     }
 }
 
-export async function deleteMissionBlock(id: string, deleteAll: boolean = false) {
+export async function deleteMissionBlock(id: string, deleteMode: 'single' | 'forward' | 'all' = 'single') {
     const { userId } = await auth();
     if (!userId) return { error: "Unauthorized" };
 
@@ -218,63 +218,55 @@ export async function deleteMissionBlock(id: string, deleteAll: boolean = false)
             const [realId, date] = id.split("-virtual-");
             if (!realId || !date) return { error: "Invalid virtual ID" };
 
-            if (deleteAll) {
-                // Advanced Logic: If recurrencePattern is 'weekdays' (Mon-Fri) and we delete "Fridays",
-                // we technically need to remove Friday from the series.
-                // Since we don't have complex patterns, we:
-                // 1. Delete the Master Block (Monday-Friday)
-                // 2. Re-create 'weekly' blocks for the OTHER days (Mon, Tue, Wed, Thu).
-
+            if (deleteMode === 'all') {
+                // Delete the MASTER block completely
+                await db.delete(missionBlocks).where(
+                    and(eq(missionBlocks.id, realId), eq(missionBlocks.userId, userId))
+                );
+            } else if (deleteMode === 'forward') {
                 const [masterBlock] = await db.select().from(missionBlocks)
                     .where(and(eq(missionBlocks.id, realId), eq(missionBlocks.userId, userId)));
 
-                if (masterBlock && masterBlock.recurrencePattern === 'weekdays') {
-                    // It is a Mon-Fri block.
-                    const targetDate = parseISO(date);
-                    const targetDay = targetDate.getDay(); // 0-6
+                if (!masterBlock) return { error: "Master block not found" };
 
-                    // Weekdays are 1, 2, 3, 4, 5.
-                    const daysToKeep = [1, 2, 3, 4, 5].filter(d => d !== targetDay);
+                const targetDate = parseISO(date);
+                let extracted = false;
 
-                    // 1. Delete Master
-                    await db.delete(missionBlocks).where(eq(missionBlocks.id, realId));
+                if (masterBlock.recurrencePattern === 'custom') {
+                    let newWeekdays = Array.isArray(masterBlock.weekdays) ? [...masterBlock.weekdays] : [];
+                    const dayOfWeek = targetDate.getDay();
+                    if (newWeekdays.includes(dayOfWeek)) {
+                        newWeekdays = newWeekdays.filter(d => d !== dayOfWeek);
+                        extracted = true;
 
-                    // 2. Create new blocks for kept days
-                    // We need to calculate a valid 'date' for each new weekly block.
-                    // The 'date' field in master block serves as the anchor.
-                    // We can use the original master block date, adjust it to the specific day of week.
-                    const anchorDate = parseISO(masterBlock.date);
-                    const anchorDay = anchorDate.getDay();
-                    // Align anchor to Monday to make it easy
-                    const mondayDate = addDays(anchorDate, 1 - anchorDay);
-
-                    for (const dayIndex of daysToKeep) {
-                        // Calculate Date for this dayIndex
-                        // Monday + (dayIndex - 1)
-                        const newDate = addDays(mondayDate, dayIndex - 1);
-
-                        await db.insert(missionBlocks).values({
-                            userId: userId,
-                            title: masterBlock.title,
-                            date: format(newDate, 'yyyy-MM-dd'),
-                            startTime: masterBlock.startTime,
-                            totalDuration: masterBlock.totalDuration,
-                            color: masterBlock.color,
-                            icon: masterBlock.icon,
-                            type: 'recurring',
-                            recurrencePattern: 'weekly', // Now it is weekly
-                            status: (masterBlock.completedDates as string[] || []).includes(date) ? 'completed' : 'pending',
-                            subTasks: masterBlock.subTasks,
-                            exceptions: [],
-                        });
+                        if (newWeekdays.length === 0) {
+                            await db.delete(missionBlocks).where(eq(missionBlocks.id, realId));
+                        } else {
+                            await db.update(missionBlocks).set({ weekdays: newWeekdays }).where(eq(missionBlocks.id, realId));
+                        }
                     }
-                } else {
-                    // Normal behavior ('weekly' or default): Delete the MASTER block (removes all occurrences)
+                } else if (masterBlock.recurrencePattern === 'monthly_on') {
+                    let newMonthlyDays = Array.isArray(masterBlock.monthlyDays) ? [...masterBlock.monthlyDays] : [];
+                    const dayOfMonth = targetDate.getDate();
+                    if (newMonthlyDays.includes(dayOfMonth)) {
+                        newMonthlyDays = newMonthlyDays.filter(d => d !== dayOfMonth);
+                        extracted = true;
+
+                        if (newMonthlyDays.length === 0) {
+                            await db.delete(missionBlocks).where(eq(missionBlocks.id, realId));
+                        } else {
+                            await db.update(missionBlocks).set({ monthlyDays: newMonthlyDays }).where(eq(missionBlocks.id, realId));
+                        }
+                    }
+                }
+
+                if (!extracted) {
                     await db.delete(missionBlocks).where(
                         and(eq(missionBlocks.id, realId), eq(missionBlocks.userId, userId))
                     );
                 }
-            } else {
+
+            } else { // 'single'
                 // Default: Exception (Remove only this instance)
                 const [masterBlock] = await db.select().from(missionBlocks)
                     .where(and(eq(missionBlocks.id, realId), eq(missionBlocks.userId, userId)));
@@ -352,7 +344,7 @@ export async function toggleMissionBlock(id: string, status: 'pending' | 'comple
     }
 }
 
-export async function updateMissionBlock(id: string, data: Partial<Omit<NewMissionBlock, "id" | "userId" | "createdAt">>, updateAll: boolean = false) {
+export async function updateMissionBlock(id: string, data: Partial<Omit<NewMissionBlock, "id" | "userId" | "createdAt">>, updateMode: 'single' | 'forward' | 'all' = 'single') {
     const { userId } = await auth();
     if (!userId) return { error: "Unauthorized" };
 
@@ -360,12 +352,79 @@ export async function updateMissionBlock(id: string, data: Partial<Omit<NewMissi
         if (id.includes("-virtual-")) {
             const [realId, date] = id.split("-virtual-");
 
-            if (updateAll) {
+            if (updateMode === 'all') {
                 // Update MASTER block (affects all future instances)
                 await db.update(missionBlocks)
                     .set(data)
                     .where(and(eq(missionBlocks.id, realId), eq(missionBlocks.userId, userId)));
-            } else {
+            } else if (updateMode === 'forward') {
+                const [masterBlock] = await db.select().from(missionBlocks)
+                    .where(and(eq(missionBlocks.id, realId), eq(missionBlocks.userId, userId)));
+
+                if (!masterBlock) return { error: "Master block not found" };
+
+                const targetDate = parseISO(date);
+                let extracted = false;
+
+                if (masterBlock.recurrencePattern === 'custom') {
+                    let newWeekdays = Array.isArray(masterBlock.weekdays) ? [...masterBlock.weekdays] : [];
+                    const dayOfWeek = targetDate.getDay();
+                    if (newWeekdays.includes(dayOfWeek) && newWeekdays.length > 1) {
+                        newWeekdays = newWeekdays.filter(d => d !== dayOfWeek);
+                        extracted = true;
+
+                        await db.insert(missionBlocks).values({
+                            userId: userId,
+                            title: masterBlock.title,
+                            date: date,
+                            startTime: data.startTime || masterBlock.startTime,
+                            totalDuration: data.totalDuration || masterBlock.totalDuration,
+                            color: masterBlock.color,
+                            icon: masterBlock.icon,
+                            type: 'recurring',
+                            recurrencePattern: 'custom',
+                            weekdays: [dayOfWeek],
+                            status: masterBlock.status,
+                            subTasks: data.subTasks || masterBlock.subTasks,
+                            notifications: data.notifications || masterBlock.notifications,
+                            exceptions: [],
+                        });
+                        await db.update(missionBlocks).set({ weekdays: newWeekdays }).where(eq(missionBlocks.id, realId));
+                    }
+                } else if (masterBlock.recurrencePattern === 'monthly_on') {
+                    let newMonthlyDays = Array.isArray(masterBlock.monthlyDays) ? [...masterBlock.monthlyDays] : [];
+                    const dayOfMonth = targetDate.getDate();
+                    if (newMonthlyDays.includes(dayOfMonth) && newMonthlyDays.length > 1) {
+                        newMonthlyDays = newMonthlyDays.filter(d => d !== dayOfMonth);
+                        extracted = true;
+
+                        await db.insert(missionBlocks).values({
+                            userId: userId,
+                            title: masterBlock.title,
+                            date: date,
+                            startTime: data.startTime || masterBlock.startTime,
+                            totalDuration: data.totalDuration || masterBlock.totalDuration,
+                            color: masterBlock.color,
+                            icon: masterBlock.icon,
+                            type: 'recurring',
+                            recurrencePattern: 'monthly_on',
+                            monthlyDays: [dayOfMonth],
+                            status: masterBlock.status,
+                            subTasks: data.subTasks || masterBlock.subTasks,
+                            notifications: data.notifications || masterBlock.notifications,
+                            exceptions: [],
+                        });
+                        await db.update(missionBlocks).set({ monthlyDays: newMonthlyDays }).where(eq(missionBlocks.id, realId));
+                    }
+                }
+
+                if (!extracted) {
+                    await db.update(missionBlocks)
+                        .set(data)
+                        .where(and(eq(missionBlocks.id, realId), eq(missionBlocks.userId, userId)));
+                }
+
+            } else { // 'single'
                 // Fork: Create exception on master + Create new unique block
                 const [masterBlock] = await db.select().from(missionBlocks)
                     .where(and(eq(missionBlocks.id, realId), eq(missionBlocks.userId, userId)));
