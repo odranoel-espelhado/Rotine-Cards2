@@ -13,9 +13,10 @@ interface DroppableGapProps {
     onAddTask: () => void;
     suggestedTask?: BacklogTask;
     isCurrent?: boolean;
+    currentMinutes?: number;
 }
 
-export function DroppableGap({ id, durationMinutes, startTime, onConvertToBlock, onAddTask, suggestedTask, isCurrent }: DroppableGapProps) {
+export function DroppableGap({ id, durationMinutes, startTime, onConvertToBlock, onAddTask, suggestedTask, isCurrent, currentMinutes }: DroppableGapProps) {
     const { isOver, setNodeRef } = useDroppable({
         id,
         data: { type: 'gap', startTime, duration: durationMinutes }
@@ -32,7 +33,18 @@ export function DroppableGap({ id, durationMinutes, startTime, onConvertToBlock,
             {/* Current Time Line Indicator for Gap */}
             {isCurrent && (
                 <div
-                    className="absolute top-0 left-0 w-full z-0 pointer-events-none flex items-center"
+                    className="absolute left-0 w-full z-10 pointer-events-none flex items-center"
+                    style={{
+                        top: currentMinutes !== undefined ? (
+                            (() => {
+                                const [h, m] = startTime.split(':').map(Number);
+                                const gapStartMins = h * 60 + m;
+                                const offset = currentMinutes - gapStartMins;
+                                const percent = Math.max(0, Math.min(100, (offset / durationMinutes) * 100));
+                                return `${percent}%`;
+                            })()
+                        ) : "0%"
+                    }}
                     id="current-time-line"
                 >
                     <div className="w-full h-[2px] bg-blue-500 shadow-[0_0_10px_2px_rgba(59,130,246,0.5)]"></div>

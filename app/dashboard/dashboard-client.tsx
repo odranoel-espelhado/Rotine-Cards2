@@ -502,16 +502,17 @@ export default function DashboardClient({
                                         // Global Current Time Indicator for Today
                                         const GlobalTimeIndicator = () => {
                                             if (!isToday) return null;
+
+                                            // showGlobal if it's NOT inside a block or gap already
+                                            const isInsideAnything = (blocks.length > 0 && currentMinutes >= timelineStartMins && currentMinutes <= timelineEndMins);
+                                            const showGlobal = blocks.length === 0 || !isInsideAnything;
                                             
-                                            const showGlobal = blocks.length === 0 || currentMinutes < timelineStartMins || currentMinutes > timelineEndMins;
                                             if (!showGlobal) return null;
 
                                             let topPos = "0px";
                                             if (currentMinutes < timelineStartMins) {
                                                 topPos = "-20px";
-                                            } else if (currentMinutes > timelineEndMins) {
-                                                topPos = "100%";
-                                            } else if (blocks.length === 0) {
+                                            } else {
                                                 const offset = currentMinutes - timelineStartMins;
                                                 const total = timelineEndMins - timelineStartMins;
                                                 const percent = (offset / total) * 100;
@@ -629,6 +630,7 @@ export default function DashboardClient({
                                                             onConvertToBlock={(t) => handleConvertToBlock(t, selectedDate, minutesToTime(effectiveGapStart))}
                                                             onAddTask={() => setTaskPickerState({ open: true, startTime: minutesToTime(effectiveGapStart), date: selectedDate })}
                                                             isCurrent={isGapCurrent}
+                                                            currentMinutes={currentMinutes}
                                                         />
                                                     )}
 
@@ -705,6 +707,7 @@ export default function DashboardClient({
                                                     onConvertToBlock={(t) => handleConvertToBlock(t, selectedDate, minutesToTime(finalEffectiveGapStart))}
                                                     onAddTask={() => setTaskPickerState({ open: true, startTime: minutesToTime(finalEffectiveGapStart), date: selectedDate })}
                                                     isCurrent={isFinalGapCurrent}
+                                                    currentMinutes={currentMinutes}
                                                 />
                                             );
                                         }
