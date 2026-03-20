@@ -128,9 +128,10 @@ interface MissionBlockProps {
     currentTimeOffset?: number; // Minutes into the block (if current)
     isToday?: boolean;
     currentMinutes?: number;
+    conflictDuration?: number;
 }
 
-export function DroppableMissionBlock({ block, onDelete, onEdit, pendingBacklogTasks = [], height, currentTimeOffset, isToday, currentMinutes }: MissionBlockProps) {
+export function DroppableMissionBlock({ block, onDelete, onEdit, pendingBacklogTasks = [], height, currentTimeOffset, isToday, currentMinutes, conflictDuration }: MissionBlockProps) {
     const { isOver, setNodeRef: setDroppableRef } = useDroppable({
         id: block.id,
         data: { type: 'mission-block', block }
@@ -612,6 +613,13 @@ export function DroppableMissionBlock({ block, onDelete, onEdit, pendingBacklogT
                 )}
                 style={{ ...containerStyle, ...borderStyle }}
             >
+                {/* Glitch Conflict Overlay */}
+                {(conflictDuration || 0) > 0 && (
+                    <div 
+                        className="conflict-glitch-overlay rounded-t-2xl"
+                        style={{ height: `${Math.min(100, ((conflictDuration || 0) / block.totalDuration) * 100)}%` }}
+                    />
+                )}
                 {/* Current Time Line Indicator */}
                 {currentTimeOffset !== undefined && (
                     <div

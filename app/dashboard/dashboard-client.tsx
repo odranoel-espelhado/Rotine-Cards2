@@ -427,10 +427,10 @@ export default function DashboardClient({
                 <main className="flex-1 overflow-y-auto custom-scrollbar p-6 space-y-8 container mx-auto max-w-7xl">
 
                     {/* Top Section: Timeline (Left) & Tasks/Stats (Right) */}
-                    <div className="flex flex-col lg:flex-row w-full gap-[2.5%]">
+                    <div className="flex flex-col lg:flex-row w-full gap-8">
 
-                        {/* LEFT COLUMN: Calendar & Timeline - 55% Width */}
-                        <div className="w-full lg:w-[55%] flex flex-col gap-6">
+                        {/* LEFT COLUMN: Calendar & Timeline - 60% Width on Desktop */}
+                        <div className="w-full lg:w-[60%] flex flex-col gap-6">
                             {/* Day Carousel with Drag-to-Scroll */}
                             <div
                                 ref={daySelectorRef}
@@ -636,7 +636,7 @@ export default function DashboardClient({
 
                                                     {index > 0 && blockStart < gapStart && (
                                                         <div className="relative z-20 -mt-6 mb-2 flex justify-end pr-12 pointer-events-none">
-                                                            <div className="bg-red-500 text-white text-xs font-black uppercase px-3 py-1 rounded-b-lg shadow-lg flex items-center gap-2 animate-in slide-in-from-top-2 duration-300">
+                                                            <div className="cyberpunk-conflict-badge text-xs font-black uppercase px-3 py-1 rounded-b-lg flex items-center gap-2 animate-in slide-in-from-top-2 duration-300">
                                                                 <AlertTriangle className="w-3 h-3 text-white" fill="currentColor" />
                                                                 <span>CONFLITO: {gapStart - blockStart} MIN</span>
                                                             </div>
@@ -652,6 +652,7 @@ export default function DashboardClient({
                                                         currentTimeOffset={blockTimeOffset}
                                                         isToday={isToday}
                                                         currentMinutes={currentMinutes}
+                                                        conflictDuration={index > 0 && blockStart < gapStart ? gapStart - blockStart : 0}
                                                     />
                                                 </div>
                                             );
@@ -739,7 +740,7 @@ export default function DashboardClient({
                         </div>
 
                         {/* RIGHT COLUMN: Tasks (Backlog) & Stats - Remaining Width */}
-                        <div className={cn("flex-1 flex flex-col gap-6", focusMode ? "opacity-10 pointer-events-none blur-sm" : "")}>
+                        <div className={cn("w-full lg:flex-1 flex flex-col gap-6", focusMode ? "opacity-10 pointer-events-none blur-sm" : "")}>
 
 
                             {/* Backlog Section */}
