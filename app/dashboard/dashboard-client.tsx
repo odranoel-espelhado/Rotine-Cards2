@@ -621,6 +621,7 @@ export default function DashboardClient({
 
                                             nodes.push(
                                                 <div key={block.id}>
+                                                    {/* The gap handling remains the same */}
                                                     {showGap && gapDuration > 0 && effectiveGapDuration > 0 && (
                                                         <DroppableGap
                                                             id={`gap-${selectedDate}-${minutesToTime(gapStart)}`}
@@ -634,14 +635,14 @@ export default function DashboardClient({
                                                         />
                                                     )}
 
-                                                    {index > 0 && blockStart < gapStart && (
-                                                        <div className="relative z-20 -mt-6 mb-2 flex justify-end pr-12 pointer-events-none">
-                                                            <div className="cyberpunk-conflict-badge text-xs font-black uppercase px-3 py-1 rounded-b-lg flex items-center gap-2 animate-in slide-in-from-top-2 duration-300">
-                                                                <AlertTriangle className="w-3 h-3 text-white" fill="currentColor" />
-                                                                <span>CONFLITO: {gapStart - blockStart} MIN</span>
-                                                            </div>
-                                                        </div>
-                                                    )}
+                                                    {/* Block wrapper with proportional overlap */}
+                                                    <div 
+                                                        className="relative w-full" 
+                                                        style={{ 
+                                                            marginTop: index > 0 && blockStart < gapStart ? `-${(gapStart - blockStart) * PIXELS_PER_MINUTE}px` : undefined,
+                                                            zIndex: 20 + index 
+                                                        }}
+                                                    >
 
                                                     <DroppableMissionBlock
                                                         block={block}
@@ -654,6 +655,7 @@ export default function DashboardClient({
                                                         currentMinutes={currentMinutes}
                                                         conflictDuration={index > 0 && blockStart < gapStart ? gapStart - blockStart : 0}
                                                     />
+                                                    </div>
                                                 </div>
                                             );
 

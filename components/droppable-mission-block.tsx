@@ -170,19 +170,19 @@ export function DroppableMissionBlock({ block, onDelete, onEdit, pendingBacklogT
             if (absY < 5) {
                 velocity = 0; // Dead zone
             } else if (absY <= 25) {
-                delay = 800; // Surgery-level precision
+                delay = 750; // Surgery-level precision (slightly faster than 800)
             } else if (absY <= 50) {
-                delay = 600;
+                delay = 300; // Much faster
             } else if (absY <= 80) {
-                delay = 400;
+                delay = 150;
             } else if (absY <= 120) {
-                delay = 200;
+                delay = 80;
             } else if (absY <= 180) {
-                delay = 100; // Fast
+                delay = 40;
             } else if (absY <= 250) {
-                delay = 50;  // Ultra fast
+                delay = 20;
             } else {
-                delay = 25;  // Maximum speed (~40 ticks/sec)
+                delay = 10;  // Maximum speed (100 ticks/sec)
             }
 
             if (velocity > 0) {
@@ -626,12 +626,20 @@ export function DroppableMissionBlock({ block, onDelete, onEdit, pendingBacklogT
                 )}
                 style={{ ...containerStyle, ...borderStyle }}
             >
-                {/* Glitch Conflict Overlay */}
+                {/* Cyberpunk Contamination Overlay & Badge */}
                 {(conflictDuration || 0) > 0 && (
-                    <div 
-                        className="conflict-glitch-overlay rounded-t-2xl"
-                        style={{ height: `${Math.min(100, ((conflictDuration || 0) / block.totalDuration) * 100)}%` }}
-                    />
+                    <>
+                        <div 
+                            className="cyber-contamination-zone rounded-t-2xl"
+                            style={{ height: `${Math.min(100, ((conflictDuration || 0) / block.totalDuration) * 100)}%` }}
+                        />
+                        <div className="absolute -top-3 right-4 z-[60] pointer-events-none">
+                            <div className="cyber-conflict-badge-mini text-[9px] font-black uppercase px-2 py-0.5 rounded flex items-center gap-1">
+                                <AlertTriangle className="w-3 h-3" />
+                                CONFLITO: {conflictDuration} M
+                            </div>
+                        </div>
+                    </>
                 )}
                 {/* Current Time Line Indicator */}
                 {currentTimeOffset !== undefined && (

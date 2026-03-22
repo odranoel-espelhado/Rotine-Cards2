@@ -29,7 +29,7 @@ import {
 } from "@/components/ui/select";
 import { createMissionBlock, getUniqueBlockTypes } from "@/lib/actions/mission.actions";
 import { useState, useEffect } from "react";
-import { Plus, Trash2, Clock, Calendar, Zap, Target, Heart, Book, Briefcase, Dumbbell, Coffee, User, Star, Repeat, ArrowUp, ArrowDown } from "lucide-react";
+import { Plus, Trash2, Clock, Calendar, Zap, Target, Heart, Book, Briefcase, Dumbbell, Coffee, User, Star, Repeat, ArrowUp, ArrowDown, Pencil } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -134,6 +134,7 @@ export function CreateBlockDialog({
     const [showSuggestions, setShowSuggestions] = useState(false);
     const [monthlyTab, setMonthlyTab] = useState<'weekdays' | 'days'>('weekdays');
     const [showRecurrence, setShowRecurrence] = useState(false);
+    const [isEditingHeader, setIsEditingHeader] = useState(false);
 
     const isControlled = controlledOpen !== undefined;
     const open = isControlled ? controlledOpen : internalOpen;
@@ -428,7 +429,33 @@ export function CreateBlockDialog({
                         {/* ... form content ... */}
                         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
 
-                            {!isEditing && (
+                            {isEditing && !isEditingHeader && (
+                                <div className="flex items-center justify-between bg-white/5 border border-white/10 p-4 rounded-xl mb-6">
+                                    <div className="flex items-center gap-3">
+                                        <div 
+                                            className="w-10 h-10 rounded-xl flex items-center justify-center text-white" 
+                                            style={{ backgroundColor: form.watch('color') }}
+                                        >
+                                            {(() => {
+                                                const Icon = BLOCK_ICONS.find(i => i.name === form.watch('icon'))?.icon || Zap;
+                                                return <Icon className="w-5 h-5" />;
+                                            })()}
+                                        </div>
+                                        <span className="text-xl font-black text-white">{form.watch('title')}</span>
+                                    </div>
+                                    <Button 
+                                        type="button" 
+                                        variant="ghost" 
+                                        size="icon" 
+                                        onClick={() => setIsEditingHeader(true)} 
+                                        className="text-zinc-400 hover:text-white hover:bg-white/10"
+                                    >
+                                        <Pencil className="w-5 h-5" />
+                                    </Button>
+                                </div>
+                            )}
+
+                            {(!isEditing || isEditingHeader) && (
                                 <>
                                     {/* Nome com Autocomplete */}
                                     <FormField
@@ -756,27 +783,56 @@ export function CreateBlockDialog({
                                         
                                         <button
                                             type="button"
-                                            onClick={() => setShowRecurrence(!showRecurrence)}
+                                            onClick={() => {
+                                                setShowRecurrence(true);
+                                                if (!["weekly", "monthly", "yearly"].includes(form.watch("repeatPattern") as string)) {
+                                                    form.setValue("repeatPattern", "weekly");
+                                                }
+                                            }}
                                             className={cn(
                                                 "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border transition-all duration-200",
-                                                (showRecurrence || form.watch("repeatPattern") !== "none")
+                                                (showRecurrence && ["weekly", "monthly", "yearly"].includes(form.watch("repeatPattern") as string))
                                                     ? "bg-emerald-500 border-emerald-400 text-black shadow-lg shadow-emerald-500/20 scale-105"
                                                     : "bg-white/5 border-white/10 text-zinc-400 hover:bg-white/10 hover:text-white hover:border-white/20"
                                             )}
                                         >
                                             <span>🔁</span> Recorrência
                                         </button>
+
+                                        {[
+                                            { label: "Dias específicos", value: "custom", emoji: "📌" },
+                                            { label: "Mensal (+)", value: "monthly_on", emoji: "🔁" },
+                                            { label: "A cada...", value: "interval", emoji: "⏱️" },
+                                        ].map((opt) => {
+                                            const isActive = form.watch("repeatPattern") === opt.value;
+                                            return (
+                                                <button
+                                                    key={opt.value}
+                                                    type="button"
+                                                    onClick={() => {
+                                                        form.setValue("repeatPattern", opt.value as any);
+                                                        setShowRecurrence(false);
+                                                    }}
+                                                    className={cn(
+                                                        "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border transition-all duration-200",
+                                                        isActive
+                                                            ? "bg-emerald-500 border-emerald-400 text-black shadow-lg shadow-emerald-500/20 scale-105"
+                                                            : "bg-white/5 border-white/10 text-zinc-400 hover:bg-white/10 hover:text-white hover:border-white/20"
+                                                    )}
+                                                >
+                                                    <span>{opt.emoji}</span>
+                                                    {opt.label}
+                                                </button>
+                                            );
+                                        })}
                                     </div>
 
-                                    {(showRecurrence || form.watch("repeatPattern") !== "none") && (
+                                    {showRecurrence && ["weekly", "monthly", "yearly"].includes(form.watch("repeatPattern") as string) && (
                                     <div className="flex flex-wrap gap-2 pt-1 animate-in fade-in slide-in-from-top-2">
                                         {[
                                             { label: "Semanal", value: "weekly", emoji: "📅" },
                                             { label: "Mensal", value: "monthly", emoji: "🗓️" },
                                             { label: "Anual", value: "yearly", emoji: "🎯" },
-                                            { label: "Dias específicos", value: "custom", emoji: "📌" },
-                                            { label: "Mensal personalizado", value: "monthly_on", emoji: "🔁" },
-                                            { label: "A cada...", value: "interval", emoji: "⏱️" },
                                         ].map((opt) => {
                                             const isActive = form.watch("repeatPattern") === opt.value;
                                             return (
