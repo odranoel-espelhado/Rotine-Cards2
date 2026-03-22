@@ -28,6 +28,7 @@ import { SettingsDialog } from "@/components/settings-dialog";
 import { TaskPickerDialog } from "@/components/task-picker-dialog";
 import { DroppableBoundary } from "@/components/droppable-boundary";
 import { RemindersComponent } from "@/components/reminders-component";
+import { useActionQueue } from "@/components/providers/action-queue-provider";
 
 // Helper for Suggestions
 function getBestSuggestion(tasks: BacklogTask[], maxDuration: number, mode: 'block' | 'gap', blockType?: string): BacklogTask | undefined {
@@ -151,7 +152,13 @@ export default function DashboardClient({
 }) {
     const router = useRouter();
     const [selectedDate, setSelectedDate] = useState<string>(currentDate);
-    const blocks = initialBlocks; // In a real app with optimization, might use optmistic updates
+    
+    const { enqueue, deleteQueue, editQueue } = useActionQueue();
+
+    // Apply Optimistic Queue to initial blocks
+    const blocks = initialBlocks
+        .filter(b => !deleteQueue.has(b.id))
+        .map(b => editQueue[b.id] ? { ...b, ...editQueue[b.id] } : b);
 
 
     // Time Tracking for Timeline
@@ -220,9 +227,11 @@ export default function DashboardClient({
     };
 
     const handleDelete = async (id: string) => {
-        if (confirm("Deletar bloco?")) {
-            await deleteMissionBlock(id);
-        }
+        // Enfileira a deleção para ocorrer após 5s, permitindo desfazer.
+        enqueue("DELETE_BLOCK", id, null, async () => {
+            const res = await deleteMissionBlock(id);
+            return res as any;
+        });
     }
 
 

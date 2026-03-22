@@ -9,6 +9,26 @@ import { revalidatePath } from "next/cache";
 export type BacklogTask = typeof backlogTasks.$inferSelect;
 export type NewBacklogTask = typeof backlogTasks.$inferInsert;
 
+export interface SubTask {
+    id?: string | null;
+    title: string;
+    description?: string | null;
+    duration: number | string;
+    done: boolean;
+    isFixed?: boolean | null;
+    isFromTask?: boolean | null;
+    isVirtual?: boolean | null;
+    originalTaskId?: string | null;
+    originalSubTaskIndex?: number | null;
+    originalPriority?: string | null;
+    originalLinkedBlockType?: string | null;
+    originalColor?: string | null;
+    deadline?: string | null;
+    notifications?: number[] | null;
+    suggestible?: boolean | null;
+    subTasks?: SubTask[] | null;
+}
+
 export async function getBacklogTasks() {
     const { userId } = await auth();
     if (!userId) return [];
@@ -59,7 +79,6 @@ export async function updateBacklogTask(id: string, data: Partial<Omit<NewBacklo
     if (!userId) return { error: "Unauthorized" };
 
     try {
-        console.log("updateBacklogTask payload:", data);
         await db.update(backlogTasks)
             .set({
                 title: data.title,
@@ -88,7 +107,7 @@ export async function deleteBacklogTask(id: string) {
     if (!userId) return { error: "Unauthorized" };
 
     try {
-        await db.delete(backlogTasks).where(eq(backlogTasks.id, id));
+        await db.delete(backlogTasks).where(and(eq(backlogTasks.id, id), eq(backlogTasks.userId, userId)));
         revalidatePath("/dashboard");
         return { success: true };
     } catch (error) {
@@ -119,8 +138,8 @@ export async function moveTaskToBlock(taskId: string, blockId: string) {
         if (!block) return { error: "Block not found" };
 
         // 3. Add to block subtasks
-        const currentSubtasks = (block.subTasks as any[]) || [];
-        const newSubtask = {
+        const currentSubtasks = (block.subTasks as SubTask[]) || [];
+        const newSubtask: SubTask = {
             id: task.id,
             title: task.title,
             duration: task.estimatedDuration || 30,
@@ -132,15 +151,17 @@ export async function moveTaskToBlock(taskId: string, blockId: string) {
             deadline: task.deadline,
             description: task.description,
             notifications: task.notifications,
-            subTasks: task.subTasks || []
+            subTasks: (task.subTasks as SubTask[]) || []
         };
 
-        await db.update(missionBlocks)
-            .set({ subTasks: [...currentSubtasks, newSubtask] })
-            .where(eq(missionBlocks.id, blockId));
+        await db.transaction(async (tx) => {
+            await tx.update(missionBlocks)
+                .set({ subTasks: [...currentSubtasks, newSubtask] })
+                .where(eq(missionBlocks.id, blockId));
 
-        // 4. Update task status (or delete it from backlog? For now mark as completed/moved)
-        await db.delete(backlogTasks).where(eq(backlogTasks.id, taskId));
+            await tx.delete(backlogTasks)
+                .where(eq(backlogTasks.id, taskId));
+        });
 
         revalidatePath("/dashboard");
         return { success: true };
@@ -160,7 +181,7 @@ export async function toggleBacklogSubTask(taskId: string, subTaskIndex: number,
 
         if (!task) return { error: "Task not found" };
 
-        const currentSubtasks = (task.subTasks as any[]) || [];
+        const currentSubtasks = (task.subTasks as SubTask[]) || [];
         if (subTaskIndex < 0 || subTaskIndex >= currentSubtasks.length) return { error: "Subtask not found" };
 
         const newSubtasks = [...currentSubtasks];

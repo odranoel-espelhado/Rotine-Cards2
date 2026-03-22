@@ -14,6 +14,70 @@ import { matchesRepeatPattern } from "@/lib/utils";
 export type MissionBlock = typeof missionBlocks.$inferSelect;
 export type NewMissionBlock = typeof missionBlocks.$inferInsert;
 
+export interface SubTask {
+    id?: string | null;
+    title: string;
+    description?: string | null;
+    duration: number | string;
+    done: boolean;
+    isFixed?: boolean | null;
+    isFromTask?: boolean | null;
+    isVirtual?: boolean | null;
+    originalTaskId?: string | null;
+    originalSubTaskIndex?: number | null;
+    originalPriority?: string | null;
+    originalLinkedBlockType?: string | null;
+    originalColor?: string | null;
+    deadline?: string | null;
+    notifications?: number[] | null;
+    suggestible?: boolean | null;
+    subTasks?: SubTask[] | null;
+}
+
+/**
+ * Internal helper to handle the forking logic of a virtual block instance into a real unique block.
+ * Returns the UUID of the newly created block.
+ */
+async function forkVirtualBlock(tx: any, virtualId: string, userId: string): Promise<string> {
+    const [realId, date] = virtualId.split("-virtual-");
+    const [masterBlock] = await tx.select().from(missionBlocks)
+        .where(and(eq(missionBlocks.id, realId), eq(missionBlocks.userId, userId)));
+
+    if (!masterBlock) throw new Error("Master block not found");
+
+    // 1. Add exception to master block
+    const currentExceptions = (masterBlock.exceptions as string[]) || [];
+    if (!currentExceptions.includes(date)) {
+        await tx.update(missionBlocks)
+            .set({ exceptions: [...currentExceptions, date] })
+            .where(eq(missionBlocks.id, realId));
+    }
+
+    // 2. Clone to a new unique block
+    const isCompleted = (masterBlock.completedDates as string[] || []).includes(date);
+    const [newBlock] = await tx.insert(missionBlocks).values({
+        userId,
+        title: masterBlock.title,
+        date: date,
+        startTime: masterBlock.startTime,
+        totalDuration: masterBlock.totalDuration,
+        color: masterBlock.color,
+        icon: masterBlock.icon,
+        type: 'unique',
+        recurrencePattern: masterBlock.recurrencePattern,
+        status: isCompleted ? 'completed' : 'pending',
+        subTasks: masterBlock.subTasks,
+        description: masterBlock.description,
+        priority: masterBlock.priority,
+        deadline: masterBlock.deadline,
+        notifications: masterBlock.notifications,
+        linkedBlockType: masterBlock.linkedBlockType,
+        exceptions: [],
+    }).returning();
+
+    return newBlock.id;
+}
+
 export async function getMissionBlocks(date: string) {
     const { userId } = await auth();
     if (!userId) return [];
@@ -55,8 +119,8 @@ export async function getMissionBlocks(date: string) {
             if (matchesRepeatPattern(patternObj, date)) {
                 const isCompleted = (rBlock.completedDates as string[] || []).includes(date);
                 const subTasks = isCompleted
-                    ? (rBlock.subTasks as any[] || []).map(t => ({ ...t, done: true }))
-                    : rBlock.subTasks;
+                    ? (rBlock.subTasks as SubTask[] || []).map(t => ({ ...t, done: true }))
+                    : rBlock.subTasks as SubTask[];
 
                 virtualBlocks.push({
                     ...rBlock,
@@ -171,34 +235,45 @@ export async function archiveMissionBlock(id: string) {
     if (!userId) return { error: "Unauthorized" };
 
     try {
+        let targetId = id;
+        
+        // Support virtual blocks
+        if (id.includes("-virtual-")) {
+            await db.transaction(async (tx) => {
+                targetId = await forkVirtualBlock(tx, id, userId);
+            });
+        }
+
         // Fetch the block
-        const [block] = await db.select().from(missionBlocks).where(and(eq(missionBlocks.id, id), eq(missionBlocks.userId, userId)));
+        const [block] = await db.select().from(missionBlocks).where(and(eq(missionBlocks.id, targetId), eq(missionBlocks.userId, userId)));
         if (!block) return { error: "Bloco não encontrado" };
 
-        const currentSubtasks = (block.subTasks as any[]) || [];
+        const currentSubtasks = (block.subTasks as SubTask[]) || [];
         const isFromTask = currentSubtasks.some(s => s.isFromTask || s.originalTaskId);
-        const notificationsToRestore = currentSubtasks.find(s => s.notifications !== undefined)?.notifications;
-        const suggestibleToRestore = currentSubtasks.find(s => s.suggestible !== undefined)?.suggestible ?? true;
+        const notificationsToRestore = (currentSubtasks as SubTask[]).find(s => s.notifications !== undefined)?.notifications;
+        const suggestibleToRestore = (currentSubtasks as SubTask[]).find(s => s.suggestible !== undefined)?.suggestible ?? true;
 
-        // Create backlog task from the entire block
-        await db.insert(backlogTasks).values({
-            userId,
-            title: block.title,
-            estimatedDuration: block.totalDuration,
-            status: 'pending',
-            createdAt: new Date(),
-            color: block.color,
-            description: block.description,
-            priority: block.priority || 'media',
-            deadline: block.deadline,
-            notifications: notificationsToRestore,
-            suggestible: suggestibleToRestore,
-            subTasks: block.subTasks || [],
-            linkedBlockType: isFromTask ? block.linkedBlockType : (block.linkedBlockType || (block.title !== 'Geral' ? block.title : undefined)),
+        await db.transaction(async (tx) => {
+            // Create backlog task from the entire block
+            await tx.insert(backlogTasks).values({
+                userId,
+                title: block.title,
+                estimatedDuration: block.totalDuration,
+                status: 'pending',
+                createdAt: new Date(),
+                color: block.color,
+                description: block.description,
+                priority: block.priority || 'media',
+                deadline: block.deadline,
+                notifications: notificationsToRestore,
+                suggestible: suggestibleToRestore,
+                subTasks: block.subTasks || [],
+                linkedBlockType: isFromTask ? block.linkedBlockType : (block.linkedBlockType || (block.title !== 'Geral' ? block.title : undefined)),
+            });
+
+            // Delete the block
+            await tx.delete(missionBlocks).where(eq(missionBlocks.id, id));
         });
-
-        // Delete the block
-        await db.delete(missionBlocks).where(eq(missionBlocks.id, id));
 
         revalidatePath("/dashboard");
         return { success: true };
@@ -325,7 +400,7 @@ export async function toggleMissionBlock(id: string, status: 'pending' | 'comple
                 .where(and(eq(missionBlocks.id, id), eq(missionBlocks.userId, userId)));
 
             if (currentBlock) {
-                const updatedSubtasks = (currentBlock.subTasks as any[]).map(t => ({
+                const updatedSubtasks = (currentBlock.subTasks as SubTask[]).map(t => ({
                     ...t,
                     done: status === 'completed'
                 }));
@@ -373,23 +448,25 @@ export async function updateMissionBlock(id: string, data: Partial<Omit<NewMissi
                         newWeekdays = newWeekdays.filter(d => d !== dayOfWeek);
                         extracted = true;
 
-                        await db.insert(missionBlocks).values({
-                            userId: userId,
-                            title: masterBlock.title,
-                            date: date,
-                            startTime: data.startTime || masterBlock.startTime,
-                            totalDuration: data.totalDuration || masterBlock.totalDuration,
-                            color: masterBlock.color,
-                            icon: masterBlock.icon,
-                            type: 'recurring',
-                            recurrencePattern: 'custom',
-                            weekdays: [dayOfWeek],
-                            status: masterBlock.status,
-                            subTasks: data.subTasks || masterBlock.subTasks,
-                            notifications: data.notifications || masterBlock.notifications,
-                            exceptions: [],
+                        await db.transaction(async (tx) => {
+                            await tx.insert(missionBlocks).values({
+                                userId: userId,
+                                title: masterBlock.title,
+                                date: date,
+                                startTime: data.startTime || masterBlock.startTime,
+                                totalDuration: data.totalDuration || masterBlock.totalDuration,
+                                color: masterBlock.color,
+                                icon: masterBlock.icon,
+                                type: 'recurring',
+                                recurrencePattern: 'custom',
+                                weekdays: [dayOfWeek],
+                                status: masterBlock.status,
+                                subTasks: data.subTasks || masterBlock.subTasks,
+                                notifications: data.notifications || masterBlock.notifications,
+                                exceptions: [],
+                            });
+                            await tx.update(missionBlocks).set({ weekdays: newWeekdays }).where(eq(missionBlocks.id, realId));
                         });
-                        await db.update(missionBlocks).set({ weekdays: newWeekdays }).where(eq(missionBlocks.id, realId));
                     }
                 } else if (masterBlock.recurrencePattern === 'monthly_on') {
                     let newMonthlyDays = Array.isArray(masterBlock.monthlyDays) ? [...masterBlock.monthlyDays] : [];
@@ -398,23 +475,25 @@ export async function updateMissionBlock(id: string, data: Partial<Omit<NewMissi
                         newMonthlyDays = newMonthlyDays.filter(d => d !== dayOfMonth);
                         extracted = true;
 
-                        await db.insert(missionBlocks).values({
-                            userId: userId,
-                            title: masterBlock.title,
-                            date: date,
-                            startTime: data.startTime || masterBlock.startTime,
-                            totalDuration: data.totalDuration || masterBlock.totalDuration,
-                            color: masterBlock.color,
-                            icon: masterBlock.icon,
-                            type: 'recurring',
-                            recurrencePattern: 'monthly_on',
-                            monthlyDays: [dayOfMonth],
-                            status: masterBlock.status,
-                            subTasks: data.subTasks || masterBlock.subTasks,
-                            notifications: data.notifications || masterBlock.notifications,
-                            exceptions: [],
+                        await db.transaction(async (tx) => {
+                            await tx.insert(missionBlocks).values({
+                                userId: userId,
+                                title: masterBlock.title,
+                                date: date,
+                                startTime: data.startTime || masterBlock.startTime,
+                                totalDuration: data.totalDuration || masterBlock.totalDuration,
+                                color: masterBlock.color,
+                                icon: masterBlock.icon,
+                                type: 'recurring',
+                                recurrencePattern: 'monthly_on',
+                                monthlyDays: [dayOfMonth],
+                                status: masterBlock.status,
+                                subTasks: data.subTasks || masterBlock.subTasks,
+                                notifications: data.notifications || masterBlock.notifications,
+                                exceptions: [],
+                            });
+                            await tx.update(missionBlocks).set({ monthlyDays: newMonthlyDays }).where(eq(missionBlocks.id, realId));
                         });
-                        await db.update(missionBlocks).set({ monthlyDays: newMonthlyDays }).where(eq(missionBlocks.id, realId));
                     }
                 }
 
@@ -425,37 +504,8 @@ export async function updateMissionBlock(id: string, data: Partial<Omit<NewMissi
                 }
 
             } else { // 'single'
-                // Fork: Create exception on master + Create new unique block
-                const [masterBlock] = await db.select().from(missionBlocks)
-                    .where(and(eq(missionBlocks.id, realId), eq(missionBlocks.userId, userId)));
-
-                if (!masterBlock) return { error: "Master block not found" };
-
-                // 1. Add Exception
-                const currentExceptions = (masterBlock.exceptions as string[]) || [];
-                if (!currentExceptions.includes(date)) {
-                    await db.update(missionBlocks)
-                        .set({ exceptions: [...currentExceptions, date] })
-                        .where(eq(missionBlocks.id, realId));
-                }
-
-                // 2. Create Unique Block (Clone + Update)
-                const isCompleted = (masterBlock.completedDates as string[] || []).includes(date);
-                const defaultStatus = isCompleted ? 'completed' : 'pending';
-
-                await db.insert(missionBlocks).values({
-                    userId: userId,
-                    title: data.title || masterBlock.title,
-                    date: date,
-                    startTime: data.startTime || masterBlock.startTime,
-                    totalDuration: data.totalDuration || masterBlock.totalDuration,
-                    color: data.color || masterBlock.color,
-                    icon: data.icon || masterBlock.icon,
-                    type: 'unique',
-                    recurrencePattern: masterBlock.recurrencePattern,
-                    status: (data.status as any) || defaultStatus,
-                    subTasks: data.subTasks || masterBlock.subTasks,
-                    exceptions: [],
+                await db.transaction(async (tx) => {
+                    id = await forkVirtualBlock(tx, id, userId);
                 });
             }
 
@@ -483,42 +533,9 @@ export async function assignTasksToBlock(blockId: string, tasksToAssign: any[]) 
 
         // Helper to fork if virtual
         if (blockId.includes("-virtual-")) {
-            const [realId, date] = blockId.split("-virtual-");
-            const [masterBlock] = await db.select().from(missionBlocks)
-                .where(and(eq(missionBlocks.id, realId), eq(missionBlocks.userId, userId)));
-
-            if (!masterBlock) return { error: "Master block not found" };
-
-            // 1. Add Exception
-            const currentExceptions = (masterBlock.exceptions as string[]) || [];
-            if (!currentExceptions.includes(date)) {
-                await db.update(missionBlocks)
-                    .set({ exceptions: [...currentExceptions, date] })
-                    .where(eq(missionBlocks.id, realId));
-            }
-
-            // 2. Create Unique Block (Clone)
-            const [newBlock] = await db.insert(missionBlocks).values({
-                userId: userId,
-                title: masterBlock.title,
-                date: date,
-                startTime: masterBlock.startTime,
-                totalDuration: masterBlock.totalDuration,
-                color: masterBlock.color,
-                icon: masterBlock.icon,
-                type: 'unique',
-                recurrencePattern: masterBlock.recurrencePattern,
-                status: (masterBlock.completedDates as string[] || []).includes(date) ? 'completed' : 'pending',
-                subTasks: masterBlock.subTasks,
-                description: masterBlock.description,
-                priority: masterBlock.priority,
-                deadline: masterBlock.deadline,
-                notifications: masterBlock.notifications,
-                linkedBlockType: masterBlock.linkedBlockType,
-                exceptions: [],
-            }).returning();
-
-            targetBlockId = newBlock.id;
+            await db.transaction(async (tx) => {
+                targetBlockId = await forkVirtualBlock(tx, blockId, userId);
+            });
         }
 
         const [block] = await db.select().from(missionBlocks)
@@ -526,8 +543,8 @@ export async function assignTasksToBlock(blockId: string, tasksToAssign: any[]) 
 
         if (!block) return { error: "Bloco não encontrado" };
 
-        const currentSubtasks = (block.subTasks as any[]) || [];
-        const newSubtasks = tasksToAssign.map(t => ({
+        const currentSubtasks = (block.subTasks as SubTask[]) || [];
+        const newSubtasks: SubTask[] = tasksToAssign.map(t => ({
             title: t.title,
             description: t.description,
             duration: t.estimatedDuration || 15,
@@ -550,21 +567,23 @@ export async function assignTasksToBlock(blockId: string, tasksToAssign: any[]) 
 
         const updatedSubtasks = [...currentSubtasks, ...newSubtasks];
 
-        await db.update(missionBlocks)
-            .set({ subTasks: updatedSubtasks })
-            .where(eq(missionBlocks.id, targetBlockId));
+        await db.transaction(async (tx) => {
+            await tx.update(missionBlocks)
+                .set({ subTasks: updatedSubtasks })
+                .where(eq(missionBlocks.id, targetBlockId));
 
-        // Only delete REAL tasks, not virtual subtasks
-        const taskIds = tasksToAssign.filter(t => !t.isVirtual).map(t => t.id);
-        if (taskIds.length > 0) {
-            await db.delete(backlogTasks)
-                .where(
-                    and(
-                        eq(backlogTasks.userId, userId),
-                        inArray(backlogTasks.id, taskIds)
-                    )
-                );
-        }
+            // Only delete REAL tasks, not virtual subtasks
+            const taskIds = tasksToAssign.filter(t => !t.isVirtual).map(t => t.id);
+            if (taskIds.length > 0) {
+                await tx.delete(backlogTasks)
+                    .where(
+                        and(
+                            eq(backlogTasks.userId, userId),
+                            inArray(backlogTasks.id, taskIds)
+                        )
+                    );
+            }
+        });
 
         revalidatePath("/dashboard");
         return { success: true };
@@ -598,12 +617,12 @@ export async function getUniqueBlockTypes() {
 
         for (const block of blocks) {
             // Check if this block was explicitly created (not converted from a task)
-            const subTasksArr = Array.isArray(block.subTasks) ? block.subTasks : [];
+            const subTasksArr = Array.isArray(block.subTasks) ? block.subTasks as SubTask[] : [];
             let isExplicit = true;
 
             if (block.type !== 'recurring' && subTasksArr.length > 0) {
                 // If the block has any subtask originating from a task, it's a task-block.
-                if (subTasksArr.some((s: any) => s.isFromTask === true)) {
+                if (subTasksArr.some((s: SubTask) => s.isFromTask === true)) {
                     isExplicit = false;
                 }
             }
@@ -637,8 +656,10 @@ export async function deleteAllUserData() {
     if (!userId) return { error: "Unauthorized" };
 
     try {
-        await db.delete(missionBlocks).where(eq(missionBlocks.userId, userId));
-        await db.delete(backlogTasks).where(eq(backlogTasks.userId, userId));
+        await db.transaction(async (tx) => {
+            await tx.delete(missionBlocks).where(eq(missionBlocks.userId, userId));
+            await tx.delete(backlogTasks).where(eq(backlogTasks.userId, userId));
+        });
         revalidatePath("/dashboard");
         return { success: true };
     } catch (error: any) {
@@ -668,13 +689,13 @@ export async function convertTaskToBlock(taskId: string, date: string, startTime
 
         let blockTitle = task.title;
         let blockDuration = task.estimatedDuration || 30;
-        let subTasksForBlock: any[] = [{ title: task.title, duration: blockDuration, done: false, isFromTask: true }];
+        let subTasksForBlock: SubTask[] = [{ title: task.title, duration: blockDuration, done: false, isFromTask: true }];
 
         if (isVirtual && subTaskIndex !== -1 && task.subTasks) {
-            const sub = (task.subTasks as any[])[subTaskIndex];
+            const sub = (task.subTasks as SubTask[])[subTaskIndex];
             if (sub) {
                 blockTitle = `${sub.title} - ${task.title}`;
-                blockDuration = parseInt(sub.duration) || 15;
+                blockDuration = parseInt(sub.duration as string) || 15;
                 subTasksForBlock = [{
                     title: blockTitle,
                     duration: blockDuration,
@@ -682,24 +703,24 @@ export async function convertTaskToBlock(taskId: string, date: string, startTime
                     isFixed: true,
                     isFromTask: true,
                     isVirtual: true,
-                    notifications: task.notifications,
-                    suggestible: task.suggestible,
+                    notifications: task.notifications || [],
+                    suggestible: task.suggestible || true,
                     originalTaskId: realTaskId,
                     originalSubTaskIndex: subTaskIndex
                 }];
             }
         } else {
             if (task.subTasks && Array.isArray(task.subTasks) && task.subTasks.length > 0) {
-                subTasksForBlock = (task.subTasks as any[]).map(s => ({
+                subTasksForBlock = (task.subTasks as SubTask[]).map(s => ({
                     ...s,
                     isFixed: true,
                     isFromTask: true,
-                    notifications: task.notifications,
-                    suggestible: task.suggestible
+                    notifications: task.notifications || [],
+                    suggestible: task.suggestible || true
                 }));
             } else {
-                subTasksForBlock[0].notifications = task.notifications;
-                subTasksForBlock[0].suggestible = task.suggestible;
+                subTasksForBlock[0].notifications = task.notifications || [];
+                subTasksForBlock[0].suggestible = task.suggestible || true;
             }
         }
 
@@ -728,11 +749,13 @@ export async function convertTaskToBlock(taskId: string, date: string, startTime
             deadline: task.deadline
         };
 
-        await db.insert(missionBlocks).values(newBlock);
+        await db.transaction(async (tx) => {
+            await tx.insert(missionBlocks).values(newBlock);
 
-        if (!isVirtual) {
-            await db.delete(backlogTasks).where(eq(backlogTasks.id, realTaskId));
-        }
+            if (!isVirtual) {
+                await tx.delete(backlogTasks).where(eq(backlogTasks.id, realTaskId));
+            }
+        });
 
         revalidatePath("/dashboard");
         return { success: true };
@@ -752,37 +775,9 @@ export async function unassignTaskFromBlock(blockId: string, taskIndex: number, 
 
         // Fork if virtual
         if (blockId.includes("-virtual-")) {
-            const [realId, date] = blockId.split("-virtual-");
-            const [masterBlock] = await db.select().from(missionBlocks)
-                .where(and(eq(missionBlocks.id, realId), eq(missionBlocks.userId, userId)));
-
-            if (!masterBlock) return { error: "Master block not found" };
-
-            // 1. Add Exception
-            const currentExceptions = (masterBlock.exceptions as string[]) || [];
-            if (!currentExceptions.includes(date)) {
-                await db.update(missionBlocks)
-                    .set({ exceptions: [...currentExceptions, date] })
-                    .where(eq(missionBlocks.id, realId));
-            }
-
-            // 2. Create Unique Block (Clone)
-            const [newBlock] = await db.insert(missionBlocks).values({
-                userId: userId,
-                title: masterBlock.title,
-                date: date,
-                startTime: masterBlock.startTime,
-                totalDuration: masterBlock.totalDuration,
-                color: masterBlock.color,
-                icon: masterBlock.icon,
-                type: 'unique',
-                recurrencePattern: masterBlock.recurrencePattern,
-                status: (masterBlock.completedDates as string[] || []).includes(date) ? 'completed' : 'pending',
-                subTasks: masterBlock.subTasks,
-                exceptions: [],
-            }).returning();
-
-            targetBlockId = newBlock.id;
+            await db.transaction(async (tx) => {
+                targetBlockId = await forkVirtualBlock(tx, blockId, userId);
+            });
         }
 
         const [block] = await db.select().from(missionBlocks)
@@ -790,7 +785,7 @@ export async function unassignTaskFromBlock(blockId: string, taskIndex: number, 
 
         if (!block) return { error: "Bloco não encontrado" };
 
-        const currentSubtasks = (block.subTasks as any[]) || [];
+        const currentSubtasks = (block.subTasks as SubTask[]) || [];
 
         // Remove task at index
         if (taskIndex < 0 || taskIndex >= currentSubtasks.length) {
@@ -800,31 +795,33 @@ export async function unassignTaskFromBlock(blockId: string, taskIndex: number, 
         const newSubtasks = [...currentSubtasks];
         newSubtasks.splice(taskIndex, 1);
 
-        // Update block
-        await db.update(missionBlocks)
-            .set({ subTasks: newSubtasks })
-            .where(eq(missionBlocks.id, targetBlockId));
+        await db.transaction(async (tx) => {
+            // Update block
+            await tx.update(missionBlocks)
+                .set({ subTasks: newSubtasks })
+                .where(eq(missionBlocks.id, targetBlockId));
 
-        // Create backlog task from removed task
-        // "Archives back to task list" only if not virtual and not a fixed/default task
-        if (!taskData.isVirtual && !taskData.isFixed) {
-            await db.insert(backlogTasks).values({
-                userId,
-                title: taskData.title,
-                estimatedDuration: parseInt(taskData.duration) || 15,
-                status: 'pending',
-                createdAt: new Date(),
-                // Restore original data
-                priority: taskData.originalPriority || 'media',
-                linkedBlockType: taskData.originalLinkedBlockType,
-                color: taskData.originalColor || '#27272a',
-                deadline: taskData.deadline,
-                description: taskData.description,
-                notifications: taskData.notifications,
-                suggestible: taskData.suggestible !== undefined ? taskData.suggestible : true,
-                subTasks: taskData.subTasks || []
-            });
-        }
+            // Create backlog task from removed task
+            // "Archives back to task list" only if not virtual and not a fixed/default task
+            if (!taskData.isVirtual && !taskData.isFixed) {
+                await tx.insert(backlogTasks).values({
+                    userId,
+                    title: taskData.title,
+                    estimatedDuration: parseInt(taskData.duration) || 15,
+                    status: 'pending',
+                    createdAt: new Date(),
+                    // Restore original data
+                    priority: taskData.originalPriority || 'media',
+                    linkedBlockType: taskData.originalLinkedBlockType,
+                    color: taskData.originalColor || '#27272a',
+                    deadline: taskData.deadline,
+                    description: taskData.description,
+                    notifications: taskData.notifications,
+                    suggestible: taskData.suggestible !== undefined ? taskData.suggestible : true,
+                    subTasks: taskData.subTasks || []
+                });
+            }
+        });
 
         revalidatePath("/dashboard");
         return { success: true };
@@ -844,37 +841,9 @@ export async function updateMissionSubTask(blockId: string, taskIndex: number, u
 
         // Fork if virtual
         if (blockId.includes("-virtual-")) {
-            const [realId, date] = blockId.split("-virtual-");
-            const [masterBlock] = await db.select().from(missionBlocks)
-                .where(and(eq(missionBlocks.id, realId), eq(missionBlocks.userId, userId)));
-
-            if (!masterBlock) return { error: "Master block not found" };
-
-            // Add Exception
-            const currentExceptions = (masterBlock.exceptions as string[]) || [];
-            if (!currentExceptions.includes(date)) {
-                await db.update(missionBlocks)
-                    .set({ exceptions: [...currentExceptions, date] })
-                    .where(eq(missionBlocks.id, realId));
-            }
-
-            // Create Unique Block
-            const [newBlock] = await db.insert(missionBlocks).values({
-                userId: userId,
-                title: masterBlock.title,
-                date: date,
-                startTime: masterBlock.startTime,
-                totalDuration: masterBlock.totalDuration,
-                color: masterBlock.color,
-                icon: masterBlock.icon,
-                type: 'unique',
-                recurrencePattern: masterBlock.recurrencePattern,
-                status: (masterBlock.completedDates as string[] || []).includes(date) ? 'completed' : 'pending',
-                subTasks: masterBlock.subTasks,
-                exceptions: [],
-            }).returning();
-
-            targetBlockId = newBlock.id;
+            await db.transaction(async (tx) => {
+                targetBlockId = await forkVirtualBlock(tx, blockId, userId);
+            });
         }
 
         const [block] = await db.select().from(missionBlocks)
@@ -915,37 +884,9 @@ export async function toggleSubTaskCompletion(blockId: string, taskIndex: number
 
         // Fork if virtual
         if (blockId.includes("-virtual-")) {
-            const [realId, date] = blockId.split("-virtual-");
-            const [masterBlock] = await db.select().from(missionBlocks)
-                .where(and(eq(missionBlocks.id, realId), eq(missionBlocks.userId, userId)));
-
-            if (!masterBlock) return { error: "Master block not found" };
-
-            // 1. Add Exception
-            const currentExceptions = (masterBlock.exceptions as string[]) || [];
-            if (!currentExceptions.includes(date)) {
-                await db.update(missionBlocks)
-                    .set({ exceptions: [...currentExceptions, date] })
-                    .where(eq(missionBlocks.id, realId));
-            }
-
-            // 2. Create Unique Block (Clone)
-            const [newBlock] = await db.insert(missionBlocks).values({
-                userId: userId,
-                title: masterBlock.title,
-                date: date,
-                startTime: masterBlock.startTime,
-                totalDuration: masterBlock.totalDuration,
-                color: masterBlock.color,
-                icon: masterBlock.icon,
-                type: 'unique',
-                recurrencePattern: masterBlock.recurrencePattern,
-                status: (masterBlock.completedDates as string[] || []).includes(date) ? 'completed' : 'pending',
-                subTasks: masterBlock.subTasks,
-                exceptions: [],
-            }).returning();
-
-            targetBlockId = newBlock.id;
+            await db.transaction(async (tx) => {
+                targetBlockId = await forkVirtualBlock(tx, blockId, userId);
+            });
         }
 
         const [block] = await db.select().from(missionBlocks)
@@ -953,7 +894,7 @@ export async function toggleSubTaskCompletion(blockId: string, taskIndex: number
 
         if (!block) return { error: "Bloco não encontrado" };
 
-        const currentSubtasks = (block.subTasks as any[]) || [];
+        const currentSubtasks = (block.subTasks as SubTask[]) || [];
 
         if (taskIndex < 0 || taskIndex >= currentSubtasks.length) {
             return { error: "Tarefa não encontrada no bloco" };
@@ -968,14 +909,14 @@ export async function toggleSubTaskCompletion(blockId: string, taskIndex: number
 
         if (newSubtasks[taskIndex].isVirtual) {
             const t = newSubtasks[taskIndex];
-            if (t.originalTaskId && t.originalSubTaskIndex !== undefined) {
+            if (t.originalTaskId && t.originalSubTaskIndex != null) {
                 // Sync with backlog: pass currentDone so it flips to the new state
                 await toggleBacklogSubTask(t.originalTaskId, t.originalSubTaskIndex, currentDone);
             }
         }
 
         // Check if ALL are done to auto-complete block
-        const allDone = newSubtasks.every((t: any) => t.done);
+        const allDone = newSubtasks.every((t: SubTask) => t.done);
         if (allDone) {
             await db.update(missionBlocks)
                 .set({ status: 'completed' })

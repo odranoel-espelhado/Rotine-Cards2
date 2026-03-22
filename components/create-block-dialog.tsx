@@ -108,6 +108,7 @@ const NTH_OPTIONS = [
 ];
 
 import { updateMissionBlock, MissionBlock } from "@/lib/actions/mission.actions";
+import { useActionQueue } from "@/components/providers/action-queue-provider";
 
 interface MissionBlockDialogProps {
     currentDate: string;
@@ -135,6 +136,8 @@ export function CreateBlockDialog({
     const [monthlyTab, setMonthlyTab] = useState<'weekdays' | 'days'>('weekdays');
     const [showRecurrence, setShowRecurrence] = useState(false);
     const [isEditingHeader, setIsEditingHeader] = useState(false);
+    
+    const { enqueue } = useActionQueue();
 
     const isControlled = controlledOpen !== undefined;
     const open = isControlled ? controlledOpen : internalOpen;
@@ -242,17 +245,21 @@ export function CreateBlockDialog({
         } as any;
 
         if (isEditing && blockToEdit) {
-            res = await updateMissionBlock(blockToEdit.id, payload, updateMode as any);
-        } else {
-            res = await createMissionBlock(payload);
-        }
-
-        if (res?.success) {
+            enqueue("EDIT_BLOCK", blockToEdit.id, payload, async () => {
+                const result = await updateMissionBlock(blockToEdit.id, payload, updateMode as any);
+                return result as any;
+            });
             setOpen(false);
             setShowRecurringConfirmation(false);
-            toast.success(isEditing ? "Missão atualizada!" : "Missão criada com sucesso!");
         } else {
-            toast.error(res?.error || "Erro ao salvar bloco");
+            res = await createMissionBlock(payload);
+            if (res?.success) {
+                setOpen(false);
+                setShowRecurringConfirmation(false);
+                toast.success("Missão criada com sucesso!");
+            } else {
+                toast.error(res?.error || "Erro ao salvar bloco");
+            }
         }
     }
 
@@ -297,16 +304,19 @@ export function CreateBlockDialog({
 
         let res;
         if (isEditing && blockToEdit) {
-            res = await updateMissionBlock(blockToEdit.id, payload, 'single' as any);
+            enqueue("EDIT_BLOCK", blockToEdit.id, payload, async () => {
+                const result = await updateMissionBlock(blockToEdit.id, payload, 'single' as any);
+                return result as any;
+            });
+            setOpen(false);
         } else {
             res = await createMissionBlock(payload);
-        }
-
-        if (res?.success) {
-            setOpen(false);
-            toast.success(isEditing ? "Missão atualizada!" : "Missão criada com sucesso!");
-        } else {
-            toast.error(res?.error || "Erro ao salvar bloco");
+            if (res?.success) {
+                setOpen(false);
+                toast.success("Missão criada com sucesso!");
+            } else {
+                toast.error(res?.error || "Erro ao salvar bloco");
+            }
         }
     }
 

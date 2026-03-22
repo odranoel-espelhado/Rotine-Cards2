@@ -5,6 +5,7 @@ import { getBacklogTasks } from "@/lib/actions/backlog.actions";
 import { getTacticalCards } from "@/lib/actions/cards.actions";
 import { getEfficiencyStats } from "@/lib/actions/analytics.actions";
 import { getUserSettings, syncUser } from "@/lib/actions/user.actions";
+import { ActionQueueProvider } from "@/components/providers/action-queue-provider";
 import DashboardClient from "./dashboard-client";
 
 type SearchParams = Promise<{ [key: string]: string | string[] | undefined }>
@@ -35,14 +36,16 @@ export default async function DashboardPage(props: {
     const stats = await getEfficiencyStats(currentDate);
 
     return (
-        <DashboardClient
-            initialBlocks={blocks}
-            initialBacklog={backlogTasks}
-            initialCards={cards}
-            initialStats={stats}
-            userId={userId}
-            currentDate={currentDate}
-            settings={settings}
-        />
+        <ActionQueueProvider>
+            <DashboardClient
+                initialBlocks={blocks}
+                initialBacklog={backlogTasks}
+                initialCards={cards}
+                initialStats={stats}
+                userId={userId}
+                currentDate={currentDate}
+                settings={settings}
+            />
+        </ActionQueueProvider>
     );
 }
