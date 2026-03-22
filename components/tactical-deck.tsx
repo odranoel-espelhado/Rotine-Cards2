@@ -5,6 +5,7 @@ import { Zap, Coffee, Users, Lock, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
+import { RestCardDialog } from "./rest-card-dialog";
 
 const IconMap: Record<string, any> = {
     focus: Zap,
@@ -12,11 +13,26 @@ const IconMap: Record<string, any> = {
     users: Users,
 };
 
-export function TacticalDeck({ cards, onCardUsed }: { cards: TacticalCard[], onCardUsed?: (card: TacticalCard) => void }) {
+export function TacticalDeck({ 
+    cards, 
+    onCardUsed,
+    selectedDate 
+}: { 
+    cards: TacticalCard[], 
+    onCardUsed?: (card: TacticalCard) => void,
+    selectedDate: string
+}) {
     const [loading, setLoading] = useState<string | null>(null);
+    const [restCardState, setRestCardState] = useState<{ open: boolean, cardId: string }>({ open: false, cardId: "" });
 
     const handleUseCard = async (card: TacticalCard) => {
         if ((card.usedCharges || 0) >= (card.totalCharges || 0)) return;
+
+        // Custom flow for Rest Card
+        if (card.name === "Descanso Tático") {
+            setRestCardState({ open: true, cardId: card.id });
+            return;
+        }
 
         setLoading(card.id);
         const res = await useTacticalCard(card.id);
@@ -96,6 +112,14 @@ export function TacticalDeck({ cards, onCardUsed }: { cards: TacticalCard[], onC
                     </div>
                 );
             })}
+
+            {/* Dialogs */}
+            <RestCardDialog 
+                open={restCardState.open} 
+                onOpenChange={(open) => setRestCardState(prev => ({ ...prev, open }))}
+                cardId={restCardState.cardId}
+                selectedDate={selectedDate}
+            />
         </div>
     );
 }

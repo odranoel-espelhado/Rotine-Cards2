@@ -126,3 +126,19 @@ export const pushSubscriptions = pgTable('push_subscriptions', {
     auth: text('auth').notNull(),
     createdAt: timestamp('created_at').defaultNow().notNull(),
 });
+
+// 7. TABELA DE HISTÓRICO DE CARDS (Card Usage History)
+export const cardHistory = pgTable('card_history', {
+    id: uuid('id').defaultRandom().primaryKey(),
+    userId: text('user_id')
+        .notNull()
+        .references(() => users.id, { onDelete: 'cascade' }),
+    cardId: uuid('card_id')
+        .references(() => tacticalCards.id, { onDelete: 'set null' }),
+    cardName: text('card_name').notNull(),
+    reason: text('reason'),
+    metadata: jsonb('metadata'), // { duration, affectedBlocks, startTime, etc. }
+    date: text('date').notNull(), // YYYY-MM-DD
+    time: text('time').notNull(), // HH:mm
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+});

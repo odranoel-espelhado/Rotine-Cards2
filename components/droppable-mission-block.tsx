@@ -572,7 +572,10 @@ export function DroppableMissionBlock({ block, onDelete, onEdit, pendingBacklogT
 
     // Custom Border Logic
     const isPlatinumGlow = isFromTask && glowColor === '#27272a';
-    const activeGlowColor = isPlatinumGlow ? '#d4d4d8' : glowColor; // zinc-300 for a platinum/silver effect
+    
+    // Special Style for Rest Block
+    const isRestBlock = block.title === 'Descanso Tático';
+    const activeGlowColor = isRestBlock ? '#10b981' : (isPlatinumGlow ? '#d4d4d8' : glowColor);
 
     const borderStyle = optimisticCompleted ? {
         borderTop: `2px solid ${activeGlowColor}`,
@@ -581,7 +584,11 @@ export function DroppableMissionBlock({ block, onDelete, onEdit, pendingBacklogT
         borderRight: 'none',
         boxShadow: `inset 6px 0 0 0 ${activeGlowColor}, -2px 0 15px -2px ${activeGlowColor}, 0 -4px 15px -2px ${activeGlowColor}, 0 4px 15px -2px ${activeGlowColor}`,
     } : {
-        boxShadow: `0 4px 20px -5px ${glowColor}40`,
+        boxShadow: `0 4px 20px -5px ${activeGlowColor}40`,
+        ...(isRestBlock && {
+            borderLeft: `3px solid ${activeGlowColor}`,
+            background: 'linear-gradient(90deg, rgba(16,185,129,0.1) 0%, rgba(5,5,6,1) 100%)'
+        })
     };
 
     const suggestedTask = getBestSuggestion(availableTasksForBlock, remainder, 'block', block.title);
@@ -621,7 +628,7 @@ export function DroppableMissionBlock({ block, onDelete, onEdit, pendingBacklogT
                 onClick={() => setExpanded(!expanded)}
                 className={cn(
                     "relative overflow-visible rounded-2xl transition-all duration-300 cursor-pointer mr-[2px] sm:mr-0", // overflow-visible for shadow
-                    optimisticCompleted ? "bg-[#050506]" : "bg-[var(--block-color)]",
+                    isRestBlock ? "" : (optimisticCompleted ? "bg-[#050506]" : "bg-[var(--block-color)]"),
                     isOver ? "scale-[1.02] ring-1 ring-white/20" : "hover:scale-[1.01]"
                 )}
                 style={{ ...containerStyle, ...borderStyle }}
@@ -681,7 +688,10 @@ export function DroppableMissionBlock({ block, onDelete, onEdit, pendingBacklogT
                         <div className="flex-1 min-w-0 flex flex-col h-full">
 
                             <div className="flex items-center gap-2 mb-1">
-                                <Icon className={cn("w-5 h-5 transition-all duration-300", optimisticCompleted ? (isPlatinumGlow ? "text-zinc-200 drop-shadow-[0_0_15px_rgba(212,212,216,0.8)]" : "text-[var(--block-color)]") : "text-white")} />
+                                <Icon className={cn("w-5 h-5 transition-all duration-300", 
+                                    isRestBlock ? "text-emerald-400 drop-shadow-[0_0_8px_rgba(16,185,129,0.5)]" : 
+                                    (optimisticCompleted ? (isPlatinumGlow ? "text-zinc-200 drop-shadow-[0_0_15px_rgba(212,212,216,0.8)]" : "text-[var(--block-color)]") : "text-white")
+                                )} />
                                 <h3
                                     onClick={isFromTask ? (e) => {
                                         e.stopPropagation();
@@ -700,12 +710,18 @@ export function DroppableMissionBlock({ block, onDelete, onEdit, pendingBacklogT
                                     className={cn(
                                         "text-lg font-black uppercase tracking-wider truncate transition-colors duration-300 inline-block w-fit max-w-full",
                                         isFromTask ? "cursor-pointer hover:underline hover:text-blue-400" : "",
-                                        optimisticCompleted ? (isPlatinumGlow ? "text-zinc-200 drop-shadow-[0_0_15px_rgba(212,212,216,0.8)] line-through" : "text-[var(--block-color)] line-through") : "text-white"
+                                        isRestBlock ? "text-emerald-400 drop-shadow-[0_0_8px_rgba(16,185,129,0.3)]" :
+                                        (optimisticCompleted ? (isPlatinumGlow ? "text-zinc-200 drop-shadow-[0_0_15px_rgba(212,212,216,0.8)] line-through" : "text-[var(--block-color)] line-through") : "text-white")
                                     )}
                                     title={isFromTask ? "Executar Bloco" : undefined}
                                 >
                                     {block.title}
                                 </h3>
+                                {isRestBlock && (
+                                    <Badge variant="outline" className="text-[10px] bg-emerald-500/10 text-emerald-400 border-emerald-500/20 py-0 h-5">
+                                        DESCANSO
+                                    </Badge>
+                                )}
                                 {isRecurring && (
                                     <Repeat className={cn("h-3 w-3", optimisticCompleted ? "text-[#3a3a3a]" : "text-white/60")} />
                                 )}

@@ -771,7 +771,7 @@ export default function DashboardClient({
                             <Zap className="w-5 h-5 text-amber-400" />
                             <h2 className="text-xl font-black uppercase italic text-zinc-300">Deck Tático</h2>
                         </div>
-                        <TacticalDeck cards={initialCards} onCardUsed={handleCardUsed} />
+                        <TacticalDeck cards={initialCards} onCardUsed={handleCardUsed} selectedDate={selectedDate} />
                     </div>
 
                     {/* Bottom Section: History */}
