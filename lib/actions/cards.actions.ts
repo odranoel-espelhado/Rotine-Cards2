@@ -315,3 +315,19 @@ async function initializeStarterDeck(userId: string) {
     }
 }
 
+export async function resetAllCards() {
+    const { userId } = await auth();
+    if (!userId) return { error: "Unauthorized" };
+
+    try {
+        await db.update(tacticalCards)
+            .set({ usedCharges: 0 })
+            .where(eq(tacticalCards.userId, userId));
+
+        revalidatePath("/dashboard");
+        return { success: true };
+    } catch (error) {
+        console.error("Error resetting cards:", error);
+        return { error: "Failed to reset cards" };
+    }
+}

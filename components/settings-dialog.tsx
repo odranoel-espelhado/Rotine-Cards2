@@ -2,9 +2,10 @@
 
 import { Dialog, DialogContent, DialogTrigger, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Settings, Trash2 } from "lucide-react";
+import { Settings, Trash2, RefreshCw } from "lucide-react";
 import { updateUserSettings } from "@/lib/actions/user.actions";
 import { deleteAllUserData } from "@/lib/actions/mission.actions";
+import { resetAllCards } from "@/lib/actions/cards.actions";
 import { toast } from "sonner";
 import { useState, useEffect } from "react";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -141,6 +142,17 @@ export function SettingsDialog({ initialSettings }: { initialSettings?: any }) {
         }
     };
 
+    const handleResetCards = async () => {
+        if (confirm("Deseja restaurar as cargas de todos os seus Cards Táticos?")) {
+            const res = await resetAllCards();
+            if (res?.success) {
+                toast.success("Cargas restauradas com sucesso!");
+            } else {
+                toast.error("Erro ao restaurar cargas.");
+            }
+        }
+    };
+
     return (
         <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
@@ -238,7 +250,23 @@ export function SettingsDialog({ initialSettings }: { initialSettings?: any }) {
                         {isSaving ? "Salvando..." : "Salvar Configurações"}
                     </Button>
 
-                    <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-4 flex items-center justify-between mt-8">
+                    <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-4 flex items-center justify-between mt-6">
+                        <div>
+                            <h3 className="text-sm font-bold text-amber-500 uppercase">Recarga Completa</h3>
+                            <p className="text-[10px] text-zinc-400">Restaura as cargas usadas dos cards.</p>
+                        </div>
+                        <Button
+                            variant="destructive"
+                            size="sm"
+                            onClick={handleResetCards}
+                            className="bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs uppercase"
+                        >
+                            <RefreshCw className="w-4 h-4 mr-2" />
+                            Recarregar Cards
+                        </Button>
+                    </div>
+
+                    <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-4 flex items-center justify-between mt-4">
                         <div>
                             <h3 className="text-sm font-bold text-red-500 uppercase">Zona de Perigo</h3>
                             <p className="text-[10px] text-zinc-400">Apagar todos os dados da conta.</p>

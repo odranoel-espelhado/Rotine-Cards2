@@ -16,6 +16,7 @@ import { activateRestCard } from "@/lib/actions/cards.actions";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { useRouter } from "next/navigation";
+import { Input } from "@/components/ui/input";
 
 const DURATION_OPTIONS = [
     { label: "15min", value: 15 },
@@ -37,9 +38,7 @@ export function RestCardDialog({ open, onOpenChange, cardId, selectedDate }: Res
     const [duration, setDuration] = useState(30);
     const [reason, setReason] = useState("");
     const [loading, setLoading] = useState(false);
-
-    const now = new Date();
-    const startTime = format(now, "HH:mm");
+    const [startTime, setStartTime] = useState(format(new Date(), "HH:mm"));
 
     const getEndTime = () => {
         const [h, m] = startTime.split(":").map(Number);
@@ -61,11 +60,12 @@ export function RestCardDialog({ open, onOpenChange, cardId, selectedDate }: Res
 
         if (res?.success) {
             toast.success("☕ Descanso Tático Ativado!", {
-                description: `${duration}min de pausa. ${res.affectedBlocks} bloco(s) reagendado(s).`,
+                description: `${duration}min de pausa começando às ${startTime}. ${res.affectedBlocks} bloco(s) reagendado(s).`,
                 icon: <Sparkles className="h-4 w-4 text-emerald-400" />,
             });
             setReason("");
             setDuration(30);
+            setStartTime(format(new Date(), "HH:mm"));
             onOpenChange(false);
             router.refresh();
         } else {
@@ -84,17 +84,26 @@ export function RestCardDialog({ open, onOpenChange, cardId, selectedDate }: Res
                         Descanso Tático
                     </DialogTitle>
                     <DialogDescription className="text-zinc-400">
-                        Crie um bloco de descanso agora. Os blocos posteriores serão empurrados automaticamente.
+                        Crie um bloco de descanso para agora (ou outro momento). Os blocos posteriores a ele serão empurrados.
                     </DialogDescription>
                 </DialogHeader>
 
-                {/* Time Preview */}
-                <div className="flex items-center justify-center gap-3 py-3 px-4 bg-emerald-500/5 border border-emerald-500/10 rounded-xl">
-                    <Clock className="h-4 w-4 text-emerald-400" />
-                    <span className="text-sm font-mono text-emerald-300">
-                        {startTime} → {getEndTime()}
-                    </span>
-                    <span className="text-xs text-zinc-500">({duration}min)</span>
+                {/* Time Preview / Input */}
+                <div className="space-y-2">
+                    <label className="text-xs text-zinc-500 uppercase tracking-wider font-bold">Horário de Início</label>
+                    <div className="flex items-center gap-3 py-3 px-4 bg-emerald-500/5 border border-emerald-500/10 rounded-xl">
+                        <Clock className="h-4 w-4 text-emerald-400" />
+                        <Input
+                            type="time"
+                            value={startTime}
+                            onChange={(e) => setStartTime(e.target.value)}
+                            className="bg-transparent border-0 text-emerald-300 font-mono text-sm w-[80px] focus-visible:ring-0 shadow-none p-0 h-auto cursor-text text-center"
+                        />
+                        <span className="text-sm font-mono text-emerald-300">
+                            → {getEndTime()}
+                        </span>
+                        <span className="text-xs text-zinc-500 ml-auto">({duration}min)</span>
+                    </div>
                 </div>
 
                 {/* Duration Selector */}
