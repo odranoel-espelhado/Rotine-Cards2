@@ -529,6 +529,7 @@ export async function assignTasksToBlock(blockId: string, tasksToAssign: any[]) 
         const currentSubtasks = (block.subTasks as any[]) || [];
         const newSubtasks = tasksToAssign.map(t => ({
             title: t.title,
+            description: t.description,
             duration: t.estimatedDuration || 15,
             done: false,
             isFixed: false, // Allocated tasks are NOT fixed
