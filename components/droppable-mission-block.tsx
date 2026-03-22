@@ -164,13 +164,26 @@ export function DroppableMissionBlock({ block, onDelete, onEdit, pendingBacklogT
             const absY = Math.abs(deltaY);
             const sign = Math.sign(deltaY);
 
-            let velocity = 0; // minutes per tick
-            let delay = 250; // default delay
+            let velocity = 1; // Fixed 1-minute step
+            let delay = 1000; // Default slow delay
 
-            if (absY > 5) { velocity = 1; delay = 800; }
-            if (absY > 30) { velocity = 5; delay = 500; }
-            if (absY > 60) { velocity = 10; delay = 250; }
-            if (absY > 100) { velocity = 30; delay = 100; }
+            if (absY < 5) {
+                velocity = 0; // Dead zone
+            } else if (absY <= 25) {
+                delay = 800; // Surgery-level precision
+            } else if (absY <= 50) {
+                delay = 600;
+            } else if (absY <= 80) {
+                delay = 400;
+            } else if (absY <= 120) {
+                delay = 200;
+            } else if (absY <= 180) {
+                delay = 100; // Fast
+            } else if (absY <= 250) {
+                delay = 50;  // Ultra fast
+            } else {
+                delay = 25;  // Maximum speed (~40 ticks/sec)
+            }
 
             if (velocity > 0) {
                 dragRef.current.accumMins += sign * velocity;

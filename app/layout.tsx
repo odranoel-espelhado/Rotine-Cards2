@@ -27,6 +27,10 @@ export const metadata: Metadata = {
   formatDetection: {
     telephone: false,
   },
+  icons: {
+    icon: "/icon.png",
+    apple: "/caraapp.png",
+  },
 };
 
 export const viewport = {
