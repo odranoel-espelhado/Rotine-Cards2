@@ -639,7 +639,7 @@ export async function getUniqueBlockTypes() {
                     value: block.title,
                     icon: block.icon || 'zap',
                     color: block.color || '#3b82f6',
-                    notifications: (block as any).notifications || null
+                    notifications: block.notifications || null
                 });
             }
         }
@@ -851,7 +851,7 @@ export async function updateMissionSubTask(blockId: string, taskIndex: number, u
 
         if (!block) return { error: "Bloco não encontrado" };
 
-        const currentSubtasks = (block.subTasks as any[]) || [];
+        const currentSubtasks = (block.subTasks as SubTask[]) || [];
 
         // Check index
         if (taskIndex < 0 || taskIndex >= currentSubtasks.length) {
@@ -975,7 +975,7 @@ export async function checkAndArchivePastTasks(clientDate?: string, clientTime?:
         });
 
         for (const block of pastBlocks) {
-            const currentSubtasks = (block.subTasks as any[]) || [];
+            const currentSubtasks = (block.subTasks as SubTask[]) || [];
             if (currentSubtasks.length === 0) continue;
 
             const isFromTask = currentSubtasks.some(s => s.isFromTask || s.originalTaskId);
@@ -985,22 +985,24 @@ export async function checkAndArchivePastTasks(clientDate?: string, clientTime?:
                 const notificationsToRestore = currentSubtasks.find(s => s.notifications !== undefined)?.notifications;
                 const suggestibleToRestore = currentSubtasks.find(s => s.suggestible !== undefined)?.suggestible ?? true;
 
-                await db.insert(backlogTasks).values({
-                    userId,
-                    title: block.title,
-                    estimatedDuration: block.totalDuration,
-                    status: 'pending',
-                    createdAt: new Date(),
-                    color: block.color,
-                    description: block.description,
-                    priority: block.priority || 'media',
-                    deadline: block.deadline,
-                    notifications: notificationsToRestore,
-                    suggestible: suggestibleToRestore,
-                    subTasks: block.subTasks || [],
-                    linkedBlockType: block.linkedBlockType,
+                await db.transaction(async (tx) => {
+                    await tx.insert(backlogTasks).values({
+                        userId,
+                        title: block.title,
+                        estimatedDuration: block.totalDuration,
+                        status: 'pending',
+                        createdAt: new Date(),
+                        color: block.color,
+                        description: block.description,
+                        priority: block.priority || 'media',
+                        deadline: block.deadline,
+                        notifications: notificationsToRestore,
+                        suggestible: suggestibleToRestore,
+                        subTasks: block.subTasks || [],
+                        linkedBlockType: block.linkedBlockType,
+                    });
+                    await tx.delete(missionBlocks).where(eq(missionBlocks.id, block.id));
                 });
-                await db.delete(missionBlocks).where(eq(missionBlocks.id, block.id));
                 continue;
             }
 
@@ -1008,30 +1010,32 @@ export async function checkAndArchivePastTasks(clientDate?: string, clientTime?:
             const tasksToArchive = currentSubtasks.filter(t => !t.done && !t.isFixed);
 
             if (tasksToArchive.length > 0) {
-                // Archive tasks (batch insert possible?)
-                for (const task of tasksToArchive) {
-                    await db.insert(backlogTasks).values({
-                        userId,
-                        title: task.title,
-                        estimatedDuration: parseInt(task.duration) || 15,
-                        status: 'pending',
-                        createdAt: new Date(),
-                        priority: task.originalPriority || 'media',
-                        linkedBlockType: task.originalLinkedBlockType,
-                        color: task.originalColor || '#27272a',
-                        deadline: task.deadline,
-                        notifications: task.notifications,
-                        suggestible: task.suggestible !== undefined ? task.suggestible : true,
-                        subTasks: task.subTasks || []
-                    });
-                }
+                await db.transaction(async (tx) => {
+                    // Archive tasks
+                    for (const task of tasksToArchive) {
+                        await tx.insert(backlogTasks).values({
+                            userId,
+                            title: task.title,
+                            estimatedDuration: parseInt(task.duration as string) || 15,
+                            status: 'pending',
+                            createdAt: new Date(),
+                            priority: task.originalPriority || 'media',
+                            linkedBlockType: task.originalLinkedBlockType,
+                            color: task.originalColor || '#27272a',
+                            deadline: task.deadline,
+                            notifications: task.notifications,
+                            suggestible: task.suggestible !== undefined ? task.suggestible : true,
+                            subTasks: task.subTasks || []
+                        });
+                    }
 
-                // Update block: Keep only Done OR Fixed tasks
-                const remainingSubtasks = currentSubtasks.filter(t => t.done || t.isFixed);
+                    // Update block: Keep only Done OR Fixed tasks
+                    const remainingSubtasks = currentSubtasks.filter(t => t.done || t.isFixed);
 
-                await db.update(missionBlocks)
-                    .set({ subTasks: remainingSubtasks })
-                    .where(eq(missionBlocks.id, block.id));
+                    await tx.update(missionBlocks)
+                        .set({ subTasks: remainingSubtasks })
+                        .where(eq(missionBlocks.id, block.id));
+                });
             }
         }
 
@@ -1053,37 +1057,9 @@ export async function toggleNestedSubTaskCompletion(id: string, parentTaskIndex:
 
         // Fork if virtual
         if (id.includes("-virtual-")) {
-            const [realId, date] = id.split("-virtual-");
-            const [masterBlock] = await db.select().from(missionBlocks)
-                .where(and(eq(missionBlocks.id, realId), eq(missionBlocks.userId, userId)));
-
-            if (!masterBlock) return { error: "Master block not found" };
-
-            // 1. Add Exception
-            const currentExceptions = (masterBlock.exceptions as string[]) || [];
-            if (!currentExceptions.includes(date)) {
-                await db.update(missionBlocks)
-                    .set({ exceptions: [...currentExceptions, date] })
-                    .where(eq(missionBlocks.id, realId));
-            }
-
-            // 2. Create Unique Block (Clone)
-            const [newBlock] = await db.insert(missionBlocks).values({
-                userId: userId,
-                title: masterBlock.title,
-                date: date,
-                startTime: masterBlock.startTime,
-                totalDuration: masterBlock.totalDuration,
-                color: masterBlock.color,
-                icon: masterBlock.icon,
-                type: 'unique',
-                recurrencePattern: masterBlock.recurrencePattern,
-                status: (masterBlock.completedDates as string[] || []).includes(date) ? 'completed' : 'pending',
-                subTasks: masterBlock.subTasks,
-                exceptions: [],
-            }).returning();
-
-            targetBlockId = newBlock.id;
+            await db.transaction(async (tx) => {
+                targetBlockId = await forkVirtualBlock(tx, id, userId);
+            });
         }
 
         const [block] = await db.select().from(missionBlocks)
@@ -1091,7 +1067,7 @@ export async function toggleNestedSubTaskCompletion(id: string, parentTaskIndex:
 
         if (!block) return { error: "Bloco não encontrado" };
 
-        const currentSubtasks = (block.subTasks as any[]) || [];
+        const currentSubtasks = (block.subTasks as SubTask[]) || [];
 
         if (parentTaskIndex < 0 || parentTaskIndex >= currentSubtasks.length) {
             return { error: "Tarefa pai não encontrada" };
