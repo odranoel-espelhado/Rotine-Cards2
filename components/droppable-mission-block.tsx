@@ -3,7 +3,7 @@
 import { useDroppable, useDraggable } from "@dnd-kit/core";
 import { MissionBlock, toggleMissionBlock, assignTasksToBlock, updateMissionBlock, unassignTaskFromBlock, deleteMissionBlock, archiveMissionBlock, toggleSubTaskCompletion, toggleNestedSubTaskCompletion } from "@/lib/actions/mission.actions";
 import { BLOCK_ICONS } from "./constants";
-import { Zap, Trash2, Pencil, Check, Repeat, X, Plus, ChevronDown, ChevronUp, AlertTriangle, Archive, GripVertical, ArrowUp, ArrowDown, Pin, PinOff } from "lucide-react";
+import { Zap, Trash2, Pencil, Check, Repeat, X, Plus, ChevronDown, ChevronUp, ChevronRight, AlertTriangle, Archive, GripVertical, ArrowUp, ArrowDown, Pin, PinOff } from "lucide-react";
 import { differenceInCalendarDays, parseISO } from "date-fns";
 // ... (rest of imports)
 
@@ -537,11 +537,40 @@ export function DroppableMissionBlock({ block, onDelete, onEdit, pendingBacklogT
         }
     });
     const [selectedTasks, setSelectedTasks] = useState<string[]>([]);
+    const [expandedTaskIds, setExpandedTaskIds] = useState<string[]>([]);
 
     const handleAddTasks = async () => {
-        // ... (keep existing logic)
         if (selectedTasks.length === 0) return;
-        const tasksToAssign = availableTasksForBlock.filter(t => selectedTasks.includes(t.id));
+
+        const tasksToAssign: any[] = [];
+        selectedTasks.forEach(selectedId => {
+            if (selectedId.includes(':sub:')) {
+                // Individual Subtask
+                const [taskId, subIndexStr] = selectedId.split(':sub:');
+                const subIndex = parseInt(subIndexStr);
+                const parentTask = availableTasksForBlock.find(t => t.id === taskId);
+                if (parentTask && parentTask.subTasks && parentTask.subTasks[subIndex]) {
+                    const sub = parentTask.subTasks[subIndex];
+                    tasksToAssign.push({
+                        ...parentTask,
+                        id: `${parentTask.id}-sub-${subIndex}`,
+                        title: `${sub.title} - ${parentTask.title}`,
+                        estimatedDuration: parseInt(sub.duration) || 15,
+                        isVirtual: true,
+                        originalTaskId: parentTask.id,
+                        subTaskIndex: subIndex,
+                        subTasks: parentTask.subTasks
+                    });
+                }
+            } else {
+                // Main Task
+                const task = availableTasksForBlock.find(t => t.id === selectedId);
+                if (task) {
+                    tasksToAssign.push(task);
+                }
+            }
+        });
+
         const res = await assignTasksToBlock(block.id, tasksToAssign);
         if (res?.success) {
             toast.success("Tarefas adicionadas!");
@@ -1123,16 +1152,94 @@ export function DroppableMissionBlock({ block, onDelete, onEdit, pendingBacklogT
                                 case 'low': priorityColor = 'bg-emerald-500'; break;
                             }
 
+                            const hasSubTasks = task.subTasks && (task.subTasks as any[]).length > 0 && !task.isVirtual;
+                            const isExpanded = expandedTaskIds.includes(task.id);
+
                             return (
-                                <div key={task.id} className="flex items-center gap-3 p-2 hover:bg-white/10 rounded-lg cursor-pointer transition-colors group" onClick={() => setSelectedTasks(p => p.includes(task.id) ? p.filter(x => x !== task.id) : [...p, task.id])}>
-                                    <div className="flex items-center gap-3 flex-1 min-w-0">
-                                        <Checkbox checked={selectedTasks.includes(task.id)} className="border-white/20 data-[state=checked]:bg-primary data-[state=checked]:border-primary" />
-                                        <span className={cn("text-sm truncate", selectedTasks.includes(task.id) && "text-primary font-medium")}>{task.title}</span>
+                                <div key={task.id} className="flex flex-col border-b border-white/5 last:border-0">
+                                    <div 
+                                        className="flex items-center gap-2 p-2 hover:bg-white/10 rounded-lg cursor-pointer transition-colors group" 
+                                        onClick={() => {
+                                            setSelectedTasks(p => {
+                                                const isSelecting = !p.includes(task.id);
+                                                if (isSelecting) {
+                                                    // Deselect all its subtasks if selecting main
+                                                    const filtered = p.filter(id => !id.startsWith(`${task.id}:sub:`));
+                                                    return [...filtered, task.id];
+                                                } else {
+                                                    return p.filter(x => x !== task.id);
+                                                }
+                                            });
+                                        }}
+                                    >
+                                        {hasSubTasks ? (
+                                            <button
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setExpandedTaskIds(p => p.includes(task.id) ? p.filter(id => id !== task.id) : [...p, task.id]);
+                                                }}
+                                                className="p-1 hover:bg-white/10 rounded"
+                                            >
+                                                {isExpanded ? <ChevronDown className="w-4 h-4 text-white/50" /> : <ChevronRight className="w-4 h-4 text-white/50" />}
+                                            </button>
+                                        ) : (
+                                            <div className="w-6" /> // spacer
+                                        )}
+                                        
+                                        <div className="flex items-center gap-3 flex-1 min-w-0">
+                                            <Checkbox 
+                                                checked={selectedTasks.includes(task.id)} 
+                                                className="border-white/20 data-[state=checked]:bg-primary data-[state=checked]:border-primary" 
+                                            />
+                                            <span className={cn("text-sm truncate", selectedTasks.includes(task.id) && "text-primary font-medium")}>{task.title}</span>
+                                        </div>
+
+                                        <div className="flex items-center gap-2 shrink-0">
+                                            <span className="text-[10px] font-mono text-white/40">{task.estimatedDuration}m</span>
+                                            {DangerIcon}
+                                            <div className={cn("w-2 h-2 rounded-full ring-1 ring-white/10 shadow-[0_0_8px_rgba(0,0,0,0.5)]", priorityColor)} title={`Prioridade: ${task.priority}`} />
+                                        </div>
                                     </div>
-                                    <div className="flex items-center gap-2 shrink-0">
-                                        {DangerIcon}
-                                        <div className={cn("w-2 h-2 rounded-full ring-1 ring-white/10 shadow-[0_0_8px_rgba(0,0,0,0.5)]", priorityColor)} title={`Prioridade: ${task.priority}`} />
-                                    </div>
+
+                                    {/* Nested Subtasks */}
+                                    {hasSubTasks && isExpanded && (
+                                        <div className="flex flex-col pl-10 pr-2 pb-2 gap-1 animate-in slide-in-from-top-1 duration-200">
+                                            {(task.subTasks as any[]).map((sub, idx) => {
+                                                const subId = `${task.id}:sub:${idx}`;
+                                                const isSubSelected = selectedTasks.includes(subId);
+                                                return (
+                                                    <div 
+                                                        key={subId} 
+                                                        className="flex items-center justify-between p-1.5 hover:bg-white/5 rounded-md cursor-pointer group/sub"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            setSelectedTasks(p => {
+                                                                const isSelecting = !p.includes(subId);
+                                                                if (isSelecting) {
+                                                                    // Deselect main task if selecting subtask
+                                                                    const filtered = p.filter(id => id !== task.id);
+                                                                    return [...filtered, subId];
+                                                                } else {
+                                                                    return p.filter(x => x !== subId);
+                                                                }
+                                                            });
+                                                        }}
+                                                    >
+                                                        <div className="flex items-center gap-2 flex-1 min-w-0">
+                                                            <Checkbox 
+                                                                checked={isSubSelected} 
+                                                                className="h-3.5 w-3.5 border-white/20 data-[state=checked]:bg-emerald-500 data-[state=checked]:border-emerald-500 scale-90" 
+                                                            />
+                                                            <span className={cn("text-xs truncate", isSubSelected ? "text-emerald-400 font-medium" : "text-white/60 group-hover/sub:text-white/80")}>
+                                                                {sub.title}
+                                                            </span>
+                                                        </div>
+                                                        <span className="text-[9px] font-mono text-white/30">{sub.duration}m</span>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    )}
                                 </div>
                             );
                         })}

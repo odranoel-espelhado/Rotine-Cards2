@@ -80,11 +80,18 @@ export function BacklogComponent({ initialTasks, availableBlockTypes = [] }: { i
                     {sortedGroups.map(groupKey => {
                         const tasks = groupedTasks[groupKey];
                         const blockColor = availableBlockTypes.find(b => b.label === groupKey)?.color || "#27272a";
+                        
+                        // Total hours calculation
+                        const totalMins = tasks.reduce((sum, t) => sum + (t.estimatedDuration || 0), 0);
+                        const totalHours = (totalMins / 60).toFixed(1);
 
                         return (
                             <div key={groupKey} className="space-y-2">
                                 <div className="flex items-center gap-2 px-1">
                                     <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: groupKey === 'Geral' ? '#52525b' : blockColor }} />
+                                    <span className="text-[9px] font-bold text-zinc-500 bg-white/5 px-1.5 py-0.5 rounded border border-white/5">
+                                        {totalHours}H
+                                    </span>
                                     <h3 className="text-[10px] font-black uppercase text-zinc-500 tracking-widest">{groupKey}</h3>
                                 </div>
                                 <div className="space-y-2">
