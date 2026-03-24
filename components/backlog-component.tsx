@@ -83,16 +83,19 @@ export function BacklogComponent({ initialTasks, availableBlockTypes = [] }: { i
                         
                         // Total hours calculation
                         const totalMins = tasks.reduce((sum, t) => sum + (t.estimatedDuration || 0), 0);
-                        const totalHours = (totalMins / 60).toFixed(1);
+                        const h = Math.floor(totalMins / 60);
+                        const m = totalMins % 60;
 
                         return (
                             <div key={groupKey} className="space-y-2">
-                                <div className="flex items-center gap-2 px-1">
-                                    <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: groupKey === 'Geral' ? '#52525b' : blockColor }} />
-                                    <span className="text-[9px] font-bold text-zinc-500 bg-white/5 px-1.5 py-0.5 rounded border border-white/5">
-                                        {totalHours}H
+                                <div className="flex items-center justify-between px-1">
+                                    <div className="flex items-center gap-2">
+                                        <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: groupKey === 'Geral' ? '#52525b' : blockColor }} />
+                                        <h3 className="text-[10px] font-black uppercase text-zinc-500 tracking-widest">{groupKey}</h3>
+                                    </div>
+                                    <span className="text-[9px] font-bold text-zinc-600 tracking-tighter uppercase">
+                                        {h > 0 ? `${h}h ` : ""}{m}m
                                     </span>
-                                    <h3 className="text-[10px] font-black uppercase text-zinc-500 tracking-widest">{groupKey}</h3>
                                 </div>
                                 <div className="space-y-2">
                                     {tasks.map((task) => (
