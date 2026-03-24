@@ -696,22 +696,22 @@ export function DroppableMissionBlock({ block, onDelete, onEdit, pendingBacklogT
 
                 <div className="pl-[7px] pr-1 py-4 sm:p-4 flex gap-1 sm:gap-4 relative z-10 h-full">
                         {/* Column for Checkbox + Vertical Timeline */}
-                        <div className="flex flex-col items-center gap-1 shrink-0">
-                            {/* Checkbox */}
-                            <div
-                                onClick={handleToggle}
-                                className={cn(
-                                    "h-6 w-6 sm:h-8 sm:w-8 shrink-0 rounded-[8px] border-2 flex items-center justify-center cursor-pointer transition-all duration-300 z-20",
-                                    optimisticCompleted
-                                        ? (isPlatinumGlow ? "bg-zinc-200 border-white shadow-[0_0_15px_rgba(212,212,216,0.8)]" : "bg-[#050506] border-[var(--block-color)] shadow-[0_0_15px_var(--block-color)]")
-                                        : "bg-transparent border-white/30 hover:bg-white/10"
-                                )}
-                            >
-                                {optimisticCompleted && <Check className={cn("h-4 w-4 sm:h-5 sm:w-5", isPlatinumGlow ? "text-zinc-900 drop-shadow-[0_0_8px_rgba(0,0,0,0.8)]" : "text-white")} strokeWidth={4} />}
+                        {!isRestBlock && (
+                            <div className="flex flex-col items-center gap-1 shrink-0">
+                                {/* Checkbox */}
+                                <div
+                                    onClick={handleToggle}
+                                    className={cn(
+                                        "h-6 w-6 sm:h-8 sm:w-8 shrink-0 rounded-[8px] border-2 flex items-center justify-center cursor-pointer transition-all duration-300 z-20",
+                                        optimisticCompleted
+                                            ? (isPlatinumGlow ? "bg-zinc-200 border-white shadow-[0_0_15px_rgba(212,212,216,0.8)]" : "bg-[#050506] border-[var(--block-color)] shadow-[0_0_15px_var(--block-color)]")
+                                            : "bg-transparent border-white/30 hover:bg-white/10"
+                                    )}
+                                >
+                                    {optimisticCompleted && <Check className={cn("h-4 w-4 sm:h-5 sm:w-5", isPlatinumGlow ? "text-zinc-900 drop-shadow-[0_0_8px_rgba(0,0,0,0.8)]" : "text-white")} strokeWidth={4} />}
+                                </div>
                             </div>
-
-                            {/* Vertical Timeline Removed */}
-                        </div>
+                        )}
 
                         {/* Content Column */}
                         <div className="flex-1 min-w-0 flex flex-col h-full">
@@ -746,11 +746,6 @@ export function DroppableMissionBlock({ block, onDelete, onEdit, pendingBacklogT
                                 >
                                     {block.title}
                                 </h3>
-                                {isRestBlock && (
-                                    <Badge variant="outline" className="text-[10px] bg-emerald-500/10 text-emerald-400 border-emerald-500/20 py-0 h-5">
-                                        DESCANSO
-                                    </Badge>
-                                )}
                                 {isRecurring && (
                                     <Repeat className={cn("h-3 w-3", optimisticCompleted ? "text-[#3a3a3a]" : "text-white/60")} />
                                 )}
@@ -758,38 +753,40 @@ export function DroppableMissionBlock({ block, onDelete, onEdit, pendingBacklogT
 
                             <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-4 mb-1 sm:mb-2">
                                 {/* Suggestion Buttons (Now inline, order 1 on mobile to appear above time) */}
-                                <div className="flex items-center gap-1 sm:gap-2 order-1 sm:order-2 min-w-0">
-                                    {suggestedTask && (
+                                {!isRestBlock && (
+                                    <div className="flex items-center gap-1 sm:gap-2 order-1 sm:order-2 min-w-0">
+                                        {suggestedTask && (
+                                            <Button
+                                                size="sm"
+                                                variant="ghost"
+                                                className="h-5 sm:h-6 text-[9px] sm:text-[10px] bg-white/10 hover:bg-white/20 text-white border border-white/5 py-0 px-1.5 sm:px-2 rounded-full shrink"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    toast.promise(assignTasksToBlock(block.id, [suggestedTask]), {
+                                                        loading: 'Adicionando...',
+                                                        success: 'Tarefa adicionada!',
+                                                        error: 'Erro'
+                                                    });
+                                                }}
+                                            >
+                                                <Plus className="w-2.5 h-2.5 sm:w-3 sm:h-3 mr-0.5 sm:mr-1 shrink-0" />
+                                                <span className="truncate max-w-[60px] sm:max-w-none">{suggestedTask.title}</span>
+                                            </Button>
+                                        )}
                                         <Button
                                             size="sm"
                                             variant="ghost"
-                                            className="h-5 sm:h-6 text-[9px] sm:text-[10px] bg-white/10 hover:bg-white/20 text-white border border-white/5 py-0 px-1.5 sm:px-2 rounded-full shrink"
+                                            className="h-5 sm:h-6 text-[9px] sm:text-[10px] bg-white/5 hover:bg-white/10 text-white/70 py-0 px-2 sm:px-3 rounded-full shrink-0"
                                             onClick={(e) => {
                                                 e.stopPropagation();
-                                                toast.promise(assignTasksToBlock(block.id, [suggestedTask]), {
-                                                    loading: 'Adicionando...',
-                                                    success: 'Tarefa adicionada!',
-                                                    error: 'Erro'
-                                                });
+                                                setAddTasksDialogOpen(true);
                                             }}
                                         >
-                                            <Plus className="w-2.5 h-2.5 sm:w-3 sm:h-3 mr-0.5 sm:mr-1 shrink-0" />
-                                            <span className="truncate max-w-[60px] sm:max-w-none">{suggestedTask.title}</span>
+                                            <Plus className="w-2.5 h-2.5 sm:w-3 sm:h-3 mr-1 shrink-0 text-white/50" />
+                                            <span>Organizar</span>
                                         </Button>
-                                    )}
-                                    <Button
-                                        size="sm"
-                                        variant="ghost"
-                                        className="h-5 sm:h-6 text-[9px] sm:text-[10px] bg-white/5 hover:bg-white/10 text-white/70 py-0 px-2 sm:px-3 rounded-full shrink-0"
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            setAddTasksDialogOpen(true);
-                                        }}
-                                    >
-                                        <Plus className="w-2.5 h-2.5 sm:w-3 sm:h-3 mr-1 shrink-0 text-white/50" />
-                                        <span>Organizar</span>
-                                    </Button>
-                                </div>
+                                    </div>
+                                )}
 
                                 <div className={cn(
                                     "hidden sm:flex gap-2 text-[10px] font-bold uppercase tracking-widest transition-colors duration-300 sm:order-1",
@@ -799,8 +796,16 @@ export function DroppableMissionBlock({ block, onDelete, onEdit, pendingBacklogT
                                 </div>
                             </div>
 
-                            {/* Expanded Content: Subtasks List */}
-                            {expanded && (
+                            {/* Expanded Content: Subtasks List or Rest Description */}
+                            {expanded && isRestBlock && (
+                                <div className="space-y-0 pt-2 border-t border-emerald-500/20 mt-auto animate-in fade-in duration-300">
+                                    <p className="text-xs text-emerald-500/80 italic py-2">
+                                        {(block as any).description || "Pausa para descanso."}
+                                    </p>
+                                </div>
+                            )}
+
+                            {expanded && !isRestBlock && (
                                 <div className="space-y-0 pt-2 border-t border-white/10 mt-auto animate-in fade-in duration-300">
                                     {subTasks.length === 0 ? (
                                         <p className="text-xs text-white/40 italic py-2">Nenhuma tarefa.</p>

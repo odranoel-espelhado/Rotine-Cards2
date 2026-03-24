@@ -169,62 +169,156 @@ export async function activateRestCard(
                 description: reason,
             });
 
-            // 5b. Push unique blocks that are affected
-            for (const block of dayBlocks) {
-                const blockStart = getMinutes(block.startTime);
-                const blockEnd = blockStart + block.totalDuration;
+            // 5b. Combine all affected blocks (unique and virtual) into a single timeline array
+            const allBlocksToProcess: { 
+                id?: string, 
+                title: string, 
+                startMins: number, 
+                duration: number, 
+                isVirtual: boolean,
+                masterId?: string 
+            }[] = [];
 
-                if (blockStart >= restStartMins || blockEnd > restStartMins) {
-                    const newStartMins = blockStart + duration;
-                    await tx.update(missionBlocks)
-                        .set({ startTime: toTimeStr(newStartMins) })
-                        .where(eq(missionBlocks.id, block.id));
-                    affectedBlockNames.push(block.title);
+            for (const b of dayBlocks) {
+                allBlocksToProcess.push({
+                    id: b.id,
+                    title: b.title,
+                    startMins: getMinutes(b.startTime),
+                    duration: b.totalDuration,
+                    isVirtual: false
+                });
+            }
+
+            for (const vb of virtualBlocksToFork) {
+                const master = recurringBlocks.find(r => r.id === vb.masterId);
+                if (master) {
+                    allBlocksToProcess.push({
+                        title: master.title,
+                        startMins: vb.startMins,
+                        duration: master.totalDuration,
+                        isVirtual: true,
+                        masterId: master.id
+                    });
                 }
             }
 
-            // 5c. Fork and push recurring virtual blocks
-            for (const vb of virtualBlocksToFork) {
-                const virtualId = `${vb.masterId}-virtual-${date}`;
-                // Use forkVirtualBlock-like logic inline since we're already in a tx
-                const [masterBlock] = await tx.select().from(missionBlocks)
-                    .where(and(eq(missionBlocks.id, vb.masterId), eq(missionBlocks.userId, userId)));
+            // Order chronologically
+            allBlocksToProcess.sort((a, b) => a.startMins - b.startMins);
 
-                if (!masterBlock) continue;
+            // 5c. Push logic with Gap-Aware Cascade Algorithm
+            let currentPushAccumulated = duration;
+            let lastBlockEnd = restEndMins; // Start pushing from the end of the rest block
 
-                // Add exception
-                const currentExceptions = (masterBlock.exceptions as string[]) || [];
-                if (!currentExceptions.includes(date)) {
-                    await tx.update(missionBlocks)
-                        .set({ exceptions: [...currentExceptions, date] })
-                        .where(eq(missionBlocks.id, vb.masterId));
+            for (const block of allBlocksToProcess) {
+                if (currentPushAccumulated <= 0) break; // Gap absorbed everything, stop pushing
+
+                // If block starts BEFORE the end of the previous pushed block (or rest block), it needs pushing
+                if (block.startMins < lastBlockEnd) {
+                    // Push block to start exactly when the previous block ends
+                    const pushAmount = lastBlockEnd - block.startMins;
+                    const newStartMins = block.startMins + pushAmount;
+                    
+                    // Apply changes to DB
+                    if (!block.isVirtual && block.id) {
+                        await tx.update(missionBlocks)
+                            .set({ startTime: toTimeStr(newStartMins) })
+                            .where(eq(missionBlocks.id, block.id));
+                    } else if (block.isVirtual && block.masterId) {
+                        const masterBlock = recurringBlocks.find(r => r.id === block.masterId);
+                        if (masterBlock) {
+                            // Add exception
+                            const currentExceptions = (masterBlock.exceptions as string[]) || [];
+                            if (!currentExceptions.includes(date)) {
+                                await tx.update(missionBlocks)
+                                    .set({ exceptions: [...currentExceptions, date] })
+                                    .where(eq(missionBlocks.id, block.masterId));
+                            }
+                            
+                            // Fork block
+                            const isCompleted = (masterBlock.completedDates as string[] || []).includes(date);
+                            await tx.insert(missionBlocks).values({
+                                userId,
+                                title: masterBlock.title,
+                                date,
+                                startTime: toTimeStr(newStartMins),
+                                totalDuration: masterBlock.totalDuration,
+                                color: masterBlock.color,
+                                icon: masterBlock.icon,
+                                type: 'unique',
+                                recurrencePattern: masterBlock.recurrencePattern,
+                                status: isCompleted ? 'completed' : 'pending',
+                                subTasks: masterBlock.subTasks,
+                                description: masterBlock.description,
+                                priority: masterBlock.priority,
+                                deadline: masterBlock.deadline,
+                                notifications: masterBlock.notifications,
+                                linkedBlockType: masterBlock.linkedBlockType,
+                                exceptions: [],
+                            });
+                        }
+                    }
+
+                    affectedBlockNames.push(block.title);
+                    lastBlockEnd = newStartMins + block.duration;
+                } else {
+                    // There's a gap before this block!
+                    const gap = block.startMins - lastBlockEnd;
+                    
+                    if (gap >= currentPushAccumulated) {
+                        // Gap is big enough to absorb the rest of the push. We are done!
+                        currentPushAccumulated = 0;
+                        break;
+                    } else {
+                        // Gap absorbs some push, but we still have remaining push
+                        currentPushAccumulated -= gap;
+                        
+                        // Push block by the remaining amount
+                        const newStartMins = block.startMins + currentPushAccumulated;
+
+                        // Apply changes to DB
+                        if (!block.isVirtual && block.id) {
+                            await tx.update(missionBlocks)
+                                .set({ startTime: toTimeStr(newStartMins) })
+                                .where(eq(missionBlocks.id, block.id));
+                        } else if (block.isVirtual && block.masterId) {
+                            const masterBlock = recurringBlocks.find(r => r.id === block.masterId);
+                            if (masterBlock) {
+                                // Add exception
+                                const currentExceptions = (masterBlock.exceptions as string[]) || [];
+                                if (!currentExceptions.includes(date)) {
+                                    await tx.update(missionBlocks)
+                                        .set({ exceptions: [...currentExceptions, date] })
+                                        .where(eq(missionBlocks.id, block.masterId));
+                                }
+                                
+                                // Fork block
+                                const isCompleted = (masterBlock.completedDates as string[] || []).includes(date);
+                                await tx.insert(missionBlocks).values({
+                                    userId,
+                                    title: masterBlock.title,
+                                    date,
+                                    startTime: toTimeStr(newStartMins),
+                                    totalDuration: masterBlock.totalDuration,
+                                    color: masterBlock.color,
+                                    icon: masterBlock.icon,
+                                    type: 'unique',
+                                    recurrencePattern: masterBlock.recurrencePattern,
+                                    status: isCompleted ? 'completed' : 'pending',
+                                    subTasks: masterBlock.subTasks,
+                                    description: masterBlock.description,
+                                    priority: masterBlock.priority,
+                                    deadline: masterBlock.deadline,
+                                    notifications: masterBlock.notifications,
+                                    linkedBlockType: masterBlock.linkedBlockType,
+                                    exceptions: [],
+                                });
+                            }
+                        }
+
+                        affectedBlockNames.push(block.title);
+                        lastBlockEnd = newStartMins + block.duration;
+                    }
                 }
-
-                // Create forked unique block with pushed time
-                const newStartMins = vb.startMins + duration;
-                const isCompleted = (masterBlock.completedDates as string[] || []).includes(date);
-
-                await tx.insert(missionBlocks).values({
-                    userId,
-                    title: masterBlock.title,
-                    date,
-                    startTime: toTimeStr(newStartMins),
-                    totalDuration: masterBlock.totalDuration,
-                    color: masterBlock.color,
-                    icon: masterBlock.icon,
-                    type: 'unique',
-                    recurrencePattern: masterBlock.recurrencePattern,
-                    status: isCompleted ? 'completed' : 'pending',
-                    subTasks: masterBlock.subTasks,
-                    description: masterBlock.description,
-                    priority: masterBlock.priority,
-                    deadline: masterBlock.deadline,
-                    notifications: masterBlock.notifications,
-                    linkedBlockType: masterBlock.linkedBlockType,
-                    exceptions: [],
-                });
-
-                affectedBlockNames.push(masterBlock.title);
             }
 
             // 5d. Decrement card charge
