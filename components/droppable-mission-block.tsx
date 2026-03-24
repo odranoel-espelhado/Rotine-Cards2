@@ -762,7 +762,7 @@ export function DroppableMissionBlock({ block, onDelete, onEdit, pendingBacklogT
                                                 className="h-5 sm:h-6 text-[9px] sm:text-[10px] bg-white/10 hover:bg-white/20 text-white border border-white/5 py-0 px-1.5 sm:px-2 rounded-full shrink"
                                                 onClick={(e) => {
                                                     e.stopPropagation();
-                                                    toast.promise(assignTasksToBlock(block.id, [suggestedTask]), {
+                                                    toast.promise(assignTasksToBlock(block.id, [suggestedTask as any]), {
                                                         loading: 'Adicionando...',
                                                         success: 'Tarefa adicionada!',
                                                         error: 'Erro'

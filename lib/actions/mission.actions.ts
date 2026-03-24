@@ -34,6 +34,18 @@ export interface SubTask {
     subTasks?: SubTask[] | null;
 }
 
+export type TaskPayload = Partial<SubTask> & {
+    id?: string;
+    estimatedDuration?: number;
+    color?: string;
+    priority?: string;
+    linkedBlockType?: string;
+    subTaskIndex?: number;
+    originalPriority?: string;
+    originalLinkedBlockType?: string;
+    originalColor?: string;
+};
+
 /**
  * Internal helper to handle the forking logic of a virtual block instance into a real unique block.
  * Returns the UUID of the newly created block.
@@ -524,7 +536,7 @@ export async function updateMissionBlock(id: string, data: Partial<Omit<NewMissi
     }
 }
 
-export async function assignTasksToBlock(blockId: string, tasksToAssign: any[]) {
+export async function assignTasksToBlock(blockId: string, tasksToAssign: TaskPayload[]) {
     const { userId } = await auth();
     if (!userId) return { error: "Unauthorized" };
 
@@ -545,7 +557,7 @@ export async function assignTasksToBlock(blockId: string, tasksToAssign: any[]) 
 
         const currentSubtasks = (block.subTasks as SubTask[]) || [];
         const newSubtasks: SubTask[] = tasksToAssign.map(t => ({
-            title: t.title,
+            title: t.title || "Nova Tarefa",
             description: t.description,
             duration: t.estimatedDuration || 15,
             done: false,
@@ -573,7 +585,7 @@ export async function assignTasksToBlock(blockId: string, tasksToAssign: any[]) 
                 .where(eq(missionBlocks.id, targetBlockId));
 
             // Only delete REAL tasks, not virtual subtasks
-            const taskIds = tasksToAssign.filter(t => !t.isVirtual).map(t => t.id);
+            const taskIds = tasksToAssign.filter(t => !t.isVirtual && t.id).map(t => t.id as string);
             if (taskIds.length > 0) {
                 await tx.delete(backlogTasks)
                     .where(
@@ -766,7 +778,7 @@ export async function convertTaskToBlock(taskId: string, date: string, startTime
     }
 }
 
-export async function unassignTaskFromBlock(blockId: string, taskIndex: number, taskData: any) {
+export async function unassignTaskFromBlock(blockId: string, taskIndex: number, taskData: TaskPayload) {
     const { userId } = await auth();
     if (!userId) return { error: "Unauthorized" };
 
@@ -806,8 +818,8 @@ export async function unassignTaskFromBlock(blockId: string, taskIndex: number, 
             if (!taskData.isVirtual && !taskData.isFixed) {
                 await tx.insert(backlogTasks).values({
                     userId,
-                    title: taskData.title,
-                    estimatedDuration: parseInt(taskData.duration) || 15,
+                    title: taskData.title || "Tarefa Arquivada",
+                    estimatedDuration: parseInt(taskData.duration as string) || 15,
                     status: 'pending',
                     createdAt: new Date(),
                     // Restore original data
@@ -832,7 +844,7 @@ export async function unassignTaskFromBlock(blockId: string, taskIndex: number, 
     }
 }
 
-export async function updateMissionSubTask(blockId: string, taskIndex: number, updates: any) {
+export async function updateMissionSubTask(blockId: string, taskIndex: number, updates: Partial<SubTask>) {
     const { userId } = await auth();
     if (!userId) return { error: "Unauthorized" };
 
