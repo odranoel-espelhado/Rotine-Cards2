@@ -509,51 +509,28 @@ export default function DashboardClient({
                                         const timelineEndMins = getMinutes(settings.timelineEnd || '24:00');
 
                                         // Global Current Time Indicator for Today
-                                        const GlobalTimeIndicator = () => {
-                                            if (!isToday) return null;
-
-                                            // showGlobal if it's NOT inside a block or gap already
-                                            const isInsideAnything = (blocks.length > 0 && currentMinutes >= timelineStartMins && currentMinutes <= timelineEndMins);
-                                            const showGlobal = blocks.length === 0 || !isInsideAnything;
-                                            
-                                            if (!showGlobal) return null;
-
-                                            let topPos = "0px";
-                                            if (currentMinutes < timelineStartMins) {
-                                                topPos = "-20px";
-                                            } else {
-                                                const offset = currentMinutes - timelineStartMins;
-                                                const total = timelineEndMins - timelineStartMins;
-                                                const percent = (offset / total) * 100;
-                                                topPos = `calc(60px + ${percent}%)`;
-                                            }
-
-                                            return (
-                                                <div
-                                                    className="absolute left-0 w-full z-40 pointer-events-none flex items-center"
-                                                    style={{ top: topPos }}
-                                                    id="current-time-line-global"
-                                                >
-                                                    <div className="w-full h-[2px] bg-blue-500/50 shadow-[0_0_10px_1px_rgba(59,130,246,0.3)] border-t border-blue-400/20"></div>
-                                                    <div className="absolute -left-1.5 flex flex-col items-center">
-                                                        <span className="text-[10px] font-black text-blue-400 absolute -top-4 whitespace-nowrap drop-shadow-[0_0_5px_rgba(96,165,250,0.8)]">
-                                                            {minutesToTime(currentMinutes)}
-                                                        </span>
-                                                        <div className="w-3 h-3 bg-blue-500 rounded-full shadow-[0_0_10px_2px_rgba(59,130,246,0.5)]"></div>
-                                                    </div>
+                                        const StandaloneTimeLine = ({ mins }: { mins: number }) => (
+                                            <div className="relative w-full z-40 pointer-events-none flex items-center py-2 h-4 my-2">
+                                                <div className="flex-1 ml-14 h-[2px] bg-blue-500/50 shadow-[0_0_10px_1px_rgba(59,130,246,0.3)] border-t border-blue-400/20"></div>
+                                                <div className="absolute left-0 flex items-center gap-2">
+                                                    <span className="text-[10px] font-black text-blue-400 whitespace-nowrap drop-shadow-[0_0_5px_rgba(96,165,250,0.8)] w-12 text-right">
+                                                        {minutesToTime(mins)}
+                                                    </span>
+                                                    <div className="w-3 h-3 bg-blue-500 rounded-full shadow-[0_0_10px_2px_rgba(59,130,246,0.5)]"></div>
                                                 </div>
-                                            );
-                                        };
+                                            </div>
+                                        );
 
                                         if (blocks.length === 0) {
                                             return (
                                                 <>
-                                                    <GlobalTimeIndicator />
+                                                    {isToday && currentMinutes < timelineStartMins && <StandaloneTimeLine mins={currentMinutes} />}
                                                     <DroppableBoundary
                                                         id={`boundary-start-${selectedDate}`}
                                                         time={settings.timelineStart || '08:00'}
                                                         label="Início do Dia"
                                                     />
+                                                    {isToday && currentMinutes >= timelineStartMins && currentMinutes < timelineEndMins && <StandaloneTimeLine mins={currentMinutes} />}
                                                     <div className="flex flex-col items-center justify-center h-48 text-zinc-500 mt-10 relative z-10">
                                                         <CalendarIcon className="h-12 w-12 mb-4 opacity-20" />
                                                         <p>Nenhuma missão para este dia.</p>
@@ -563,6 +540,7 @@ export default function DashboardClient({
                                                         time={settings.timelineEnd || '24:00'}
                                                         label="Fim do Dia"
                                                     />
+                                                    {isToday && currentMinutes >= timelineEndMins && <StandaloneTimeLine mins={currentMinutes} />}
                                                 </>
                                             );
                                         }
@@ -604,6 +582,10 @@ export default function DashboardClient({
 
                                             const nodes: React.ReactNode[] = [];
 
+                                            if (isToday && currentMinutes < timelineStartMins && index === 0 && !startBoundaryRendered) {
+                                                nodes.push(<StandaloneTimeLine key="standalone-top" mins={currentMinutes} />);
+                                            }
+
                                             if (!startBoundaryRendered && blockStart >= timelineStartMins) {
                                                 nodes.push(
                                                     <DroppableBoundary
@@ -641,6 +623,7 @@ export default function DashboardClient({
                                                             onAddTask={() => setTaskPickerState({ open: true, startTime: minutesToTime(effectiveGapStart), date: selectedDate })}
                                                             isCurrent={isGapCurrent}
                                                             currentMinutes={currentMinutes}
+                                                            height={Math.max(32, gapDuration * PIXELS_PER_MINUTE)}
                                                         />
                                                     )}
 
@@ -720,8 +703,13 @@ export default function DashboardClient({
                                                     onAddTask={() => setTaskPickerState({ open: true, startTime: minutesToTime(finalEffectiveGapStart), date: selectedDate })}
                                                     isCurrent={isFinalGapCurrent}
                                                     currentMinutes={currentMinutes}
+                                                    height={Math.max(32, finalGapDuration * PIXELS_PER_MINUTE)}
                                                 />
                                             );
+                                        }
+
+                                        if (isToday && currentMinutes >= dayEndMins) {
+                                            finalNodes.push(<StandaloneTimeLine key="standalone-bottom" mins={currentMinutes} />);
                                         }
 
                                         if (!endBoundaryRendered) {
@@ -737,7 +725,6 @@ export default function DashboardClient({
 
                                         return (
                                             <>
-                                                <GlobalTimeIndicator />
                                                 {mapNodes}
                                                 {finalNodes}
                                             </>

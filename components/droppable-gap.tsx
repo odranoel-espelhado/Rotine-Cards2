@@ -14,9 +14,10 @@ interface DroppableGapProps {
     suggestedTask?: BacklogTask;
     isCurrent?: boolean;
     currentMinutes?: number;
+    height?: number;
 }
 
-export function DroppableGap({ id, durationMinutes, startTime, onConvertToBlock, onAddTask, suggestedTask, isCurrent, currentMinutes }: DroppableGapProps) {
+export function DroppableGap({ id, durationMinutes, startTime, onConvertToBlock, onAddTask, suggestedTask, isCurrent, currentMinutes, height }: DroppableGapProps) {
     const { isOver, setNodeRef } = useDroppable({
         id,
         data: { type: 'gap', startTime, duration: durationMinutes }
@@ -26,9 +27,10 @@ export function DroppableGap({ id, durationMinutes, startTime, onConvertToBlock,
         <div
             ref={setNodeRef}
             className={cn(
-                "mb-4 pl-12 h-8 relative flex items-center group/gap transition-all duration-300 rounded-lg",
+                "mb-4 pl-12 relative flex items-center group/gap transition-all duration-300 rounded-lg",
                 isOver ? "bg-white/10 scale-[1.02] border border-white/20 border-dashed" : ""
             )}
+            style={{ height: height ? `${height}px` : '32px' }}
         >
             {/* Current Time Line Indicator for Gap */}
             {isCurrent && (
