@@ -73,6 +73,7 @@ export function CreateTaskDialog({ availableBlockTypes = [], taskToEdit, open: c
     const [internalOpen, setInternalOpen] = useState(false);
     const [fetchedBlockTypes, setFetchedBlockTypes] = useState(availableBlockTypes);
     const [showDescription, setShowDescription] = useState(false);
+    const [hiddenSubTasks, setHiddenSubTasks] = useState<any[]>([]);
 
     const isControlled = controlledOpen !== undefined;
     const open = isControlled ? controlledOpen : internalOpen;
@@ -123,11 +124,12 @@ export function CreateTaskDialog({ availableBlockTypes = [], taskToEdit, open: c
                 estimatedDuration: taskToEdit?.estimatedDuration || 30,
                 deadline: taskToEdit?.deadline || "",
                 description: taskToEdit?.description || "",
-                subTasks: (taskToEdit?.subTasks as any[]) || [],
+                subTasks: (taskToEdit?.subTasks as any[])?.filter(st => !st.isHidden) || [],
                 notifications: (taskToEdit?.notifications as number[]) || [],
                 suggestible: taskToEdit?.suggestible ?? true,
             });
             setShowDescription(!!taskToEdit?.description);
+            setHiddenSubTasks((taskToEdit?.subTasks as any[])?.filter(st => st.isHidden) || []);
 
             // Refresh block types on open to ensure we have the latest
             getUniqueBlockTypes().then((types) => {
@@ -149,7 +151,7 @@ export function CreateTaskDialog({ availableBlockTypes = [], taskToEdit, open: c
                 estimatedDuration: values.estimatedDuration,
                 linkedBlockType: values.linkedBlockType === "none" ? undefined : values.linkedBlockType,
                 color: color,
-                subTasks: values.subTasks,
+                subTasks: [...values.subTasks, ...hiddenSubTasks],
                 description: values.description,
                 deadline: values.deadline,
                 notifications: values.notifications,
@@ -162,7 +164,7 @@ export function CreateTaskDialog({ availableBlockTypes = [], taskToEdit, open: c
                 estimatedDuration: values.estimatedDuration,
                 linkedBlockType: values.linkedBlockType === "none" ? undefined : values.linkedBlockType,
                 color: color,
-                subTasks: values.subTasks,
+                subTasks: [...values.subTasks, ...hiddenSubTasks],
                 description: values.description,
                 deadline: values.deadline,
                 notifications: values.notifications,
@@ -184,6 +186,7 @@ export function CreateTaskDialog({ availableBlockTypes = [], taskToEdit, open: c
                     subTasks: [],
                 });
                 setShowDescription(false);
+                setHiddenSubTasks([]);
             }
             toast.success(isEditing ? "Tarefa atualizada!" : "Tarefa criada!");
         } else {

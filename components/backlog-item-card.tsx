@@ -171,11 +171,14 @@ export const BacklogItemCard = forwardRef<HTMLDivElement, BacklogItemCardProps>(
                                     <span>{task.estimatedDuration} min</span>
                                 </div>
 
-                                {(task.subTasks as any[])?.length > 0 && (
+                                {(task.subTasks as any[])?.filter(st => !st.isHidden).length > 0 && (
                                     <div className="space-y-1">
                                         <p className="text-[10px] uppercase font-bold text-white/50">Subtarefas</p>
-                                        {(task.subTasks as any[]).map((st: any, i: number) => (
-                                            <div key={i} className="flex gap-2 items-center text-xs text-white/90 bg-black/20 p-1.5 rounded group/sub">
+                                        {(task.subTasks as any[])
+                                            .map((st: any, i: number) => ({ ...st, originalIndex: i }))
+                                            .filter((st: any) => !st.isHidden)
+                                            .map((st: any) => (
+                                            <div key={st.originalIndex} className="flex gap-2 items-center text-xs text-white/90 bg-black/20 p-1.5 rounded group/sub">
                                                 {/* Checkbox */}
                                                 <div
                                                     className={cn(
@@ -184,7 +187,7 @@ export const BacklogItemCard = forwardRef<HTMLDivElement, BacklogItemCardProps>(
                                                     )}
                                                     onClick={(e) => {
                                                         e.stopPropagation();
-                                                        const promise = toggleBacklogSubTask(task.id, i, !!st.done);
+                                                        const promise = toggleBacklogSubTask(task.id, st.originalIndex, !!st.done);
                                                         toast.promise(promise, {
                                                             loading: 'Atualizando...',
                                                             success: 'Atualizado!',
@@ -203,8 +206,8 @@ export const BacklogItemCard = forwardRef<HTMLDivElement, BacklogItemCardProps>(
                                         ))}
                                     </div>
                                 )}
-                                {(task.subTasks as any[])?.length === 0 && (
-                                    <p className="text-[10px] italic text-white/40">Sem subtarefas</p>
+                                {(task.subTasks as any[])?.filter(st => !st.isHidden).length === 0 && (
+                                    <p className="text-[10px] italic text-white/40">Sem subtarefas visíveis</p>
                                 )}
                             </div>
                         )}

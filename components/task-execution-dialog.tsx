@@ -8,7 +8,8 @@ import {
     DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Check, Copy, AlertTriangle, ArrowUp, ArrowDown, Eye, EyeOff, ChevronDown, ChevronRight } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Check, Copy, AlertTriangle, Eye, EyeOff, ChevronDown, ChevronRight, Pencil, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { differenceInCalendarDays, parseISO } from "date-fns";
@@ -40,6 +41,7 @@ export function TaskExecutionDialog({ open, onOpenChange, data }: TaskExecutionD
     const [subTasks, setSubTasks] = useState<any[]>([]);
     const [hideCompleted, setHideCompleted] = useState(false);
     const [hiddenExpanded, setHiddenExpanded] = useState(false);
+    const [isEditingSubtasks, setIsEditingSubtasks] = useState(false);
 
     useEffect(() => {
         if (open && data) {
@@ -92,16 +94,6 @@ export function TaskExecutionDialog({ open, onOpenChange, data }: TaskExecutionD
         toast.success("Descrição copiada!");
     };
 
-    const handleMoveSubtask = (index: number, direction: 'up' | 'down') => {
-        const newSubtasks = [...subTasks];
-        if (direction === 'up' && index > 0) {
-            [newSubtasks[index - 1], newSubtasks[index]] = [newSubtasks[index], newSubtasks[index - 1]];
-        } else if (direction === 'down' && index < newSubtasks.length - 1) {
-            [newSubtasks[index + 1], newSubtasks[index]] = [newSubtasks[index], newSubtasks[index + 1]];
-        }
-        setSubTasks(newSubtasks);
-    };
-
     const toggleSubtask = (index: number) => {
         const newSubtasks = [...subTasks];
         newSubtasks[index] = { ...newSubtasks[index], done: !newSubtasks[index].done };
@@ -118,7 +110,8 @@ export function TaskExecutionDialog({ open, onOpenChange, data }: TaskExecutionD
     const handleSave = async () => {
         try {
             if (data.type === 'backlog') {
-                await updateBacklogTask(data.id, { description, subTasks });
+                const currentTotal = subTasks.reduce((acc, sub) => acc + (Number(sub.duration) || 0), 0);
+                await updateBacklogTask(data.id, { description, subTasks, estimatedDuration: currentTotal > 0 ? currentTotal : 30 });
             } else if (data.type === 'mission-block') {
                 await updateMissionBlock(data.id, { description, subTasks });
             } else if (data.type === 'mission-subtask' && data.subTaskIndex !== undefined) {
@@ -211,8 +204,21 @@ export function TaskExecutionDialog({ open, onOpenChange, data }: TaskExecutionD
                     {/* Subtasks */}
                     <div className="space-y-3">
                         <div className="flex items-center justify-between">
-                            <div className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Subtarefas</div>
-                            {subTasks.length > 0 && (
+                            <div className="flex items-center gap-2">
+                                <span className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Subtarefas</span>
+                                {data.type === 'backlog' && (
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        onClick={() => setIsEditingSubtasks(!isEditingSubtasks)}
+                                        className={cn("h-6 w-6 rounded-full transition-colors", isEditingSubtasks ? "bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30 hover:text-emerald-300" : "text-zinc-500 hover:text-white hover:bg-white/10")}
+                                        title="Editar Subtarefas"
+                                    >
+                                        <Pencil className="w-3 h-3" />
+                                    </Button>
+                                )}
+                            </div>
+                            {subTasks.length > 0 && !isEditingSubtasks && (
                                 <Button
                                     variant="ghost"
                                     size="sm"
@@ -237,58 +243,92 @@ export function TaskExecutionDialog({ open, onOpenChange, data }: TaskExecutionD
                                 return (
                                     <div key={i} className="flex items-center justify-between bg-[#121215] border border-white/5 rounded-2xl p-3 px-4 group transition-all hover:border-white/10">
                                         <div className="flex items-center gap-3 flex-1 min-w-0">
-                                            <div
-                                                onClick={() => toggleSubtask(i)}
-                                                className={cn(
-                                                    "w-5 h-5 rounded-md border-2 flex items-center justify-center cursor-pointer transition-colors shrink-0",
-                                                    st.done ? "bg-emerald-500 border-emerald-500 text-black" : "border-white/20 hover:border-white/50 bg-transparent text-transparent"
-                                                )}
-                                            >
-                                                <Check className="w-3.5 h-3.5" strokeWidth={4} />
-                                            </div>
-                                            <span className={cn(
-                                                "font-medium text-sm truncate transition-colors",
-                                                st.done ? "text-white/40 line-through" : "text-white/90"
-                                            )}>
-                                                {st.title} <span className="text-zinc-500 ml-1">({st.duration} min)</span>
-                                            </span>
+                                            {!isEditingSubtasks && (
+                                                <div
+                                                    onClick={() => toggleSubtask(i)}
+                                                    className={cn(
+                                                        "w-5 h-5 rounded-md border-2 flex items-center justify-center cursor-pointer transition-colors shrink-0",
+                                                        st.done ? "bg-emerald-500 border-emerald-500 text-black" : "border-white/20 hover:border-white/50 bg-transparent text-transparent"
+                                                    )}
+                                                >
+                                                    <Check className="w-3.5 h-3.5" strokeWidth={4} />
+                                                </div>
+                                            )}
+                                            {isEditingSubtasks ? (
+                                                <div className="flex items-center gap-2 flex-1 min-w-0">
+                                                    <Input
+                                                        value={st.title}
+                                                        onChange={(e) => {
+                                                            const newSubTasks = [...subTasks];
+                                                            newSubTasks[i].title = e.target.value;
+                                                            setSubTasks(newSubTasks);
+                                                        }}
+                                                        placeholder="Subtarefa..."
+                                                        className="h-8 text-xs bg-black/40 border-white/10 flex-1 focus-visible:ring-emerald-500/30"
+                                                    />
+                                                    <Input
+                                                        value={st.duration || ""}
+                                                        onChange={(e) => {
+                                                            const newSubTasks = [...subTasks];
+                                                            newSubTasks[i].duration = parseInt(e.target.value) || 0;
+                                                            setSubTasks(newSubTasks);
+                                                        }}
+                                                        type="number"
+                                                        placeholder="min"
+                                                        className="h-8 w-16 text-xs bg-black/40 border-white/10 font-mono text-center focus-visible:ring-emerald-500/30"
+                                                    />
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        onClick={() => {
+                                                            const newSubTasks = [...subTasks];
+                                                            newSubTasks.splice(i, 1);
+                                                            setSubTasks(newSubTasks);
+                                                        }}
+                                                        className="h-8 w-8 text-zinc-500 hover:text-red-400 hover:bg-red-500/10 shrink-0"
+                                                    >
+                                                        <Trash2 className="w-3.5 h-3.5" />
+                                                    </Button>
+                                                </div>
+                                            ) : (
+                                                <span className={cn(
+                                                    "font-medium text-sm truncate transition-colors",
+                                                    st.done ? "text-white/40 line-through" : "text-white/90"
+                                                )}>
+                                                    {st.title} <span className="text-zinc-500 ml-1">({st.duration} min)</span>
+                                                </span>
+                                            )}
                                         </div>
 
-                                        {/* Actions: EyeOff + Arrows */}
-                                        <div className="flex items-center gap-1 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity ml-2 shrink-0">
-                                            <Button
-                                                variant="ghost"
-                                                size="icon"
-                                                onClick={() => toggleSubtaskHidden(i)}
-                                                className="h-7 w-7 rounded-full bg-white/5 hover:bg-amber-500/10 text-zinc-500 hover:text-amber-400 border border-white/5"
-                                                title="Ocultar esta subtarefa"
-                                            >
-                                                <EyeOff className="w-3 h-3" />
-                                            </Button>
-                                            <Button
-                                                variant="ghost"
-                                                size="icon"
-                                                onClick={() => handleMoveSubtask(i, 'down')}
-                                                disabled={i === subTasks.length - 1}
-                                                className="h-7 w-7 rounded-full bg-white/5 hover:bg-white/10 text-zinc-400 hover:text-white border border-white/5 disabled:opacity-30 disabled:hover:bg-transparent"
-                                            >
-                                                <ArrowDown className="w-3 h-3" />
-                                            </Button>
-                                            <Button
-                                                variant="ghost"
-                                                size="icon"
-                                                onClick={() => handleMoveSubtask(i, 'up')}
-                                                disabled={i === 0}
-                                                className="h-7 w-7 rounded-full bg-white/5 hover:bg-white/10 text-zinc-400 hover:text-white border border-white/5 disabled:opacity-30 disabled:hover:bg-transparent"
-                                            >
-                                                <ArrowUp className="w-3 h-3" />
-                                            </Button>
-                                        </div>
+                                        {/* Actions: EyeOff */}
+                                        {!isEditingSubtasks && (
+                                            <div className="flex items-center gap-1 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity ml-2 shrink-0">
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    onClick={() => toggleSubtaskHidden(i)}
+                                                    className="h-7 w-7 rounded-full bg-white/5 hover:bg-amber-500/10 text-zinc-500 hover:text-amber-400 border border-white/5"
+                                                    title="Ocultar esta subtarefa"
+                                                >
+                                                    <EyeOff className="w-3 h-3" />
+                                                </Button>
+                                            </div>
+                                        )}
                                     </div>
                                 );
                             })}
 
-                            {visibleSubTasks.length === 0 && hiddenSubTasks.length === 0 && (
+                            {isEditingSubtasks && (
+                                <Button
+                                    variant="outline"
+                                    onClick={() => setSubTasks([...subTasks, { title: "", duration: 15, done: false, isHidden: false }])}
+                                    className="w-full h-10 border-dashed border-white/10 text-white/50 hover:text-white hover:border-white/30 bg-transparent hover:bg-white/5 text-[10px] uppercase font-black tracking-widest gap-2"
+                                >
+                                    <Plus className="w-3.5 h-3.5" /> Adicionar Subtarefa
+                                </Button>
+                            )}
+
+                            {visibleSubTasks.length === 0 && hiddenSubTasks.length === 0 && !isEditingSubtasks && (
                                 <div className="text-center py-6 text-[10px] text-zinc-600 uppercase font-black tracking-widest bg-white/5 rounded-2xl border border-white/5">
                                     Nenhuma subtarefa
                                 </div>
