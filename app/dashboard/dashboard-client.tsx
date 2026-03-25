@@ -524,13 +524,14 @@ export default function DashboardClient({
                                         if (blocks.length === 0) {
                                             return (
                                                 <>
-                                                    {isToday && currentMinutes < timelineStartMins && <StandaloneTimeLine mins={currentMinutes} />}
                                                     <DroppableBoundary
                                                         id={`boundary-start-${selectedDate}`}
                                                         time={settings.timelineStart || '08:00'}
                                                         label="Início do Dia"
+                                                        isCurrent={isToday && currentMinutes <= timelineStartMins}
+                                                        currentMinutes={currentMinutes}
                                                     />
-                                                    {isToday && currentMinutes >= timelineStartMins && currentMinutes < timelineEndMins && <StandaloneTimeLine mins={currentMinutes} />}
+                                                    {isToday && currentMinutes > timelineStartMins && currentMinutes < timelineEndMins && <StandaloneTimeLine mins={currentMinutes} />}
                                                     <div className="flex flex-col items-center justify-center h-48 text-zinc-500 mt-10 relative z-10">
                                                         <CalendarIcon className="h-12 w-12 mb-4 opacity-20" />
                                                         <p>Nenhuma missão para este dia.</p>
@@ -539,8 +540,9 @@ export default function DashboardClient({
                                                         id={`boundary-end-${selectedDate}`}
                                                         time={settings.timelineEnd || '24:00'}
                                                         label="Fim do Dia"
+                                                        isCurrent={isToday && currentMinutes >= timelineEndMins}
+                                                        currentMinutes={currentMinutes}
                                                     />
-                                                    {isToday && currentMinutes >= timelineEndMins && <StandaloneTimeLine mins={currentMinutes} />}
                                                 </>
                                             );
                                         }
@@ -575,17 +577,15 @@ export default function DashboardClient({
                                             const suggestedGapTask = effectiveGapDuration > 0 ? getBestSuggestion(initialBacklog, effectiveGapDuration, 'gap') : undefined;
                                             const isGapCurrent = isToday && currentMinutes >= gapStart && currentMinutes < (gapStart + gapDuration);
                                             const isBlockCurrent = isToday && currentMinutes >= blockStart && currentMinutes < (blockStart + block.totalDuration);
+                                            const isStartBoundaryCurrent = isToday && currentMinutes < timelineStartMins;
+                                            const isEndBoundaryCurrent = isToday && currentMinutes >= timelineEndMins;
                                             const blockTimeOffset = isBlockCurrent ? currentMinutes - blockStart : undefined;
 
-                                            if (isGapCurrent || isBlockCurrent) {
+                                            if (isGapCurrent || isBlockCurrent || (index === 0 && isStartBoundaryCurrent) || (index === blocks.length - 1 && isEndBoundaryCurrent)) {
                                                 isTimeLineActiveInFlow = true;
                                             }
 
                                             const nodes: React.ReactNode[] = [];
-
-                                            if (isToday && currentMinutes < timelineStartMins && index === 0 && !startBoundaryRendered) {
-                                                nodes.push(<StandaloneTimeLine key="standalone-top" mins={currentMinutes} />);
-                                            }
 
                                             if (!startBoundaryRendered && blockStart >= timelineStartMins) {
                                                 nodes.push(
@@ -594,6 +594,8 @@ export default function DashboardClient({
                                                         id={`boundary-start-${selectedDate}`}
                                                         time={settings.timelineStart || '08:00'}
                                                         label="Início do Dia"
+                                                        isCurrent={isToday && currentMinutes < timelineStartMins}
+                                                        currentMinutes={currentMinutes}
                                                     />
                                                 );
                                                 startBoundaryRendered = true;
@@ -606,6 +608,8 @@ export default function DashboardClient({
                                                         id={`boundary-end-${selectedDate}`}
                                                         time={settings.timelineEnd || '24:00'}
                                                         label="Fim do Dia"
+                                                        isCurrent={isToday && currentMinutes >= timelineEndMins}
+                                                        currentMinutes={currentMinutes}
                                                     />
                                                 );
                                                 endBoundaryRendered = true;
@@ -624,7 +628,7 @@ export default function DashboardClient({
                                                             onAddTask={() => setTaskPickerState({ open: true, startTime: minutesToTime(effectiveGapStart), date: selectedDate })}
                                                             isCurrent={isGapCurrent}
                                                             currentMinutes={currentMinutes}
-                                                            height={Math.max(32, gapDuration * PIXELS_PER_MINUTE)}
+                                                            height={5 + Math.floor(gapDuration / 30)}
                                                         />
                                                     )}
 
@@ -696,6 +700,8 @@ export default function DashboardClient({
                                                     id={`boundary-start-${selectedDate}`}
                                                     time={settings.timelineStart || '08:00'}
                                                     label="Início do Dia"
+                                                    isCurrent={isToday && currentMinutes < timelineStartMins}
+                                                    currentMinutes={currentMinutes}
                                                 />
                                             );
                                         }
@@ -712,13 +718,13 @@ export default function DashboardClient({
                                                     onAddTask={() => setTaskPickerState({ open: true, startTime: minutesToTime(finalEffectiveGapStart), date: selectedDate })}
                                                     isCurrent={isFinalGapCurrent}
                                                     currentMinutes={currentMinutes}
-                                                    height={Math.max(32, finalGapDuration * PIXELS_PER_MINUTE)}
+                                                    height={5 + Math.floor(finalGapDuration / 30)}
                                                 />
                                             );
                                         }
 
-                                        if (isToday && currentMinutes >= dayEndMins && !isTimeLineActiveInFlow) {
-                                            finalNodes.push(<StandaloneTimeLine key="standalone-bottom" mins={currentMinutes} />);
+                                        if (isToday && currentMinutes >= dayEndMins) {
+                                            isTimeLineActiveInFlow = true;
                                         }
 
                                         if (!endBoundaryRendered) {
@@ -728,6 +734,8 @@ export default function DashboardClient({
                                                     id={`boundary-end-${selectedDate}`}
                                                     time={settings.timelineEnd || '24:00'}
                                                     label="Fim do Dia"
+                                                    isCurrent={isToday && currentMinutes >= timelineEndMins}
+                                                    currentMinutes={currentMinutes}
                                                 />
                                             );
                                         }
