@@ -32,6 +32,7 @@ export interface SubTask {
     notifications?: number[] | null;
     suggestible?: boolean | null;
     subTasks?: SubTask[] | null;
+    isHidden?: boolean | null; // Se a subtarefa está oculta na zona de execução
 }
 
 export type TaskPayload = Partial<SubTask> & {
@@ -808,14 +809,14 @@ export async function unassignTaskFromBlock(blockId: string, taskIndex: number, 
         newSubtasks.splice(taskIndex, 1);
 
         await db.transaction(async (tx) => {
-            // Update block
+            // Update block — remove the subtask
             await tx.update(missionBlocks)
                 .set({ subTasks: newSubtasks })
                 .where(eq(missionBlocks.id, targetBlockId));
 
-            // Create backlog task from removed task
-            // "Archives back to task list" only if not virtual and not a fixed/default task
-            if (!taskData.isVirtual && !taskData.isFixed) {
+            // If task came from a parent task in the backlog, it already exists there — just delete from block
+            // If it was a standalone block subtask, restore it to the backlog
+            if (!taskData.isVirtual && !taskData.isFixed && !taskData.isFromTask) {
                 await tx.insert(backlogTasks).values({
                     userId,
                     title: taskData.title || "Tarefa Arquivada",

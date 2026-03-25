@@ -27,6 +27,7 @@ export interface SubTask {
     notifications?: number[] | null;
     suggestible?: boolean | null;
     subTasks?: SubTask[] | null;
+    isHidden?: boolean | null; // Se a subtarefa está oculta na zona de execução
 }
 
 export async function getBacklogTasks() {
@@ -199,5 +200,27 @@ export async function toggleBacklogSubTask(taskId: string, subTaskIndex: number,
     } catch (error) {
         console.error("Error toggling backlog subtask:", error);
         return { error: "Failed to toggle subtask" };
+    }
+}
+
+export async function toggleBacklogTaskHidden(id: string) {
+    const { userId } = await auth();
+    if (!userId) return { error: "Unauthorized" };
+
+    try {
+        const [task] = await db.select().from(backlogTasks)
+            .where(and(eq(backlogTasks.id, id), eq(backlogTasks.userId, userId)));
+
+        if (!task) return { error: "Task not found" };
+
+        await db.update(backlogTasks)
+            .set({ isHidden: !task.isHidden })
+            .where(and(eq(backlogTasks.id, id), eq(backlogTasks.userId, userId)));
+
+        revalidatePath("/dashboard");
+        return { success: true, isHidden: !task.isHidden };
+    } catch (error) {
+        console.error("Error toggling task hidden:", error);
+        return { error: "Failed to toggle" };
     }
 }

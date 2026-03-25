@@ -1,8 +1,8 @@
 "use client";
 
-import { BacklogTask, toggleBacklogSubTask } from "@/lib/actions/backlog.actions";
+import { BacklogTask, toggleBacklogSubTask, toggleBacklogTaskHidden } from "@/lib/actions/backlog.actions";
 import { Button } from "@/components/ui/button";
-import { Pencil, Clock, Trash2, Check, AlertTriangle } from "lucide-react";
+import { Pencil, Clock, Trash2, Check, AlertTriangle, EyeOff } from "lucide-react";
 import { differenceInCalendarDays, parseISO } from "date-fns";
 import { cn } from "@/lib/utils";
 import { forwardRef, useState } from "react";
@@ -120,6 +120,22 @@ export const BacklogItemCard = forwardRef<HTMLDivElement, BacklogItemCardProps>(
                                 {/* Actions Area */}
                                 {!isDragging && (
                                     <div className="flex items-center justify-end gap-2 mb-2">
+                                        <Button
+                                            size="sm"
+                                            variant="ghost"
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                toast.promise(toggleBacklogTaskHidden(task.id), {
+                                                    loading: 'Ocultando...',
+                                                    success: task.isHidden ? 'Tarefa exibida!' : 'Tarefa oculta!',
+                                                    error: 'Erro'
+                                                });
+                                            }}
+                                            className="h-7 px-3 text-xs text-amber-400/70 hover:text-amber-400 hover:bg-amber-500/10 border border-transparent hover:border-amber-500/20 rounded-lg"
+                                            title={task.isHidden ? 'Mostrar tarefa' : 'Ocultar tarefa'}
+                                        >
+                                            <EyeOff className="h-3 w-3 mr-1" /> {task.isHidden ? 'Exibir' : 'Ocultar'}
+                                        </Button>
                                         {onEdit && (
                                             <Button
                                                 size="sm"

@@ -69,6 +69,7 @@ export const backlogTasks = pgTable('backlog_tasks', {
     deadline: text('deadline'), // Prazo (dd/mm/yyyy or YYYY-MM-DD)
     notifications: integer('notifications').array(), // Minutos antes para notificar
     suggestible: boolean('suggestible').default(true), // Se aparece nas sugestões
+    isHidden: boolean('is_hidden').default(false), // Se a tarefa está oculta no backlog
     createdAt: timestamp('created_at').defaultNow().notNull(),
 });
 

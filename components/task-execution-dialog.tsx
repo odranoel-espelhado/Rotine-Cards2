@@ -8,7 +8,7 @@ import {
     DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Check, Copy, AlertTriangle, ArrowUp, ArrowDown } from "lucide-react";
+import { Check, Copy, AlertTriangle, ArrowUp, ArrowDown, Eye, EyeOff, ChevronDown, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { differenceInCalendarDays, parseISO } from "date-fns";
@@ -19,7 +19,7 @@ import { Textarea } from "@/components/ui/textarea";
 export interface TaskExecutionData {
     id: string;
     type: 'backlog' | 'mission-block' | 'mission-subtask';
-    subTaskIndex?: number; // For mission-subtask
+    subTaskIndex?: number;
     title: string;
     linkedBlockType?: string;
     deadline?: string;
@@ -38,17 +38,21 @@ interface TaskExecutionDialogProps {
 export function TaskExecutionDialog({ open, onOpenChange, data }: TaskExecutionDialogProps) {
     const [description, setDescription] = useState("");
     const [subTasks, setSubTasks] = useState<any[]>([]);
+    const [hideCompleted, setHideCompleted] = useState(false);
+    const [hiddenExpanded, setHiddenExpanded] = useState(false);
 
     useEffect(() => {
         if (open && data) {
             setDescription(data.description || "");
             setSubTasks([...(data.subTasks || [])]);
+            setHiddenExpanded(false);
+            const allDone = (data.subTasks || []).every((s: any) => s.done);
+            setHideCompleted(allDone && data.subTasks.length > 0);
         }
     }, [open, data?.id]);
 
     if (!data) return null;
 
-    // Deadline logic
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     let daysLeft: number | null = null;
@@ -73,7 +77,6 @@ export function TaskExecutionDialog({ open, onOpenChange, data }: TaskExecutionD
         }
     }
 
-    // Priority
     const getPriorityColor = (p: string) => {
         switch (p) {
             case 'high': return 'bg-red-500 shadow-[0_0_15px_rgba(239,68,68,0.8)]';
@@ -105,31 +108,33 @@ export function TaskExecutionDialog({ open, onOpenChange, data }: TaskExecutionD
         setSubTasks(newSubtasks);
     };
 
+    // Toggle hidden state — persisted via isHidden on save
+    const toggleSubtaskHidden = (index: number) => {
+        const newSubtasks = [...subTasks];
+        newSubtasks[index] = { ...newSubtasks[index], isHidden: !newSubtasks[index].isHidden };
+        setSubTasks(newSubtasks);
+    };
+
     const handleSave = async () => {
         try {
             if (data.type === 'backlog') {
-                await updateBacklogTask(data.id, {
-                    description: description,
-                    subTasks: subTasks
-                });
+                await updateBacklogTask(data.id, { description, subTasks });
             } else if (data.type === 'mission-block') {
-                await updateMissionBlock(data.id, {
-                    description: description, // Update: might need to add this to schema if we want to save block descriptions. Right now we don't have it in DB schema natively, but we can pass it, though it might be lost. Wait, 'mission_blocks' has no 'description' field. We can omit or handle it. Let's send subTasks anyway.
-                    subTasks: subTasks
-                });
+                await updateMissionBlock(data.id, { description, subTasks });
             } else if (data.type === 'mission-subtask' && data.subTaskIndex !== undefined) {
-                await updateMissionSubTask(data.id, data.subTaskIndex, {
-                    description: description,
-                    subTasks: subTasks
-                });
+                await updateMissionSubTask(data.id, data.subTaskIndex, { description, subTasks });
             }
-
             toast.success("Progresso salvo!");
             onOpenChange(false);
-        } catch (e) {
+        } catch {
             toast.error("Erro ao salvar.");
         }
     };
+
+    // Separate subtasks: visible = not hidden AND not (hideCompleted + done)
+    const allWithIndex = subTasks.map((st, i) => ({ ...st, originalIndex: i }));
+    const visibleSubTasks = allWithIndex.filter(st => !st.isHidden && !(hideCompleted && st.done));
+    const hiddenSubTasks = allWithIndex.filter(st => st.isHidden || (hideCompleted && st.done));
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
@@ -205,54 +210,128 @@ export function TaskExecutionDialog({ open, onOpenChange, data }: TaskExecutionD
 
                     {/* Subtasks */}
                     <div className="space-y-3">
-                        <div className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Subtarefas</div>
-                        <div className="space-y-2">
-                            {subTasks.map((st: any, i: number) => (
-                                <div key={i} className="flex items-center justify-between bg-[#121215] border border-white/5 rounded-2xl p-3 px-4 group transition-all hover:border-white/10">
-                                    <div className="flex items-center gap-3 flex-1 min-w-0">
-                                        <div
-                                            onClick={() => toggleSubtask(i)}
-                                            className={cn(
-                                                "w-5 h-5 rounded-md border-2 flex items-center justify-center cursor-pointer transition-colors shrink-0",
-                                                st.done ? "bg-emerald-500 border-emerald-500 text-black" : "border-white/20 hover:border-white/50 bg-transparent text-transparent"
-                                            )}
-                                        >
-                                            <Check className="w-3.5 h-3.5" strokeWidth={4} />
-                                        </div>
-                                        <span className={cn(
-                                            "font-medium text-sm truncate transition-colors",
-                                            st.done ? "text-white/40 line-through" : "text-white/90"
-                                        )}>
-                                            {st.title} <span className="text-zinc-500 ml-1">({st.duration} min)</span>
-                                        </span>
-                                    </div>
+                        <div className="flex items-center justify-between">
+                            <div className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Subtarefas</div>
+                            {subTasks.length > 0 && (
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => setHideCompleted(h => !h)}
+                                    className={cn(
+                                        "h-7 px-2 gap-1.5 text-[10px] font-bold uppercase rounded-full border transition-all",
+                                        hideCompleted
+                                            ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/20"
+                                            : "bg-white/5 text-zinc-500 border-white/10 hover:bg-white/10 hover:text-white"
+                                    )}
+                                    title={hideCompleted ? "Mostrar concluídas" : "Ocultar concluídas"}
+                                >
+                                    {hideCompleted ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
+                                    {hideCompleted ? "Exibir concluídas" : "Ocultar concluídas"}
+                                </Button>
+                            )}
+                        </div>
 
-                                    {/* Arrows */}
-                                    <div className="flex items-center gap-1 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity ml-2 shrink-0">
-                                        <Button
-                                            variant="ghost"
-                                            size="icon"
-                                            onClick={() => handleMoveSubtask(i, 'down')}
-                                            disabled={i === subTasks.length - 1}
-                                            className="h-7 w-7 rounded-full bg-white/5 hover:bg-white/10 text-zinc-400 hover:text-white border border-white/5 disabled:opacity-30 disabled:hover:bg-transparent"
-                                        >
-                                            <ArrowDown className="w-3 h-3" />
-                                        </Button>
-                                        <Button
-                                            variant="ghost"
-                                            size="icon"
-                                            onClick={() => handleMoveSubtask(i, 'up')}
-                                            disabled={i === 0}
-                                            className="h-7 w-7 rounded-full bg-white/5 hover:bg-white/10 text-zinc-400 hover:text-white border border-white/5 disabled:opacity-30 disabled:hover:bg-transparent"
-                                        >
-                                            <ArrowUp className="w-3 h-3" />
-                                        </Button>
+                        <div className="space-y-2">
+                            {visibleSubTasks.map((st: any) => {
+                                const i = st.originalIndex;
+                                return (
+                                    <div key={i} className="flex items-center justify-between bg-[#121215] border border-white/5 rounded-2xl p-3 px-4 group transition-all hover:border-white/10">
+                                        <div className="flex items-center gap-3 flex-1 min-w-0">
+                                            <div
+                                                onClick={() => toggleSubtask(i)}
+                                                className={cn(
+                                                    "w-5 h-5 rounded-md border-2 flex items-center justify-center cursor-pointer transition-colors shrink-0",
+                                                    st.done ? "bg-emerald-500 border-emerald-500 text-black" : "border-white/20 hover:border-white/50 bg-transparent text-transparent"
+                                                )}
+                                            >
+                                                <Check className="w-3.5 h-3.5" strokeWidth={4} />
+                                            </div>
+                                            <span className={cn(
+                                                "font-medium text-sm truncate transition-colors",
+                                                st.done ? "text-white/40 line-through" : "text-white/90"
+                                            )}>
+                                                {st.title} <span className="text-zinc-500 ml-1">({st.duration} min)</span>
+                                            </span>
+                                        </div>
+
+                                        {/* Actions: EyeOff + Arrows */}
+                                        <div className="flex items-center gap-1 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity ml-2 shrink-0">
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                onClick={() => toggleSubtaskHidden(i)}
+                                                className="h-7 w-7 rounded-full bg-white/5 hover:bg-amber-500/10 text-zinc-500 hover:text-amber-400 border border-white/5"
+                                                title="Ocultar esta subtarefa"
+                                            >
+                                                <EyeOff className="w-3 h-3" />
+                                            </Button>
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                onClick={() => handleMoveSubtask(i, 'down')}
+                                                disabled={i === subTasks.length - 1}
+                                                className="h-7 w-7 rounded-full bg-white/5 hover:bg-white/10 text-zinc-400 hover:text-white border border-white/5 disabled:opacity-30 disabled:hover:bg-transparent"
+                                            >
+                                                <ArrowDown className="w-3 h-3" />
+                                            </Button>
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                onClick={() => handleMoveSubtask(i, 'up')}
+                                                disabled={i === 0}
+                                                className="h-7 w-7 rounded-full bg-white/5 hover:bg-white/10 text-zinc-400 hover:text-white border border-white/5 disabled:opacity-30 disabled:hover:bg-transparent"
+                                            >
+                                                <ArrowUp className="w-3 h-3" />
+                                            </Button>
+                                        </div>
                                     </div>
-                                </div>
-                            ))}
-                            {subTasks.length === 0 && (
+                                );
+                            })}
+
+                            {visibleSubTasks.length === 0 && hiddenSubTasks.length === 0 && (
                                 <div className="text-center py-6 text-[10px] text-zinc-600 uppercase font-black tracking-widest bg-white/5 rounded-2xl border border-white/5">
                                     Nenhuma subtarefa
+                                </div>
+                            )}
+                            {visibleSubTasks.length === 0 && hiddenSubTasks.length > 0 && (
+                                <div className="text-center py-4 text-[10px] text-zinc-600 uppercase font-black tracking-widest bg-white/5 rounded-2xl border border-white/5">
+                                    Todas ocultas
+                                </div>
+                            )}
+
+                            {/* Collapsible "Ocultos" section */}
+                            {hiddenSubTasks.length > 0 && (
+                                <div className="mt-2">
+                                    <button
+                                        onClick={() => setHiddenExpanded(e => !e)}
+                                        className="flex items-center gap-2 text-[10px] font-black text-zinc-600 uppercase tracking-widest hover:text-zinc-400 transition-colors w-full py-1"
+                                    >
+                                        {hiddenExpanded ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
+                                        Ocultos ({hiddenSubTasks.length})
+                                    </button>
+                                    {hiddenExpanded && (
+                                        <div className="space-y-1.5 mt-1 pl-2 border-l border-white/10">
+                                            {hiddenSubTasks.map((st: any) => {
+                                                const i = st.originalIndex;
+                                                return (
+                                                    <div key={i} className="flex items-center justify-between bg-white/[0.03] border border-white/5 rounded-xl p-2 px-3 opacity-60 group hover:opacity-100 transition-opacity">
+                                                        <span className={cn("text-xs truncate flex-1 min-w-0", st.done ? "text-white/30 line-through" : "text-white/60")}>
+                                                            {st.title} <span className="text-zinc-600 ml-1">({st.duration} min)</span>
+                                                        </span>
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="icon"
+                                                            onClick={() => toggleSubtaskHidden(i)}
+                                                            className="h-6 w-6 rounded-full bg-white/5 hover:bg-emerald-500/10 text-zinc-500 hover:text-emerald-400 border border-white/5 shrink-0 ml-2"
+                                                            title="Mostrar novamente"
+                                                        >
+                                                            <Eye className="w-3 h-3" />
+                                                        </Button>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    )}
                                 </div>
                             )}
                         </div>
