@@ -510,7 +510,7 @@ export default function DashboardClient({
 
                                         // Global Current Time Indicator for Today
                                         const StandaloneTimeLine = ({ mins }: { mins: number }) => (
-                                            <div className="relative w-full z-40 pointer-events-none flex items-center py-2 h-4 my-2">
+                                            <div className="relative w-full z-40 pointer-events-none flex items-center h-0 my-0 py-0 overflow-visible">
                                                 <div className="flex-1 ml-14 h-[2px] bg-blue-500/50 shadow-[0_0_10px_1px_rgba(59,130,246,0.3)] border-t border-blue-400/20"></div>
                                                 <div className="absolute left-0 flex items-center gap-2">
                                                     <span className="text-[10px] font-black text-blue-400 whitespace-nowrap drop-shadow-[0_0_5px_rgba(96,165,250,0.8)] w-12 text-right">
@@ -547,21 +547,18 @@ export default function DashboardClient({
 
                                         let startBoundaryRendered = false;
                                         let endBoundaryRendered = false;
+                                        let isTimeLineActiveInFlow = false;
 
                                         const mapNodes = blocks.map((block, index) => {
                                             const blockStart = getMinutes(block.startTime);
                                             const prevBlock = index > 0 ? blocks[index - 1] : null;
 
-                                            let gapStart = prevBlock ? getMinutes(prevBlock.startTime) + prevBlock.totalDuration : getMinutes(settings.timelineStart || '08:00');
-                                            let showGap = false;
-                                            let gapDuration = 0;
-
-                                            if (blockStart > gapStart) {
-                                                if (index >= 0) {
-                                                    showGap = true;
-                                                    gapDuration = blockStart - gapStart;
-                                                }
-                                            }
+                                            const originalGapStart = prevBlock ? getMinutes(prevBlock.startTime) + prevBlock.totalDuration : timelineStartMins;
+                                            const clampedGapStart = Math.max(originalGapStart, timelineStartMins);
+                                            const clampedGapEnd = Math.min(blockStart, timelineEndMins);
+                                            const gapDuration = clampedGapEnd - clampedGapStart;
+                                            const showGap = gapDuration > 0;
+                                            const gapStart = clampedGapStart;
 
                                             let effectiveGapStart = gapStart;
                                             let effectiveGapDuration = gapDuration;
@@ -579,6 +576,10 @@ export default function DashboardClient({
                                             const isGapCurrent = isToday && currentMinutes >= gapStart && currentMinutes < (gapStart + gapDuration);
                                             const isBlockCurrent = isToday && currentMinutes >= blockStart && currentMinutes < (blockStart + block.totalDuration);
                                             const blockTimeOffset = isBlockCurrent ? currentMinutes - blockStart : undefined;
+
+                                            if (isGapCurrent || isBlockCurrent) {
+                                                isTimeLineActiveInFlow = true;
+                                            }
 
                                             const nodes: React.ReactNode[] = [];
 
@@ -655,14 +656,18 @@ export default function DashboardClient({
                                         });
 
                                         const lastBlock = blocks[blocks.length - 1];
-                                        const dayEndMins = getMinutes(settings.timelineEnd || '24:00');
-                                        let finalGapStart = getMinutes(settings.timelineStart || '08:00');
+                                        const dayEndMins = timelineEndMins;
+                                        let finalGapStart = timelineStartMins;
 
                                         if (lastBlock) {
                                             finalGapStart = getMinutes(lastBlock.startTime) + lastBlock.totalDuration;
                                         }
 
-                                        const finalGapDuration = dayEndMins - finalGapStart;
+                                        const clampedFinalGapStart = Math.max(finalGapStart, timelineStartMins);
+                                        const clampedFinalGapEnd = dayEndMins;
+                                        const finalGapDuration = clampedFinalGapEnd - clampedFinalGapStart;
+                                        finalGapStart = clampedFinalGapStart;
+                                        
                                         let finalEffectiveGapStart = finalGapStart;
                                         let finalEffectiveGapDuration = finalGapDuration;
 
@@ -677,6 +682,10 @@ export default function DashboardClient({
 
                                         const suggestedFinalGapTask = finalEffectiveGapDuration > 0 ? getBestSuggestion(initialBacklog, finalEffectiveGapDuration, 'gap') : undefined;
                                         const isFinalGapCurrent = isToday && currentMinutes >= finalGapStart && currentMinutes < dayEndMins;
+
+                                        if (isFinalGapCurrent) {
+                                            isTimeLineActiveInFlow = true;
+                                        }
 
                                         const finalNodes: React.ReactNode[] = [];
 
@@ -708,7 +717,7 @@ export default function DashboardClient({
                                             );
                                         }
 
-                                        if (isToday && currentMinutes >= dayEndMins) {
+                                        if (isToday && currentMinutes >= dayEndMins && !isTimeLineActiveInFlow) {
                                             finalNodes.push(<StandaloneTimeLine key="standalone-bottom" mins={currentMinutes} />);
                                         }
 

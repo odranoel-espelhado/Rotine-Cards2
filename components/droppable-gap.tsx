@@ -95,7 +95,7 @@ export function DroppableGap({ id, durationMinutes, startTime, onConvertToBlock,
 
             {/* Line visual */}
             <div className={cn(
-                "absolute left-[34px] w-[2px] h-full transition-colors",
+                "absolute left-[32.5px] w-[5px] h-full transition-colors",
                 isOver ? "bg-white/50" : "bg-zinc-800/50"
             )}></div>
 
