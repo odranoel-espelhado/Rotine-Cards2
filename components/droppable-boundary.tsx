@@ -9,9 +9,10 @@ interface DroppableBoundaryProps {
     label: string;
     isCurrent?: boolean;
     currentMinutes?: number;
+    indicatorPosition?: 'above' | 'below';
 }
 
-export function DroppableBoundary({ id, time, label, isCurrent, currentMinutes }: DroppableBoundaryProps) {
+export function DroppableBoundary({ id, time, label, isCurrent, currentMinutes, indicatorPosition }: DroppableBoundaryProps) {
     const { isOver, setNodeRef } = useDroppable({
         id,
         data: { type: 'gap', startTime: time, duration: 60 } // Default 1h block if dropped on boundary
@@ -30,6 +31,10 @@ export function DroppableBoundary({ id, time, label, isCurrent, currentMinutes }
             {isCurrent && (
                 <div
                     className="absolute left-0 w-full z-10 pointer-events-none flex items-center h-0 my-0 py-0 max-h-0 overflow-visible"
+                    style={{ 
+                        top: '50%', 
+                        transform: `translateY(${indicatorPosition === 'above' ? '-3px' : indicatorPosition === 'below' ? '3px' : '0px'})` 
+                    }}
                     id="current-time-line"
                 >
                     <div className="flex-1 ml-14 h-[2px] bg-blue-500 shadow-[0_0_10px_2px_rgba(59,130,246,0.5)]"></div>

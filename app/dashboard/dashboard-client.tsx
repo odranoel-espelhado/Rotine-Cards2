@@ -530,6 +530,7 @@ export default function DashboardClient({
                                                         label="Início do Dia"
                                                         isCurrent={isToday && currentMinutes <= timelineStartMins}
                                                         currentMinutes={currentMinutes}
+                                                        indicatorPosition="above"
                                                     />
                                                     {isToday && currentMinutes > timelineStartMins && currentMinutes < timelineEndMins && <StandaloneTimeLine mins={currentMinutes} />}
                                                     <div className="flex flex-col items-center justify-center h-48 text-zinc-500 mt-10 relative z-10">
@@ -542,6 +543,7 @@ export default function DashboardClient({
                                                         label="Fim do Dia"
                                                         isCurrent={isToday && currentMinutes >= timelineEndMins}
                                                         currentMinutes={currentMinutes}
+                                                        indicatorPosition="below"
                                                     />
                                                 </>
                                             );
@@ -577,7 +579,7 @@ export default function DashboardClient({
                                             const suggestedGapTask = effectiveGapDuration > 0 ? getBestSuggestion(initialBacklog, effectiveGapDuration, 'gap') : undefined;
                                             const isGapCurrent = isToday && currentMinutes >= gapStart && currentMinutes < (gapStart + gapDuration);
                                             const isBlockCurrent = isToday && currentMinutes >= blockStart && currentMinutes < (blockStart + block.totalDuration);
-                                            const isStartBoundaryCurrent = isToday && currentMinutes < timelineStartMins;
+                                            const isStartBoundaryCurrent = isToday && currentMinutes <= timelineStartMins;
                                             const isEndBoundaryCurrent = isToday && currentMinutes >= timelineEndMins;
                                             const blockTimeOffset = isBlockCurrent ? currentMinutes - blockStart : undefined;
 
@@ -594,8 +596,9 @@ export default function DashboardClient({
                                                         id={`boundary-start-${selectedDate}`}
                                                         time={settings.timelineStart || '08:00'}
                                                         label="Início do Dia"
-                                                        isCurrent={isToday && currentMinutes < timelineStartMins}
+                                                        isCurrent={isToday && currentMinutes <= timelineStartMins}
                                                         currentMinutes={currentMinutes}
+                                                        indicatorPosition="above"
                                                     />
                                                 );
                                                 startBoundaryRendered = true;
@@ -610,6 +613,7 @@ export default function DashboardClient({
                                                         label="Fim do Dia"
                                                         isCurrent={isToday && currentMinutes >= timelineEndMins}
                                                         currentMinutes={currentMinutes}
+                                                        indicatorPosition="below"
                                                     />
                                                 );
                                                 endBoundaryRendered = true;
@@ -700,8 +704,9 @@ export default function DashboardClient({
                                                     id={`boundary-start-${selectedDate}`}
                                                     time={settings.timelineStart || '08:00'}
                                                     label="Início do Dia"
-                                                    isCurrent={isToday && currentMinutes < timelineStartMins}
+                                                    isCurrent={isToday && currentMinutes <= timelineStartMins}
                                                     currentMinutes={currentMinutes}
+                                                    indicatorPosition="above"
                                                 />
                                             );
                                         }
@@ -736,6 +741,7 @@ export default function DashboardClient({
                                                     label="Fim do Dia"
                                                     isCurrent={isToday && currentMinutes >= timelineEndMins}
                                                     currentMinutes={currentMinutes}
+                                                    indicatorPosition="below"
                                                 />
                                             );
                                         }
