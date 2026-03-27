@@ -180,13 +180,19 @@ export async function activateRestCard(
             }[] = [];
 
             for (const b of dayBlocks) {
-                allBlocksToProcess.push({
-                    id: b.id,
-                    title: b.title,
-                    startMins: getMinutes(b.startTime),
-                    duration: b.totalDuration,
-                    isVirtual: false
-                });
+                const bStart = getMinutes(b.startTime);
+                const bEnd = bStart + b.totalDuration;
+                
+                // Affected if block starts at or after rest start, OR overlaps
+                if (bStart >= restStartMins || bEnd > restStartMins) {
+                    allBlocksToProcess.push({
+                        id: b.id,
+                        title: b.title,
+                        startMins: bStart,
+                        duration: b.totalDuration,
+                        isVirtual: false
+                    });
+                }
             }
 
             for (const vb of virtualBlocksToFork) {
