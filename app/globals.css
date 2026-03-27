@@ -267,12 +267,19 @@ body {
   width: 100%;
   height: 100%;
   background: linear-gradient(to bottom, rgba(239, 68, 68, 0.3) 0%, transparent 100%);
+  animation: contamination-glow 2s infinite ease-in-out;
 }
 
 @keyframes contamination-pulse {
-  0% { opacity: 0.8; }
-  50% { opacity: 1; border-top-color: #f87171; box-shadow: inset 0 20px 40px -5px rgba(239, 68, 68, 0.8); }
-  100% { opacity: 0.8; }
+  0% { border-top-color: #ef4444; box-shadow: inset 0 20px 30px -10px rgba(239, 68, 68, 0.5); }
+  50% { border-top-color: #f87171; box-shadow: inset 0 20px 45px -5px rgba(239, 68, 68, 1); }
+  100% { border-top-color: #ef4444; box-shadow: inset 0 20px 30px -10px rgba(239, 68, 68, 0.5); }
+}
+
+@keyframes contamination-glow {
+  0% { opacity: 0.5; }
+  50% { opacity: 1; }
+  100% { opacity: 0.5; }
 }
 
 .cyber-conflict-badge-mini {
