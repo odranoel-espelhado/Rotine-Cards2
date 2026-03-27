@@ -814,9 +814,9 @@ export async function unassignTaskFromBlock(blockId: string, taskIndex: number, 
                 .set({ subTasks: newSubtasks })
                 .where(eq(missionBlocks.id, targetBlockId));
 
-            // If task came from a parent task in the backlog, it already exists there — just delete from block
-            // If it was a standalone block subtask, restore it to the backlog
-            if (!taskData.isVirtual && !taskData.isFixed && !taskData.isFromTask) {
+            // If task came from a parent task in the backlog (it is virtual), it already exists there — just delete from block.
+            // If it was a real task (not virtual) and not fixed, restore it to the backlog.
+            if (!taskData.isVirtual && !taskData.isFixed) {
                 await tx.insert(backlogTasks).values({
                     userId,
                     title: taskData.title || "Tarefa Arquivada",
