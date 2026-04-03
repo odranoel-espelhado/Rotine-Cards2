@@ -479,6 +479,13 @@ export function DroppableMissionBlock({ block, onDelete, onEdit, pendingBacklogT
     const subTaskTotalDuration = subTasks.reduce((acc, curr) => acc + (parseInt(curr.duration) || 0), 0);
     const remainder = Math.max(0, totalDuration - subTaskTotalDuration);
 
+    // Set of virtual subtask keys already allocated to this block: "originalTaskId:originalSubTaskIndex"
+    const allocatedSubKeys = new Set(
+        subTasks
+            .filter(s => (s as any).originalTaskId != null && (s as any).originalSubTaskIndex != null)
+            .map(s => `${(s as any).originalTaskId}:${(s as any).originalSubTaskIndex}`)
+    );
+
     // Conflict Check using actual flow time
     const neededTotalDuration = currentFlowMins - blockStartMins;
     const hasConflict = currentFlowMins > blockEndMins;
@@ -1183,7 +1190,12 @@ export function DroppableMissionBlock({ block, onDelete, onEdit, pendingBacklogT
                             }
 
                             const taskSubsArr = task.subTasks as any[] | null;
-                            const hasSubTasks = !!taskSubsArr && taskSubsArr.length > 0 && !(task as any).isVirtual;
+                            const visibleSubs = taskSubsArr
+                                ?.map((sub: any, idx: number) => ({ sub, originalIdx: idx }))
+                                .filter(({ sub, originalIdx }: { sub: any; originalIdx: number }) =>
+                                    !sub.done && !allocatedSubKeys.has(`${task.id}:${originalIdx}`)
+                                ) ?? [];
+                            const hasSubTasks = visibleSubs.length > 0 && !(task as any).isVirtual;
                             const isExpanded = expandedTaskIds.includes(task.id);
 
                             return (
@@ -1235,8 +1247,8 @@ export function DroppableMissionBlock({ block, onDelete, onEdit, pendingBacklogT
                                     {/* Nested Subtasks */}
                                     {hasSubTasks && isExpanded && (
                                         <div className="flex flex-col pl-10 pr-2 pb-2 gap-1 animate-in slide-in-from-top-1 duration-200">
-                                            {(task.subTasks as any[]).map((sub, idx) => {
-                                                const subId = `${task.id}:sub:${idx}`;
+                                            {visibleSubs.map(({ sub, originalIdx }: { sub: any; originalIdx: number }) => {
+                                                const subId = `${task.id}:sub:${originalIdx}`;
                                                 const isSubSelected = selectedTasks.includes(subId);
                                                 return (
                                                     <div 
