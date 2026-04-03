@@ -505,6 +505,20 @@ export function DroppableMissionBlock({ block, onDelete, onEdit, pendingBacklogT
     const [selectedTasks, setSelectedTasks] = useState<string[]>([]);
     const [expandedTaskIds, setExpandedTaskIds] = useState<string[]>([]);
 
+    const selectedDuration = selectedTasks.reduce((acc, selectedId) => {
+        if (selectedId.includes(':sub:')) {
+            const [taskId, subIndexStr] = selectedId.split(':sub:');
+            const subIndex = parseInt(subIndexStr);
+            const parentTask = availableTasksForBlock.find(t => t.id === taskId);
+            if (parentTask?.subTasks?.[subIndex]) {
+                return acc + (parseInt(parentTask.subTasks[subIndex].duration) || 15);
+            }
+            return acc;
+        }
+        const task = availableTasksForBlock.find(t => t.id === selectedId);
+        return acc + (task?.estimatedDuration || 0);
+    }, 0);
+
     const handleAddTasks = async () => {
         if (selectedTasks.length === 0) return;
 
