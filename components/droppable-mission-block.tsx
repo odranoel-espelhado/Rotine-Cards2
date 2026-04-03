@@ -1113,6 +1113,7 @@ export function DroppableMissionBlock({ block, onDelete, onEdit, pendingBacklogT
                         const x = subTaskTotalDuration;
                         const y = selectedDuration;
                         const total = block.totalDuration;
+                        if (total <= 0) return null;
                         const isOverflow = (x + y) > total;
                         const xPct = Math.min((x / total) * 100, 100);
                         const yPct = Math.min((y / total) * 100, 100 - xPct);
