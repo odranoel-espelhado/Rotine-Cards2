@@ -516,7 +516,7 @@ export function DroppableMissionBlock({ block, onDelete, onEdit, pendingBacklogT
             return acc;
         }
         const task = availableTasksForBlock.find(t => t.id === selectedId);
-        return acc + (task?.estimatedDuration || 0);
+        return acc + (task?.estimatedDuration || 30);
     }, 0);
 
     const handleAddTasks = async () => {
