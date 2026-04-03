@@ -499,43 +499,9 @@ export function DroppableMissionBlock({ block, onDelete, onEdit, pendingBacklogT
     // I will make a fixed height line or proportional max height.
     // Let's make it proportional to the list of subtasks.
 
-    const availableTasksForBlock: any[] = [];
-    pendingBacklogTasks.forEach((t) => {
-        if (t.linkedBlockType === block.title && t.status === 'pending') {
-            const tDuration = t.estimatedDuration || 30;
-            if (remainder > 0 && tDuration > remainder) {
-                // Main task exceeds remaining time. Try showing its subtasks instead.
-                let addedSub = false;
-                if (t.subTasks && (t.subTasks as any[]).length > 0) {
-                    (t.subTasks as any[]).forEach((sub, index) => {
-                        if (!sub.done) {
-                            const subDur = parseInt(sub.duration) || 15;
-                            if (subDur <= remainder) {
-                                availableTasksForBlock.push({
-                                    ...t,
-                                    id: `${t.id}-sub-${index}`,
-                                    title: `${sub.title} - ${t.title}`,
-                                    estimatedDuration: subDur,
-                                    isVirtual: true,
-                                    originalTaskId: t.id,
-                                    subTaskIndex: index,
-                                    subTasks: t.subTasks // kept so it can be viewed in execution modal
-                                });
-                                addedSub = true;
-                            }
-                        }
-                    });
-                }
-                if (!addedSub) {
-                    // No subtasks fit, so just show the main task as a fallback
-                    availableTasksForBlock.push(t);
-                }
-            } else {
-                // Main task fits, so show it normally
-                availableTasksForBlock.push(t);
-            }
-        }
-    });
+    const availableTasksForBlock = pendingBacklogTasks.filter(
+        (t) => t.linkedBlockType === block.title && t.status === 'pending'
+    );
     const [selectedTasks, setSelectedTasks] = useState<string[]>([]);
     const [expandedTaskIds, setExpandedTaskIds] = useState<string[]>([]);
 
