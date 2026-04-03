@@ -508,6 +508,15 @@ export default function DashboardClient({
                                         const timelineStartMins = getMinutes(settings.timelineStart || '08:00');
                                         const timelineEndMins = getMinutes(settings.timelineEnd || '24:00');
 
+                                        const earlyBlocks = blocks.filter(b => getMinutes(b.startTime) < timelineStartMins);
+                                        const lastEarlyBlockEnd = earlyBlocks.length > 0 ? getMinutes(earlyBlocks[earlyBlocks.length - 1].startTime) + earlyBlocks[earlyBlocks.length - 1].totalDuration : 0;
+
+                                        const lateBlocks = blocks.filter(b => getMinutes(b.startTime) >= timelineEndMins);
+                                        const firstLateBlockStart = lateBlocks.length > 0 ? getMinutes(lateBlocks[0].startTime) : Infinity;
+
+                                        const isStartBoundaryCurrent = isToday && currentMinutes < timelineStartMins && currentMinutes >= lastEarlyBlockEnd;
+                                        const isEndBoundaryCurrent = isToday && currentMinutes >= timelineEndMins && currentMinutes < firstLateBlockStart;
+
                                         // Global Current Time Indicator for Today
                                         const StandaloneTimeLine = ({ mins }: { mins: number }) => (
                                             <div className="relative w-full z-40 pointer-events-none flex items-center h-0 my-0 py-0 overflow-visible">
@@ -528,11 +537,11 @@ export default function DashboardClient({
                                                         id={`boundary-start-${selectedDate}`}
                                                         time={settings.timelineStart || '08:00'}
                                                         label="Início do Dia"
-                                                        isCurrent={isToday && currentMinutes <= timelineStartMins}
+                                                        isCurrent={isToday && currentMinutes < timelineStartMins}
                                                         currentMinutes={currentMinutes}
                                                         indicatorPosition="above"
                                                     />
-                                                    {isToday && currentMinutes > timelineStartMins && currentMinutes < timelineEndMins && <StandaloneTimeLine mins={currentMinutes} />}
+                                                    {isToday && currentMinutes >= timelineStartMins && currentMinutes < timelineEndMins && <StandaloneTimeLine mins={currentMinutes} />}
                                                     <div className="flex flex-col items-center justify-center h-48 text-zinc-500 mt-10 relative z-10">
                                                         <CalendarIcon className="h-12 w-12 mb-4 opacity-20" />
                                                         <p>Nenhuma missão para este dia.</p>
@@ -579,15 +588,24 @@ export default function DashboardClient({
                                             const suggestedGapTask = effectiveGapDuration > 0 ? getBestSuggestion(initialBacklog, effectiveGapDuration, 'gap') : undefined;
                                             const isGapCurrent = isToday && currentMinutes >= gapStart && currentMinutes < (gapStart + gapDuration);
                                             const isBlockCurrent = isToday && currentMinutes >= blockStart && currentMinutes < (blockStart + block.totalDuration);
-                                            const isStartBoundaryCurrent = isToday && currentMinutes <= timelineStartMins;
-                                            const isEndBoundaryCurrent = isToday && currentMinutes >= timelineEndMins;
                                             const blockTimeOffset = isBlockCurrent ? currentMinutes - blockStart : undefined;
 
-                                            if (isGapCurrent || isBlockCurrent || (index === 0 && isStartBoundaryCurrent) || (index === blocks.length - 1 && isEndBoundaryCurrent)) {
+                                            if (isGapCurrent || isBlockCurrent || (!startBoundaryRendered && isStartBoundaryCurrent) || (!endBoundaryRendered && isEndBoundaryCurrent)) {
                                                 isTimeLineActiveInFlow = true;
                                             }
 
                                             const nodes: React.ReactNode[] = [];
+
+                                            const prevBlockEnd = prevBlock ? getMinutes(prevBlock.startTime) + prevBlock.totalDuration : 0;
+                                            const isHiddenGap = isToday && currentMinutes >= prevBlockEnd && currentMinutes < blockStart && (
+                                                blockStart < timelineStartMins || 
+                                                (blockStart >= timelineEndMins && currentMinutes >= firstLateBlockStart)
+                                            );
+
+                                            if (isHiddenGap) {
+                                                nodes.push(<StandaloneTimeLine key={`hidden-gap-${block.id}`} mins={currentMinutes} />);
+                                                isTimeLineActiveInFlow = true;
+                                            }
 
                                             if (!startBoundaryRendered && blockStart >= timelineStartMins) {
                                                 nodes.push(
@@ -596,7 +614,7 @@ export default function DashboardClient({
                                                         id={`boundary-start-${selectedDate}`}
                                                         time={settings.timelineStart || '08:00'}
                                                         label="Início do Dia"
-                                                        isCurrent={isToday && currentMinutes <= timelineStartMins}
+                                                        isCurrent={isStartBoundaryCurrent}
                                                         currentMinutes={currentMinutes}
                                                         indicatorPosition="above"
                                                     />
@@ -611,7 +629,7 @@ export default function DashboardClient({
                                                         id={`boundary-end-${selectedDate}`}
                                                         time={settings.timelineEnd || '24:00'}
                                                         label="Fim do Dia"
-                                                        isCurrent={isToday && currentMinutes >= timelineEndMins}
+                                                        isCurrent={isEndBoundaryCurrent}
                                                         currentMinutes={currentMinutes}
                                                         indicatorPosition="below"
                                                     />
@@ -704,7 +722,7 @@ export default function DashboardClient({
                                                     id={`boundary-start-${selectedDate}`}
                                                     time={settings.timelineStart || '08:00'}
                                                     label="Início do Dia"
-                                                    isCurrent={isToday && currentMinutes <= timelineStartMins}
+                                                    isCurrent={isStartBoundaryCurrent}
                                                     currentMinutes={currentMinutes}
                                                     indicatorPosition="above"
                                                 />
@@ -739,10 +757,19 @@ export default function DashboardClient({
                                                     id={`boundary-end-${selectedDate}`}
                                                     time={settings.timelineEnd || '24:00'}
                                                     label="Fim do Dia"
-                                                    isCurrent={isToday && currentMinutes >= timelineEndMins}
+                                                    isCurrent={isEndBoundaryCurrent}
                                                     currentMinutes={currentMinutes}
                                                     indicatorPosition="below"
                                                 />
+                                            );
+                                        }
+
+                                        const lastBlockEndMins = lastBlock ? getMinutes(lastBlock.startTime) + lastBlock.totalDuration : 0;
+                                        const isAfterEverything = isToday && blocks.length > 0 && currentMinutes >= lastBlockEndMins && currentMinutes >= timelineEndMins && firstLateBlockStart !== Infinity;
+
+                                        if (isAfterEverything) {
+                                            finalNodes.push(
+                                                <StandaloneTimeLine key={`end-line-after-${selectedDate}`} mins={currentMinutes} />
                                             );
                                         }
 
