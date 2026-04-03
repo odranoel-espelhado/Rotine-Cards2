@@ -510,8 +510,9 @@ export function DroppableMissionBlock({ block, onDelete, onEdit, pendingBacklogT
             const [taskId, subIndexStr] = selectedId.split(':sub:');
             const subIndex = parseInt(subIndexStr);
             const parentTask = availableTasksForBlock.find(t => t.id === taskId);
-            if (parentTask?.subTasks?.[subIndex]) {
-                return acc + (parseInt(parentTask.subTasks[subIndex].duration) || 15);
+            const subs = parentTask?.subTasks as any[] | undefined;
+            if (subs?.[subIndex]) {
+                return acc + (parseInt(subs[subIndex].duration) || 15);
             }
             return acc;
         }
@@ -529,8 +530,9 @@ export function DroppableMissionBlock({ block, onDelete, onEdit, pendingBacklogT
                 const [taskId, subIndexStr] = selectedId.split(':sub:');
                 const subIndex = parseInt(subIndexStr);
                 const parentTask = availableTasksForBlock.find(t => t.id === taskId);
-                if (parentTask && parentTask.subTasks && parentTask.subTasks[subIndex]) {
-                    const sub = parentTask.subTasks[subIndex];
+                const parentSubs = parentTask?.subTasks as any[] | undefined;
+                if (parentTask && parentSubs?.[subIndex]) {
+                    const sub = parentSubs[subIndex];
                     tasksToAssign.push({
                         ...parentTask,
                         id: `${parentTask.id}-sub-${subIndex}`,
@@ -1180,7 +1182,8 @@ export function DroppableMissionBlock({ block, onDelete, onEdit, pendingBacklogT
                                 case 'low': priorityColor = 'bg-emerald-500'; break;
                             }
 
-                            const hasSubTasks = task.subTasks && (task.subTasks as any[]).length > 0 && !task.isVirtual;
+                            const taskSubsArr = task.subTasks as any[] | null;
+                            const hasSubTasks = !!taskSubsArr && taskSubsArr.length > 0 && !(task as any).isVirtual;
                             const isExpanded = expandedTaskIds.includes(task.id);
 
                             return (
