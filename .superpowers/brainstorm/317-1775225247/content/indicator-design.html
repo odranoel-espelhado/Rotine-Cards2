@@ -1,0 +1,117 @@
+<h2>Design do Indicador de Tempo</h2>
+<p class="subtitle">Como exibir a ocupação do bloco + seleção atual na janela Organizar</p>
+
+<div class="section">
+  <p class="label">Contexto: Bloco "Foco" — 90 min total, 45 min já ocupados, 20 min selecionados no momento</p>
+</div>
+
+<div class="cards">
+
+  <!-- Option A: Segmented bar -->
+  <div class="card" data-choice="a" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div style="background:#0a0a0f;border-radius:12px;padding:16px;font-family:monospace;">
+        <!-- Dialog header area -->
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+          <span style="font-size:14px;font-weight:600;color:#fff;">Adicionar Tarefas</span>
+          <span style="font-size:11px;color:#666;">Foco</span>
+        </div>
+
+        <!-- Indicator -->
+        <div style="margin-bottom:12px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px;">
+            <span style="font-size:10px;color:#888;text-transform:uppercase;letter-spacing:.05em;">Tempo do bloco</span>
+            <span style="font-size:11px;font-weight:700;color:#fff;font-family:monospace;">65 / 90 min</span>
+          </div>
+          <div style="height:6px;background:#222;border-radius:4px;overflow:hidden;position:relative;">
+            <!-- Already occupied (x) -->
+            <div style="position:absolute;left:0;top:0;height:100%;width:50%;background:#3b82f6;border-radius:4px 0 0 4px;"></div>
+            <!-- Selected (y) -->
+            <div style="position:absolute;left:50%;top:0;height:100%;width:22%;background:#22c55e;border-radius:0;opacity:.85;"></div>
+          </div>
+          <div style="display:flex;gap:10px;margin-top:4px;">
+            <span style="font-size:9px;color:#3b82f6;">■ 45 min ocupado</span>
+            <span style="font-size:9px;color:#22c55e;">■ 20 min selecionado</span>
+            <span style="font-size:9px;color:#444;">□ 25 min livre</span>
+          </div>
+        </div>
+
+        <!-- Sample task list -->
+        <div style="background:#111;border-radius:8px;padding:8px;display:flex;flex-direction:column;gap:6px;">
+          <div style="display:flex;align-items:center;gap:8px;padding:4px;">
+            <div style="width:12px;height:12px;border-radius:3px;background:#3b82f6;"></div>
+            <span style="font-size:11px;color:#fff;flex:1;">Revisar documentação</span>
+            <span style="font-size:9px;color:#555;font-family:monospace;">20m</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;padding:4px;">
+            <div style="width:12px;height:12px;border-radius:3px;border:1px solid #333;"></div>
+            <span style="font-size:11px;color:#888;flex:1;">Reunião de planning</span>
+            <span style="font-size:9px;color:#555;font-family:monospace;">30m</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>A — Barra segmentada + legenda</h3>
+      <p>Barra dividida em 3 segmentos: azul (ocupado), verde (selecionado), cinza (livre). Legenda embaixo. Texto "65 / 90 min" no canto.</p>
+    </div>
+  </div>
+
+  <!-- Option B: Single bar with overflow indicator -->
+  <div class="card" data-choice="b" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div style="background:#0a0a0f;border-radius:12px;padding:16px;font-family:monospace;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+          <span style="font-size:14px;font-weight:600;color:#fff;">Adicionar Tarefas</span>
+          <span style="font-size:11px;color:#666;">Foco</span>
+        </div>
+
+        <!-- Indicator: compact -->
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;padding:6px 8px;background:#111;border-radius:8px;">
+          <div style="flex:1;position:relative;">
+            <div style="height:5px;background:#222;border-radius:4px;overflow:visible;position:relative;">
+              <!-- Occupied fill -->
+              <div style="position:absolute;left:0;top:0;height:100%;width:50%;background:#444;border-radius:4px;"></div>
+              <!-- Selected fill overlay -->
+              <div style="position:absolute;left:50%;top:0;height:100%;width:22%;background:#3b82f6;border-radius:0;"></div>
+            </div>
+          </div>
+          <span style="font-size:10px;font-weight:700;color:#fff;white-space:nowrap;font-family:monospace;">(45 + 20) / 90</span>
+        </div>
+
+        <!-- Overflow state preview -->
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;padding:6px 8px;background:#111;border-radius:8px;border:1px solid #7f1d1d;">
+          <div style="flex:1;position:relative;">
+            <div style="height:5px;background:#222;border-radius:4px;overflow:visible;position:relative;">
+              <div style="position:absolute;left:0;top:0;height:100%;width:50%;background:#444;border-radius:4px;"></div>
+              <div style="position:absolute;left:50%;top:0;height:100%;width:60%;background:#ef4444;border-radius:0;"></div>
+            </div>
+          </div>
+          <span style="font-size:10px;font-weight:700;color:#ef4444;white-space:nowrap;font-family:monospace;">(45 + 54) / 90 ⚠</span>
+        </div>
+        <div style="font-size:9px;color:#666;margin-top:-8px;margin-bottom:8px;padding:0 4px;">↑ quando seleção excede o total</div>
+
+        <!-- Sample task list -->
+        <div style="background:#111;border-radius:8px;padding:8px;display:flex;flex-direction:column;gap:6px;">
+          <div style="display:flex;align-items:center;gap:8px;padding:4px;">
+            <div style="width:12px;height:12px;border-radius:3px;background:#3b82f6;"></div>
+            <span style="font-size:11px;color:#fff;flex:1;">Revisar documentação</span>
+            <span style="font-size:9px;color:#555;font-family:monospace;">20m</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;padding:4px;">
+            <div style="width:12px;height:12px;border-radius:3px;border:1px solid #333;"></div>
+            <span style="font-size:11px;color:#888;flex:1;">Reunião de planning</span>
+            <span style="font-size:9px;color:#555;font-family:monospace;">30m</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>B — Barra compacta + fórmula</h3>
+      <p>Barra mais fina com dois tons (cinza = já no bloco, azul = selecionado). Fórmula exata "(45 + 20) / 90" ao lado. Fica vermelho + borda ao ultrapassar.</p>
+    </div>
+  </div>
+
+</div>
+
+<p class="subtitle" style="margin-top:16px;">Selecione a opção preferida ou descreva no terminal o que mudaria.</p>

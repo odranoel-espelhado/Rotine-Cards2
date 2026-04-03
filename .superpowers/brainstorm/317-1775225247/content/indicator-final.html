@@ -1,0 +1,71 @@
+<h2>Indicador — estado normal e overflow</h2>
+<p class="subtitle">Confirmação visual antes de implementar</p>
+
+<div class="section">
+
+  <!-- Normal state -->
+  <div style="margin-bottom:24px;">
+    <p class="label" style="margin-bottom:8px;">Estado normal (dentro da capacidade)</p>
+    <div style="background:#0a0a0f;border-radius:12px;padding:16px;font-family:monospace;max-width:400px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+        <span style="font-size:13px;font-weight:600;color:#fff;">Adicionar Tarefas</span>
+      </div>
+      <p style="font-size:11px;color:#555;margin-bottom:10px;">Tarefas do backlog para Foco</p>
+
+      <div style="margin-bottom:12px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px;">
+          <span style="font-size:10px;color:#888;text-transform:uppercase;letter-spacing:.05em;">Tempo do bloco</span>
+          <span style="font-size:11px;font-weight:700;color:#fff;font-family:monospace;">65 / 90 min</span>
+        </div>
+        <div style="height:6px;background:#222;border-radius:4px;overflow:hidden;position:relative;">
+          <div style="position:absolute;left:0;top:0;height:100%;width:50%;background:#3b82f6;border-radius:4px 0 0 4px;"></div>
+          <div style="position:absolute;left:50%;top:0;height:100%;width:22.2%;background:#22c55e;opacity:.85;"></div>
+        </div>
+        <div style="display:flex;gap:10px;margin-top:5px;">
+          <span style="font-size:9px;color:#3b82f6;">■ 45 min ocupado</span>
+          <span style="font-size:9px;color:#22c55e;">■ 20 min selecionado</span>
+          <span style="font-size:9px;color:#444;">□ 25 min livre</span>
+        </div>
+      </div>
+
+      <div style="background:#111;border-radius:8px;padding:8px;font-size:11px;color:#666;">lista de tarefas...</div>
+    </div>
+  </div>
+
+  <!-- Overflow state -->
+  <div>
+    <p class="label" style="margin-bottom:8px;">Estado overflow (seleção excede capacidade)</p>
+    <div style="background:#0a0a0f;border-radius:12px;padding:16px;font-family:monospace;max-width:400px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+        <span style="font-size:13px;font-weight:600;color:#fff;">Adicionar Tarefas</span>
+      </div>
+      <p style="font-size:11px;color:#555;margin-bottom:10px;">Tarefas do backlog para Foco</p>
+
+      <div style="margin-bottom:12px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px;">
+          <span style="font-size:10px;color:#888;text-transform:uppercase;letter-spacing:.05em;">Tempo do bloco</span>
+          <span style="font-size:11px;font-weight:700;color:#ef4444;font-family:monospace;">110 / 90 min ⚠</span>
+        </div>
+        <div style="height:6px;background:#222;border-radius:4px;overflow:hidden;position:relative;">
+          <!-- Occupied fills to end since overflow -->
+          <div style="position:absolute;left:0;top:0;height:100%;width:50%;background:#3b82f6;border-radius:4px 0 0 4px;"></div>
+          <!-- Selected: fills remaining + clips at edge (overflow hidden) -->
+          <div style="position:absolute;left:50%;top:0;height:100%;width:72%;background:#ef4444;opacity:.85;"></div>
+        </div>
+        <div style="display:flex;gap:10px;margin-top:5px;">
+          <span style="font-size:9px;color:#3b82f6;">■ 45 min ocupado</span>
+          <span style="font-size:9px;color:#ef4444;">■ 65 min selecionado</span>
+        </div>
+      </div>
+
+      <div style="background:#111;border-radius:8px;padding:8px;font-size:11px;color:#666;">lista de tarefas...</div>
+
+      <!-- Footer with confirm still enabled -->
+      <div style="margin-top:10px;display:flex;justify-content:flex-end;">
+        <div style="background:#3b82f6;color:#fff;font-size:11px;padding:5px 12px;border-radius:6px;">Confirmar</div>
+      </div>
+    </div>
+    <p style="font-size:11px;color:#666;margin-top:6px;">↑ Botão "Confirmar" continua ativo — overflow não bloqueia o save.</p>
+  </div>
+
+</div>

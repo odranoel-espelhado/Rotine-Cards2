@@ -991,10 +991,15 @@ export async function checkAndArchivePastTasks(clientDate?: string, clientTime?:
             const currentSubtasks = (block.subTasks as SubTask[]) || [];
             if (currentSubtasks.length === 0) continue;
 
-            const isFromTask = currentSubtasks.some(s => s.isFromTask || s.originalTaskId);
+            // Um "bloco tarefa" tem sub-tarefas com isFromTask=true criadas por convertTaskToBlock
+            // (isFixed=true ou undefined). Blocos comuns com tarefas alocadas via assignTasksToBlock
+            // também têm isFromTask=true, mas com isFixed=false explicitamente — não devem ser arquivados inteiros.
+            const isTaskBlock = currentSubtasks.some(s =>
+                (s.isFromTask || s.originalTaskId) && s.isFixed !== false
+            );
 
             // Se o bloco foi gerado por uma tarefa e não foi concluído, arquiva o bloco inteiro
-            if (isFromTask && block.status !== 'completed') {
+            if (isTaskBlock && block.status !== 'completed') {
                 const notificationsToRestore = currentSubtasks.find(s => s.notifications !== undefined)?.notifications;
                 const suggestibleToRestore = currentSubtasks.find(s => s.suggestible !== undefined)?.suggestible ?? true;
 
