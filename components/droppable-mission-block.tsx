@@ -1108,6 +1108,48 @@ export function DroppableMissionBlock({ block, onDelete, onEdit, pendingBacklogT
                         </div>
                         <DialogDescription>Tarefas do backlog para {block.title}</DialogDescription>
                     </DialogHeader>
+                    {/* Time Indicator */}
+                    {(() => {
+                        const x = subTaskTotalDuration;
+                        const y = selectedDuration;
+                        const total = block.totalDuration;
+                        const isOverflow = (x + y) > total;
+                        const xPct = Math.min((x / total) * 100, 100);
+                        const yPct = Math.min((y / total) * 100, 100 - xPct);
+                        const freePct = Math.max(100 - xPct - yPct, 0);
+                        const selColor = isOverflow ? '#ef4444' : '#22c55e';
+                        const textColor = isOverflow ? 'text-red-400' : 'text-white';
+
+                        return (
+                            <div className="px-1 pb-2">
+                                <div className="flex justify-between items-center mb-1.5">
+                                    <span className="text-[10px] text-white/50 uppercase tracking-wider">Tempo do bloco</span>
+                                    <span className={cn("text-[11px] font-bold font-mono", textColor)}>
+                                        {x + y} / {total} min{isOverflow ? ' ⚠' : ''}
+                                    </span>
+                                </div>
+                                <div className="h-1.5 rounded-full overflow-hidden flex bg-white/10">
+                                    {xPct > 0 && (
+                                        <div style={{ width: `${xPct}%`, background: '#3b82f6' }} />
+                                    )}
+                                    {yPct > 0 && (
+                                        <div style={{ width: `${yPct}%`, background: selColor, opacity: 0.85 }} />
+                                    )}
+                                </div>
+                                <div className="flex gap-3 mt-1.5">
+                                    <span className="text-[9px] text-blue-400">■ {x} min ocupado</span>
+                                    {y > 0 && (
+                                        <span className={cn("text-[9px]", isOverflow ? 'text-red-400' : 'text-emerald-400')}>
+                                            ■ {y} min selecionado
+                                        </span>
+                                    )}
+                                    {freePct > 0 && (
+                                        <span className="text-[9px] text-white/30">□ {Math.max(total - x - y, 0)} min livre</span>
+                                    )}
+                                </div>
+                            </div>
+                        );
+                    })()}
                     <ScrollArea className="h-[250px] bg-white/5 rounded-xl p-2">
                         {availableTasksForBlock.map(task => {
                             // Calculation Logic (same as BacklogItemCard)
