@@ -265,7 +265,7 @@ export function CreateBlockDialog({
 
     async function onSubmit(values: z.infer<typeof formSchema>) {
         // If editing a recurring block (virtual or master recurring)
-        if (isEditing && blockToEdit && (blockToEdit.type === 'recurring' || blockToEdit.id.includes('-virtual-'))) {
+        if (isEditing && blockToEdit && (blockToEdit.type === 'recurring' || blockToEdit.id.includes('-virtual-') || !!blockToEdit.masterBlockId)) {
             setPendingValues(values);
             setShowRecurringConfirmation(true);
             return;
@@ -358,7 +358,8 @@ export function CreateBlockDialog({
         { hex: '#6366f1', class: 'bg-indigo-500' }, // New
     ];    // If confirmation is needed, we switch the content
     if (showRecurringConfirmation) {
-        const isComplexRecurrence = blockToEdit?.recurrencePattern === 'custom' || blockToEdit?.recurrencePattern === 'monthly_on';
+        const masterPattern = (blockToEdit as any)?.masterRecurrencePattern || blockToEdit?.recurrencePattern;
+        const isComplexRecurrence = masterPattern === 'custom' || masterPattern === 'monthly_on';
 
         return (
             <Dialog open={open} onOpenChange={(val) => {

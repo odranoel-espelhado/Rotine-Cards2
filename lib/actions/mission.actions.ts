@@ -85,6 +85,7 @@ async function forkVirtualBlock(tx: any, virtualId: string, userId: string): Pro
         deadline: masterBlock.deadline,
         notifications: masterBlock.notifications,
         linkedBlockType: masterBlock.linkedBlockType,
+        masterBlockId: realId,
         exceptions: [],
     }).returning();
 
@@ -146,8 +147,19 @@ export async function getMissionBlocks(date: string) {
             }
         }
 
+        // Enrich forked blocks with master's recurrence pattern
+        const enrichedSpecificBlocks = specificBlocks.map(block => {
+            if (block.masterBlockId) {
+                const master = recurringBlocks.find(r => r.id === block.masterBlockId);
+                if (master) {
+                    return { ...block, masterRecurrencePattern: master.recurrencePattern };
+                }
+            }
+            return block;
+        });
+
         // Merge and Sort
-        const allBlocks = [...specificBlocks, ...virtualBlocks].sort((a, b) => {
+        const allBlocks = [...enrichedSpecificBlocks, ...virtualBlocks].sort((a, b) => {
             const getMins = (t: string) => { const [h, m] = t.split(':').map(Number); return h * 60 + m; };
             return getMins(a.startTime) - getMins(b.startTime);
         });
@@ -369,10 +381,82 @@ export async function deleteMissionBlock(id: string, deleteMode: 'single' | 'for
                 }
             }
         } else {
-            // Normal delete (or Master block directly)
-            await db.delete(missionBlocks).where(
-                and(eq(missionBlocks.id, id), eq(missionBlocks.userId, userId))
-            );
+            // Check if this is a forked block with a master link
+            const [block] = await db.select().from(missionBlocks)
+                .where(and(eq(missionBlocks.id, id), eq(missionBlocks.userId, userId)));
+
+            if (!block) return { error: "Block not found" };
+
+            if (block.masterBlockId) {
+                const masterId = block.masterBlockId;
+                const date = block.date;
+
+                if (deleteMode === 'all') {
+                    // Delete the forked block AND the master
+                    await db.transaction(async (tx) => {
+                        await tx.delete(missionBlocks).where(eq(missionBlocks.id, id));
+                        await tx.delete(missionBlocks).where(
+                            and(eq(missionBlocks.id, masterId), eq(missionBlocks.userId, userId))
+                        );
+                    });
+                } else if (deleteMode === 'forward') {
+                    const [masterBlock] = await db.select().from(missionBlocks)
+                        .where(and(eq(missionBlocks.id, masterId), eq(missionBlocks.userId, userId)));
+
+                    if (!masterBlock) return { error: "Master block not found" };
+
+                    const targetDate = parseISO(date);
+                    let extracted = false;
+
+                    if (masterBlock.recurrencePattern === 'custom') {
+                        let newWeekdays = Array.isArray(masterBlock.weekdays) ? [...masterBlock.weekdays] : [];
+                        const dayOfWeek = targetDate.getDay();
+                        if (newWeekdays.includes(dayOfWeek)) {
+                            newWeekdays = newWeekdays.filter(d => d !== dayOfWeek);
+                            extracted = true;
+                            await db.transaction(async (tx) => {
+                                await tx.delete(missionBlocks).where(eq(missionBlocks.id, id));
+                                if (newWeekdays.length === 0) {
+                                    await tx.delete(missionBlocks).where(eq(missionBlocks.id, masterId));
+                                } else {
+                                    await tx.update(missionBlocks).set({ weekdays: newWeekdays }).where(eq(missionBlocks.id, masterId));
+                                }
+                            });
+                        }
+                    } else if (masterBlock.recurrencePattern === 'monthly_on') {
+                        let newMonthlyDays = Array.isArray(masterBlock.monthlyDays) ? [...masterBlock.monthlyDays] : [];
+                        const dayOfMonth = targetDate.getDate();
+                        if (newMonthlyDays.includes(dayOfMonth)) {
+                            newMonthlyDays = newMonthlyDays.filter(d => d !== dayOfMonth);
+                            extracted = true;
+                            await db.transaction(async (tx) => {
+                                await tx.delete(missionBlocks).where(eq(missionBlocks.id, id));
+                                if (newMonthlyDays.length === 0) {
+                                    await tx.delete(missionBlocks).where(eq(missionBlocks.id, masterId));
+                                } else {
+                                    await tx.update(missionBlocks).set({ monthlyDays: newMonthlyDays }).where(eq(missionBlocks.id, masterId));
+                                }
+                            });
+                        }
+                    }
+
+                    if (!extracted) {
+                        // Not complex or day not found — delete forked + master entirely
+                        await db.transaction(async (tx) => {
+                            await tx.delete(missionBlocks).where(eq(missionBlocks.id, id));
+                            await tx.delete(missionBlocks).where(
+                                and(eq(missionBlocks.id, masterId), eq(missionBlocks.userId, userId))
+                            );
+                        });
+                    }
+                } else {
+                    // 'single' — just delete the forked block, exception already exists on master
+                    await db.delete(missionBlocks).where(eq(missionBlocks.id, id));
+                }
+            } else {
+                // Normal delete (simple block or master block directly)
+                await db.delete(missionBlocks).where(eq(missionBlocks.id, id));
+            }
         }
 
         revalidatePath("/dashboard");
@@ -437,14 +521,58 @@ export async function updateMissionBlock(id: string, data: Partial<Omit<NewMissi
     if (!userId) return { error: "Unauthorized" };
 
     try {
-        if (id.includes("-virtual-")) {
-            const [realId, date] = id.split("-virtual-");
+        const isVirtual = id.includes("-virtual-");
+        
+        let currentBlock: typeof missionBlocks.$inferSelect | undefined;
+        if (!isVirtual) {
+            const [b] = await db.select().from(missionBlocks).where(and(eq(missionBlocks.id, id), eq(missionBlocks.userId, userId)));
+            currentBlock = b;
+            
+            if (!currentBlock) return { error: "Block not found" };
+        }
+
+        const masterId = isVirtual ? id.split("-virtual-")[0] : currentBlock?.masterBlockId;
+        const targetDate = isVirtual ? id.split("-virtual-")[1] : currentBlock?.date;
+
+        if (masterId && targetDate) {
+            const realId = masterId;
+            const date = targetDate;
 
             if (updateMode === 'all') {
                 // Update MASTER block (affects all future instances)
-                await db.update(missionBlocks)
-                    .set(data)
-                    .where(and(eq(missionBlocks.id, realId), eq(missionBlocks.userId, userId)));
+                // Strip recurrence fields so we don't overwrite master's recurrence pattern
+                const masterUpdateData = { ...data };
+                delete masterUpdateData.type;
+                delete masterUpdateData.recurrencePattern;
+                delete masterUpdateData.weekdays;
+                delete masterUpdateData.monthlyDays;
+                delete masterUpdateData.monthlyNth;
+                delete masterUpdateData.repeatIntervalValue;
+                delete masterUpdateData.repeatIntervalUnit;
+                delete masterUpdateData.date;
+                delete masterUpdateData.exceptions;
+                delete masterUpdateData.masterBlockId;
+
+                await db.transaction(async (tx) => {
+                    await tx.update(missionBlocks)
+                        .set(masterUpdateData)
+                        .where(and(eq(missionBlocks.id, realId), eq(missionBlocks.userId, userId)));
+
+                    if (!isVirtual && currentBlock) {
+                        // Clean up the local unique block since we are syncing logic back to master
+                        await tx.delete(missionBlocks).where(eq(missionBlocks.id, currentBlock.id));
+                        
+                        const [masterBlock] = await tx.select().from(missionBlocks).where(and(eq(missionBlocks.id, realId), eq(missionBlocks.userId, userId)));
+                        if (masterBlock) {
+                            const exceptions = (masterBlock.exceptions as string[]) || [];
+                            if (exceptions.includes(date)) {
+                                await tx.update(missionBlocks)
+                                    .set({ exceptions: exceptions.filter(d => d !== date) })
+                                    .where(eq(missionBlocks.id, realId));
+                            }
+                        }
+                    }
+                });
             } else if (updateMode === 'forward') {
                 const [masterBlock] = await db.select().from(missionBlocks)
                     .where(and(eq(missionBlocks.id, realId), eq(missionBlocks.userId, userId)));
@@ -511,13 +639,60 @@ export async function updateMissionBlock(id: string, data: Partial<Omit<NewMissi
                 }
 
                 if (!extracted) {
-                    await db.update(missionBlocks)
-                        .set(data)
-                        .where(and(eq(missionBlocks.id, realId), eq(missionBlocks.userId, userId)));
+                    // Strip recurrence fields to preserve master's recurrence
+                    const fwdUpdateData = { ...data };
+                    delete fwdUpdateData.type;
+                    delete fwdUpdateData.recurrencePattern;
+                    delete fwdUpdateData.weekdays;
+                    delete fwdUpdateData.monthlyDays;
+                    delete fwdUpdateData.monthlyNth;
+                    delete fwdUpdateData.repeatIntervalValue;
+                    delete fwdUpdateData.repeatIntervalUnit;
+                    delete fwdUpdateData.date;
+                    delete fwdUpdateData.exceptions;
+                    delete fwdUpdateData.masterBlockId;
+
+                    await db.transaction(async (tx) => {
+                        await tx.update(missionBlocks)
+                            .set(fwdUpdateData)
+                            .where(and(eq(missionBlocks.id, realId), eq(missionBlocks.userId, userId)));
+
+                        if (!isVirtual && currentBlock) {
+                            await tx.delete(missionBlocks).where(eq(missionBlocks.id, currentBlock.id));
+                            const [mb] = await tx.select().from(missionBlocks).where(and(eq(missionBlocks.id, realId), eq(missionBlocks.userId, userId)));
+                            if (mb) {
+                                const exceptions = (mb.exceptions as string[]) || [];
+                                if (exceptions.includes(date)) {
+                                    await tx.update(missionBlocks)
+                                        .set({ exceptions: exceptions.filter(d => d !== date) })
+                                        .where(eq(missionBlocks.id, realId));
+                                }
+                            }
+                        }
+                    });
+                } else if (!isVirtual && currentBlock) {
+                    // It was extracted, meaning the master block no longer fires on this date.
+                    // We can also safely delete the local unique block because we spawned a new recurring pattern starting from this date!
+                    await db.delete(missionBlocks).where(eq(missionBlocks.id, currentBlock.id));
                 }
 
             } else { // 'single'
-                await db.transaction(async (tx) => {
+                if (!isVirtual && currentBlock) {
+                     // We just update currentBlock because it's already a single representation!
+                     const updateData = { ...data };
+                     delete updateData.type;
+                     delete updateData.recurrencePattern;
+                     delete updateData.weekdays;
+                     delete updateData.monthlyDays;
+                     delete updateData.monthlyNth;
+                     delete updateData.repeatIntervalValue;
+                     delete updateData.repeatIntervalUnit;
+                     
+                     await db.update(missionBlocks)
+                         .set(updateData)
+                         .where(eq(missionBlocks.id, currentBlock.id));
+                } else {
+                     await db.transaction(async (tx) => {
                     const newId = await forkVirtualBlock(tx, id, userId);
                     
                     // Do not allow the payload to transform this single occurrence back into a recurring block
@@ -534,10 +709,11 @@ export async function updateMissionBlock(id: string, data: Partial<Omit<NewMissi
                         .set(updateData)
                         .where(eq(missionBlocks.id, newId));
                 });
+                }
             }
 
         } else {
-            // Normal update
+            // Normal update without any master links
             await db.update(missionBlocks)
                 .set(data)
                 .where(and(eq(missionBlocks.id, id), eq(missionBlocks.userId, userId)));

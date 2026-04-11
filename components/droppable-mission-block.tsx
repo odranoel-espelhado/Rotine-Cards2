@@ -1298,14 +1298,19 @@ export function DroppableMissionBlock({ block, onDelete, onEdit, pendingBacklogT
                 <DialogContent className="bg-[#050506] border-white/10 text-white group-data-[state=open]:animate-in group-data-[state=closed]:animate-out fade-in-0 zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=open]:slide-in-from-left-1/2 duration-200">
                     <DialogHeader>
                         <DialogTitle className="text-xl font-black uppercase text-red-500 italic flex items-center gap-2">
-                            <Trash2 className="w-5 h-5" /> {isRecurring || block.id.includes("-virtual-") ? "Excluir Recorrência" : "Deletar esse bloco?"}
+                            <Trash2 className="w-5 h-5" /> {isRecurring || block.id.includes("-virtual-") || block.masterBlockId ? "Excluir Recorrência" : "Deletar esse bloco?"}
                         </DialogTitle>
                         <DialogDescription className="text-zinc-400">
-                            {isRecurring || block.id.includes("-virtual-") ? "Este é um bloco recorrente. Como deseja prosseguir?" : "Esta ação deletará o bloco definitivamente."}
+                            {isRecurring || block.id.includes("-virtual-") || block.masterBlockId
+                                ? "Este é um bloco recorrente. Como deseja prosseguir?"
+                                : "Esta ação deletará o bloco definitivamente."}
                         </DialogDescription>
                     </DialogHeader>
 
-                    {isRecurring || (block.id.includes("-virtual-")) ? (
+                    {isRecurring || block.id.includes("-virtual-") || block.masterBlockId ? (() => {
+                        const deletePattern = (block as any).masterRecurrencePattern || block.recurrencePattern;
+                        const isComplexDelete = deletePattern === 'custom' || deletePattern === 'monthly_on';
+                        return (
                         <div className="flex flex-col gap-3 pt-4">
                             <Button
                                 variant="outline"
@@ -1318,7 +1323,7 @@ export function DroppableMissionBlock({ block, onDelete, onEdit, pendingBacklogT
                                 </span>
                             </Button>
 
-                            {(block.recurrencePattern === 'custom' || block.recurrencePattern === 'monthly_on') && (
+                            {isComplexDelete && (
                                 <Button
                                     variant="outline"
                                     className="border-white/10 hover:bg-white/5 justify-start h-12 text-left font-bold border-blue-500/30 text-blue-400 hover:text-blue-300 hover:bg-blue-500/10"
@@ -1337,7 +1342,7 @@ export function DroppableMissionBlock({ block, onDelete, onEdit, pendingBacklogT
                                 onClick={() => handleDelete('all')}
                             >
                                 <span className="flex flex-col items-start leading-none gap-1">
-                                    <span>Deletar {block.recurrencePattern === 'custom' ? 'dias configurados' : 'toda a lógica'}</span>
+                                    <span>Deletar {deletePattern === 'custom' ? 'dias configurados' : 'toda a lógica'}</span>
                                     <span className="text-[10px] text-red-300/50 font-normal uppercase">Remove da raiz, limpando todas as ocorrências</span>
                                 </span>
                             </Button>
@@ -1346,7 +1351,8 @@ export function DroppableMissionBlock({ block, onDelete, onEdit, pendingBacklogT
                                 Cancelar
                             </Button>
                         </div>
-                    ) : (
+                        );
+                    })() : (
                         <DialogFooter className="gap-2 sm:gap-0 mt-4">
                             <Button variant="ghost" onClick={() => setDeleteDialogOpen(false)}>Cancelar</Button>
                             <Button variant="destructive" onClick={() => handleDelete('single')}>Deseja deletar esse bloco</Button>
