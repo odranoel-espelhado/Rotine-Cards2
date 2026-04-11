@@ -77,7 +77,7 @@ async function forkVirtualBlock(tx: any, virtualId: string, userId: string): Pro
         color: masterBlock.color,
         icon: masterBlock.icon,
         type: 'unique',
-        recurrencePattern: masterBlock.recurrencePattern,
+        recurrencePattern: 'none',
         status: isCompleted ? 'completed' : 'pending',
         subTasks: masterBlock.subTasks,
         description: masterBlock.description,
@@ -518,7 +518,21 @@ export async function updateMissionBlock(id: string, data: Partial<Omit<NewMissi
 
             } else { // 'single'
                 await db.transaction(async (tx) => {
-                    id = await forkVirtualBlock(tx, id, userId);
+                    const newId = await forkVirtualBlock(tx, id, userId);
+                    
+                    // Do not allow the payload to transform this single occurrence back into a recurring block
+                    const updateData = { ...data };
+                    delete updateData.type;
+                    delete updateData.recurrencePattern;
+                    delete updateData.weekdays;
+                    delete updateData.monthlyDays;
+                    delete updateData.monthlyNth;
+                    delete updateData.repeatIntervalValue;
+                    delete updateData.repeatIntervalUnit;
+                    
+                    await tx.update(missionBlocks)
+                        .set(updateData)
+                        .where(eq(missionBlocks.id, newId));
                 });
             }
 

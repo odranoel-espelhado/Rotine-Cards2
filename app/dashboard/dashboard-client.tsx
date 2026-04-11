@@ -4,7 +4,7 @@ import { UserButton } from "@clerk/nextjs";
 import { Zap, Target, Heart, Plus, Trash2, Calendar as CalendarIcon, AlertTriangle } from "lucide-react";
 import React, { useState, useRef, useEffect } from "react";
 import { CartesianGrid, PolarAngleAxis, PolarGrid, Radar, RadarChart, ResponsiveContainer } from "recharts";
-import { MissionBlock, getUniqueBlockTypes, checkAndArchivePastTasks } from "@/lib/actions/mission.actions";
+import { MissionBlock, getUniqueBlockTypes, checkAndArchivePastTasks, assignTasksToBlock } from "@/lib/actions/mission.actions";
 import { Button } from "@/components/ui/button";
 import { deleteMissionBlock, updateMissionBlock } from "@/lib/actions/mission.actions";
 import { useRouter } from "next/navigation";
@@ -13,7 +13,7 @@ import { ptBR } from "date-fns/locale";
 import { CreateBlockDialog } from "@/components/create-block-dialog";
 import { CreateTaskDialog } from "@/components/create-task-dialog";
 import { BacklogComponent } from "@/components/backlog-component";
-import { BacklogTask, moveTaskToBlock } from "@/lib/actions/backlog.actions";
+import { BacklogTask } from "@/lib/actions/backlog.actions";
 import { convertTaskToBlock } from "@/lib/actions/mission.actions";
 import { TacticalDeck } from "@/components/tactical-deck";
 import { TacticalCard } from "@/lib/actions/cards.actions";
@@ -264,10 +264,21 @@ export default function DashboardClient({
         setActiveTask(null);
 
         if (over && active.data.current?.type === 'backlog-task' && over.data.current?.type === 'mission-block') {
-            const taskId = active.id as string;
+            const task = active.data.current.task as BacklogTask;
             const blockId = over.id as string;
 
-            toast.promise(moveTaskToBlock(taskId, blockId), {
+            const payload = {
+                id: task.id,
+                title: task.title,
+                estimatedDuration: task.estimatedDuration || 30,
+                color: task.color,
+                priority: task.priority,
+                linkedBlockType: task.linkedBlockType,
+                originalTaskId: task.id,
+                subTasks: task.subTasks as any[] || []
+            };
+
+            toast.promise(assignTasksToBlock(blockId, [payload]), {
                 loading: 'Movendo tarefa...',
                 success: 'Tarefa movida para o bloco!',
                 error: 'Erro ao mover tarefa'

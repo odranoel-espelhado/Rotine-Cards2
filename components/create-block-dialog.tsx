@@ -164,7 +164,7 @@ export function CreateBlockDialog({
                 done: s.done
             })) || [],
             notifications: Array.isArray(blockToEdit?.notifications) ? blockToEdit.notifications : [],
-            repeatPattern: (blockToEdit?.recurrencePattern as any) || (blockToEdit?.type === 'recurring' ? 'daily' : 'none'),
+            repeatPattern: (blockToEdit?.type === 'recurring' || blockToEdit?.id?.includes('-virtual-')) ? ((blockToEdit?.recurrencePattern as any) || 'daily') : 'none',
             occurrencesLimit: blockToEdit?.occurrencesLimit || undefined,
             weekdays: Array.isArray(blockToEdit?.weekdays) ? blockToEdit.weekdays as number[] : [],
             monthlyDays: Array.isArray(blockToEdit?.monthlyDays) ? blockToEdit.monthlyDays as number[] : [],
@@ -194,7 +194,7 @@ export function CreateBlockDialog({
                     done: s.done
                 })) || [],
                 notifications: Array.isArray(blockToEdit?.notifications) ? blockToEdit.notifications : [],
-                repeatPattern: (blockToEdit?.recurrencePattern as any) || (blockToEdit?.type === 'recurring' ? 'daily' : 'none'),
+                repeatPattern: (blockToEdit?.type === 'recurring' || blockToEdit?.id?.includes('-virtual-')) ? ((blockToEdit?.recurrencePattern as any) || 'daily') : 'none',
                 occurrencesLimit: blockToEdit?.occurrencesLimit || undefined,
                 weekdays: Array.isArray(blockToEdit?.weekdays) ? blockToEdit.weekdays as number[] : [],
                 monthlyDays: Array.isArray(blockToEdit?.monthlyDays) ? blockToEdit.monthlyDays as number[] : [],
