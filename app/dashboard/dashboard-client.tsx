@@ -271,9 +271,9 @@ export default function DashboardClient({
                 id: task.id,
                 title: task.title,
                 estimatedDuration: task.estimatedDuration || 30,
-                color: task.color,
-                priority: task.priority,
-                linkedBlockType: task.linkedBlockType,
+                color: task.color || undefined,
+                priority: task.priority || undefined,
+                linkedBlockType: task.linkedBlockType || undefined,
                 originalTaskId: task.id,
                 subTasks: task.subTasks as any[] || []
             };
