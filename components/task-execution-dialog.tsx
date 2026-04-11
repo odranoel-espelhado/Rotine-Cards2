@@ -205,12 +205,12 @@ export function TaskExecutionDialog({ open, onOpenChange, data }: TaskExecutionD
                                 className="bg-[#121215] border border-white/10 text-sm p-4 rounded-xl custom-scrollbar resize-y min-h-[250px] md:min-h-[350px] focus-visible:ring-emerald-500/30 transition-all hover:border-white/20 text-white placeholder:text-zinc-700"
                                 placeholder="Adicione os detalhes aqui..."
                             />
-                            <div className="absolute top-2 right-2 flex gap-1.5">
+                            <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                                 <Button
                                     variant="ghost"
                                     size="sm"
                                     onClick={handleSaveDescription}
-                                    className="h-7 bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 font-bold text-[9px] uppercase rounded-md px-2.5 gap-1 border border-blue-500/20 transition-all active:scale-95"
+                                    className="h-7 bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 font-bold text-[10px] uppercase rounded-full px-3 gap-1 border border-blue-500/20"
                                 >
                                     <Save className="w-3 h-3" />
                                     Salvar
@@ -219,7 +219,7 @@ export function TaskExecutionDialog({ open, onOpenChange, data }: TaskExecutionD
                                     variant="ghost"
                                     size="sm"
                                     onClick={handleCopy}
-                                    className="h-7 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-500 font-bold text-[9px] uppercase rounded-md px-2.5 gap-1 border border-emerald-500/20 transition-all active:scale-95"
+                                    className="h-7 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-500 font-bold text-[10px] uppercase rounded-full px-3 gap-1 border border-emerald-500/20"
                                 >
                                     <Copy className="w-3 h-3" />
                                     Copiar
