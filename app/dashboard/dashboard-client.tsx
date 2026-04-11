@@ -176,11 +176,18 @@ export default function DashboardClient({
 
     // Check for past tasks to archive on mount
     useEffect(() => {
-        checkAndArchivePastTasks(
-            format(new Date(), 'yyyy-MM-dd'),
-            format(new Date(), 'HH:mm')
-        );
-    }, []);
+        const runArchive = async () => {
+            const res = await checkAndArchivePastTasks(
+                format(new Date(), 'yyyy-MM-dd'),
+                format(new Date(), 'HH:mm')
+            );
+            if (res && res.archivedCount && res.archivedCount > 0) {
+                router.refresh();
+                toast.success(`${res.archivedCount} tarefas retornaram ao backlog`);
+            }
+        };
+        runArchive();
+    }, [router]);
 
     // Auto-scroll logic for current time line
     useEffect(() => {

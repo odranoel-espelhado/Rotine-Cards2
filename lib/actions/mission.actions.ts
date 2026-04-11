@@ -1001,6 +1001,8 @@ export async function checkAndArchivePastTasks(clientDate?: string, clientTime?:
             return false;
         });
 
+        let archivedCount = 0;
+
         for (const block of pastBlocks) {
             const currentSubtasks = (block.subTasks as SubTask[]) || [];
             if (currentSubtasks.length === 0) continue;
@@ -1014,6 +1016,7 @@ export async function checkAndArchivePastTasks(clientDate?: string, clientTime?:
 
             // Se o bloco foi gerado por uma tarefa e não foi concluído, arquiva o bloco inteiro
             if (isTaskBlock && block.status !== 'completed') {
+                archivedCount++;
                 const notificationsToRestore = currentSubtasks.find(s => s.notifications !== undefined)?.notifications;
                 const suggestibleToRestore = currentSubtasks.find(s => s.suggestible !== undefined)?.suggestible ?? true;
 
@@ -1042,6 +1045,7 @@ export async function checkAndArchivePastTasks(clientDate?: string, clientTime?:
             const tasksToArchive = currentSubtasks.filter(t => !t.done && !t.isFixed);
 
             if (tasksToArchive.length > 0) {
+                archivedCount += tasksToArchive.length;
                 await db.transaction(async (tx) => {
                     // Archive tasks
                     for (const task of tasksToArchive) {
@@ -1072,7 +1076,7 @@ export async function checkAndArchivePastTasks(clientDate?: string, clientTime?:
         }
 
         revalidatePath("/dashboard");
-        return { success: true };
+        return { success: true, archivedCount };
 
     } catch (error: any) {
         console.error("Error archiving past tasks:", error);
