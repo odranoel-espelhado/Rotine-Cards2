@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Check, Copy, AlertTriangle, Eye, EyeOff, ChevronDown, ChevronRight, Pencil, Plus, Trash2 } from "lucide-react";
+import { Check, Copy, Save, AlertTriangle, Eye, EyeOff, ChevronDown, ChevronRight, Pencil, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { differenceInCalendarDays, parseISO } from "date-fns";
@@ -92,6 +92,22 @@ export function TaskExecutionDialog({ open, onOpenChange, data }: TaskExecutionD
     const handleCopy = () => {
         navigator.clipboard.writeText(description);
         toast.success("Descrição copiada!");
+    };
+
+    const handleSaveDescription = async () => {
+        try {
+            if (data.type === 'backlog') {
+                const currentTotal = subTasks.reduce((acc, sub) => acc + (Number(sub.duration) || 0), 0);
+                await updateBacklogTask(data.id, { description, subTasks, estimatedDuration: currentTotal > 0 ? currentTotal : 30 });
+            } else if (data.type === 'mission-block') {
+                await updateMissionBlock(data.id, { description, subTasks });
+            } else if (data.type === 'mission-subtask' && data.subTaskIndex !== undefined) {
+                await updateMissionSubTask(data.id, data.subTaskIndex, { description, subTasks });
+            }
+            toast.success("Salvo!");
+        } catch {
+            toast.error("Erro ao salvar.");
+        }
     };
 
     const toggleSubtask = (index: number) => {
@@ -189,15 +205,26 @@ export function TaskExecutionDialog({ open, onOpenChange, data }: TaskExecutionD
                                 className="bg-[#121215] border border-white/10 text-sm p-4 rounded-xl custom-scrollbar resize-y min-h-[250px] md:min-h-[350px] focus-visible:ring-emerald-500/30 transition-all hover:border-white/20 text-white placeholder:text-zinc-700"
                                 placeholder="Adicione os detalhes aqui..."
                             />
-                            <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={handleCopy}
-                                className="absolute top-2 right-2 h-7 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-500 font-bold text-[10px] uppercase rounded-full px-3 gap-1 opacity-0 group-hover:opacity-100 transition-opacity border border-emerald-500/20"
-                            >
-                                <Copy className="w-3 h-3" />
-                                Copiar
-                            </Button>
+                            <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={handleSaveDescription}
+                                    className="h-7 bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 font-bold text-[10px] uppercase rounded-full px-3 gap-1 border border-blue-500/20"
+                                >
+                                    <Save className="w-3 h-3" />
+                                    Salvar
+                                </Button>
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={handleCopy}
+                                    className="h-7 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-500 font-bold text-[10px] uppercase rounded-full px-3 gap-1 border border-emerald-500/20"
+                                >
+                                    <Copy className="w-3 h-3" />
+                                    Copiar
+                                </Button>
+                            </div>
                         </div>
                     </div>
 
