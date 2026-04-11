@@ -1020,22 +1020,26 @@ export async function checkAndArchivePastTasks(clientDate?: string, clientTime?:
                 const notificationsToRestore = currentSubtasks.find(s => s.notifications !== undefined)?.notifications;
                 const suggestibleToRestore = currentSubtasks.find(s => s.suggestible !== undefined)?.suggestible ?? true;
 
+                const isVirtualTaskBlock = currentSubtasks.some(s => s.isVirtual === true);
+
                 await db.transaction(async (tx) => {
-                    await tx.insert(backlogTasks).values({
-                        userId,
-                        title: block.title,
-                        estimatedDuration: block.totalDuration,
-                        status: 'pending',
-                        createdAt: new Date(),
-                        color: block.color,
-                        description: block.description,
-                        priority: block.priority || 'media',
-                        deadline: block.deadline,
-                        notifications: notificationsToRestore,
-                        suggestible: suggestibleToRestore,
-                        subTasks: block.subTasks || [],
-                        linkedBlockType: block.linkedBlockType,
-                    });
+                    if (!isVirtualTaskBlock) {
+                        await tx.insert(backlogTasks).values({
+                            userId,
+                            title: block.title,
+                            estimatedDuration: block.totalDuration,
+                            status: 'pending',
+                            createdAt: new Date(),
+                            color: block.color,
+                            description: block.description,
+                            priority: block.priority || 'media',
+                            deadline: block.deadline,
+                            notifications: notificationsToRestore,
+                            suggestible: suggestibleToRestore,
+                            subTasks: block.subTasks || [],
+                            linkedBlockType: block.linkedBlockType,
+                        });
+                    }
                     await tx.delete(missionBlocks).where(eq(missionBlocks.id, block.id));
                 });
                 continue;
@@ -1049,20 +1053,22 @@ export async function checkAndArchivePastTasks(clientDate?: string, clientTime?:
                 await db.transaction(async (tx) => {
                     // Archive tasks
                     for (const task of tasksToArchive) {
-                        await tx.insert(backlogTasks).values({
-                            userId,
-                            title: task.title,
-                            estimatedDuration: parseInt(task.duration as string) || 15,
-                            status: 'pending',
-                            createdAt: new Date(),
-                            priority: task.originalPriority || 'media',
-                            linkedBlockType: task.originalLinkedBlockType,
-                            color: task.originalColor || '#27272a',
-                            deadline: task.deadline,
-                            notifications: task.notifications,
-                            suggestible: task.suggestible !== undefined ? task.suggestible : true,
-                            subTasks: task.subTasks || []
-                        });
+                        if (!task.isVirtual) {
+                            await tx.insert(backlogTasks).values({
+                                userId,
+                                title: task.title,
+                                estimatedDuration: parseInt(task.duration as string) || 15,
+                                status: 'pending',
+                                createdAt: new Date(),
+                                priority: task.originalPriority || 'media',
+                                linkedBlockType: task.originalLinkedBlockType,
+                                color: task.originalColor || '#27272a',
+                                deadline: task.deadline,
+                                notifications: task.notifications,
+                                suggestible: task.suggestible !== undefined ? task.suggestible : true,
+                                subTasks: task.subTasks || []
+                            });
+                        }
                     }
 
                     // Update block: Keep only Done OR Fixed tasks
